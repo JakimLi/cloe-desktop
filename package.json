@@ -1,0 +1,22 @@
+{
+  "name": "cloe-desktop",
+  "version": "0.1.0",
+  "description": "Cloe desktop widget - VRM character companion",
+  "main": "electron.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build",
+    "start": "vite build && electron .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.164.1",
+    "@pixiv/three-vrm": "^2.1.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "electron": "^28.0.0",
+    "concurrently": "^8.0.0",
+    "wait-on": "^7.0.0"
+  }
+}
