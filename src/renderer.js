@@ -5,15 +5,15 @@ const WS_PORT = 19850;
 
 // Available GIF animations
 const GIF_ANIMATIONS = {
-  blink: '/gifs/blink.gif',
-  smile: '/gifs/smile.gif',
-  kiss: '/gifs/kiss.gif',
-  nod: '/gifs/nod.gif',
-  wave: '/gifs/wave.gif',
-  think: '/gifs/think.gif',
-  tease: '/gifs/tease.gif',
-  speak: '/gifs/speak.gif',
-  shake_head: '/gifs/shake_head.gif',
+  blink: './gifs/blink.gif',
+  smile: './gifs/smile.gif',
+  kiss: './gifs/kiss.gif',
+  nod: './gifs/nod.gif',
+  wave: './gifs/wave.gif',
+  think: './gifs/think.gif',
+  tease: './gifs/tease.gif',
+  speak: './gifs/speak.gif',
+  shake_head: './gifs/shake_head.gif',
 };
 
 // Idle playlist: randomly cycles through these when no reaction is playing
@@ -180,7 +180,7 @@ function playAudio(name) {
     window._currentAudio.pause();
     window._currentAudio = null;
   }
-  const audio = new Audio(`/audio/${name}.mp3`);
+  const audio = new Audio(`./audio/${name}.mp3`);
   audio.volume = 0.9;
   window._currentAudio = audio;
   audio.play().catch(e => console.error('Audio play error:', e));
