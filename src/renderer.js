@@ -3,8 +3,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 // ==================== Config ====================
-// Default VRM model (pixiv sample, will replace with custom Cloe model later)
-const DEFAULT_VRM_URL =
+// Default VRM model (local file, place .vrm in models/ directory)
+// Fallback to pixiv sample if local not found
+const LOCAL_VRM_PATH = '../models/VRM1_Constraint_Twist_Sample.vrm';
+const REMOTE_VRM_URL =
   'https://pixiv.github.io/three-vrm/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm';
 
 // WebSocket port for Hermes integration
@@ -71,8 +73,12 @@ async function loadVRM(url) {
   }
 }
 
-// Load model
-loadVRM(DEFAULT_VRM_URL);
+// Load model - try local first, then remote
+const loaded = await loadVRM(LOCAL_VRM_PATH);
+if (!loaded) {
+  console.log('Local VRM not found, trying remote...');
+  await loadVRM(REMOTE_VRM_URL);
+}
 
 // ==================== Animation State ====================
 let blinkTimer = Math.random() * 3;
