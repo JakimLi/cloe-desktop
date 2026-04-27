@@ -4,3 +4,4 @@ models/*.vrm
 *.log
 .DS_Store
 _work_smile/
+release/
