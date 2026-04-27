@@ -11,30 +11,27 @@ html, body {
   background: transparent;
 }
 
-#canvas {
+#gif-container {
   width: 100%;
   height: 100%;
-  display: block;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   cursor: grab;
+  -webkit-app-region: no-drag;
 }
 
-#canvas:active {
+#gif-container:active {
   cursor: grabbing;
 }
 
-#loading {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #999;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
+#cloe-gif {
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: bottom center;
   pointer-events: none;
-}
-
-#loading.hidden {
-  display: none;
+  image-rendering: auto;
 }
 
 #ws-status {
@@ -46,4 +43,5 @@ html, body {
   opacity: 0.6;
   font-family: monospace;
   pointer-events: none;
+  z-index: 10;
 }
