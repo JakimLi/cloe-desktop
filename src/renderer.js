@@ -15,38 +15,78 @@ const REACTION_DURATION = 3000; // ms
 let currentGif = 'blink';
 let reactionTimer = null;
 
-// ==================== GIF Management ====================
-const gifEl = document.getElementById('cloe-gif');
+// ==================== GIF Management (Double-buffer crossfade) ====================
+const gifLayerA = document.getElementById('cloe-gif-a');
+const gifLayerB = document.getElementById('cloe-gif-b');
+
+let activeLayer = 'a'; // which layer is currently visible
+let isTransitioning = false;
+let pendingGif = null; // if switch requested during transition, queue it
+
+// Preload a GIF and return a promise
+function preloadGif(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
 function switchGif(name, autoReturn = true) {
   const src = GIF_ANIMATIONS[name];
   if (!src) return;
-  if (gifEl.src.endsWith(src.split('/').pop())) return; // already showing
 
-  // Fade out → switch → fade in
-  gifEl.style.transition = 'opacity 0.15s';
-  gifEl.style.opacity = '0';
-  setTimeout(() => {
-    gifEl.src = src;
-    gifEl.onload = () => {
-      gifEl.style.opacity = '1';
-    };
-  }, 150);
+  const active = activeLayer === 'a' ? gifLayerA : gifLayerB;
+  const next = activeLayer === 'a' ? gifLayerB : gifLayerA;
 
-  currentGif = name;
+  // Already showing this GIF on the active layer
+  if (active.src.endsWith(src.split('/').pop())) return;
 
-  // Auto return to blink after reaction duration
-  clearTimeout(reactionTimer);
-  if (autoReturn && name !== 'blink') {
-    reactionTimer = setTimeout(() => switchGif('blink'), REACTION_DURATION);
+  // If already transitioning, queue the new request
+  if (isTransitioning) {
+    pendingGif = { name, autoReturn };
+    return;
   }
+
+  isTransitioning = true;
+
+  // Preload new GIF into the hidden layer
+  preloadGif(src).then(() => {
+    next.src = src;
+    next.style.opacity = '1';
+
+    // Swap roles: next becomes visible, active fades out
+    active.style.opacity = '0';
+    activeLayer = activeLayer === 'a' ? 'b' : 'a';
+
+    setTimeout(() => {
+      isTransitioning = false;
+
+      // Process queued switch if any
+      if (pendingGif) {
+        const queued = pendingGif;
+        pendingGif = null;
+        switchGif(queued.name, queued.autoReturn);
+        return;
+      }
+
+      // Auto return to blink after reaction duration
+      clearTimeout(reactionTimer);
+      if (autoReturn && name !== 'blink') {
+        reactionTimer = setTimeout(() => switchGif('blink'), REACTION_DURATION);
+      }
+    }, 300); // match CSS transition duration
+  }).catch(() => {
+    isTransitioning = false;
+  });
 }
 
 function resetGif() {
-  // Reset current GIF animation by re-setting src
-  const src = gifEl.src;
-  gifEl.src = '';
-  gifEl.src = src;
+  const active = activeLayer === 'a' ? gifLayerA : gifLayerB;
+  const src = active.src;
+  active.src = '';
+  active.src = src;
 }
 
 // ==================== Window Drag ====================

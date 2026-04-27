@@ -25,13 +25,19 @@ html, body {
   cursor: grabbing;
 }
 
-#cloe-gif {
+.cloe-gif-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   height: 100%;
   max-width: 100%;
+  margin: 0 auto;
   object-fit: contain;
   object-position: bottom center;
   pointer-events: none;
   image-rendering: auto;
+  transition: opacity 0.3s ease-in-out;
 }
 
 #ws-status {
