@@ -7,6 +7,7 @@ const WS_PORT = 19850;
 const GIF_ANIMATIONS = {
   blink: '/gifs/blink.gif',
   smile: '/gifs/smile.gif',
+  kiss: '/gifs/kiss.gif',
 };
 
 // How long to show a reaction GIF before returning to idle blink
@@ -136,6 +137,13 @@ function handleAction(data) {
     case 'nod':
     case 'shake_head':
     case 'tease':
+      switchGif('smile');
+      break;
+
+    case 'kiss':
+      switchGif('kiss');
+      break;
+
     case 'speak':
     case 'think':
       // Future: dedicated GIFs for these
