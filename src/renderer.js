@@ -113,7 +113,7 @@ let reconnectTimer = null;
 
 function connectWebSocket() {
   try {
-    ws = new WebSocket(`ws://localhost:${WS_PORT}`);
+    ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
 
     ws.onopen = () => {
       document.getElementById('ws-status').style.color = '#4CAF50';
