@@ -4,9 +4,15 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 // ==================== Config ====================
 // Default VRM model (local file, place .vrm in models/ directory)
-// Fallback to pixiv sample if local not found
-const LOCAL_VRM_PATH = '../models/VRM1_Constraint_Twist_Sample.vrm';
-const REMOTE_VRM_URL =
+// ==================== Config ====================
+// Local VRM models (downloaded) - tried in order
+const LOCAL_VRM_MODELS = [
+  'Rose.vrm',       // 100Avatars CC0 - female
+  'vipe_hero_1.vrm' // VIPE Heroes CC-BY
+];
+
+// Fallback remote model
+const FALLBACK_VRM_URL =
   'https://pixiv.github.io/three-vrm/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm';
 
 // WebSocket port for Hermes integration
@@ -73,12 +79,24 @@ async function loadVRM(url) {
   }
 }
 
-// Load model - try local first, then remote
-const loaded = await loadVRM(LOCAL_VRM_PATH);
-if (!loaded) {
-  console.log('Local VRM not found, trying remote...');
-  await loadVRM(REMOTE_VRM_URL);
+// Load model - try local models first, then fallback
+async function loadModel() {
+  for (const name of LOCAL_VRM_MODELS) {
+    try {
+      const ok = await loadVRM(`/models/${name}`);
+      if (ok) {
+        console.log(`Loaded local VRM: ${name}`);
+        return;
+      }
+    } catch (e) {
+      console.log(`Failed to load ${name}, trying next...`);
+    }
+  }
+  console.log('No local VRM found, trying fallback remote...');
+  await loadVRM(FALLBACK_VRM_URL);
 }
+
+loadModel();
 
 // ==================== Animation State ====================
 let blinkTimer = Math.random() * 3;
