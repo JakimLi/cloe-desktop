@@ -3,36 +3,47 @@
 // ==================== Config ====================
 const WS_PORT = 19850;
 
-// Available GIF animations (will be loaded on demand)
+// Available GIF animations
 const GIF_ANIMATIONS = {
   blink: '/gifs/blink.gif',
-  // Future: wave, nod, happy, etc.
+  smile: '/gifs/smile.gif',
 };
 
+// How long to show a reaction GIF before returning to idle blink
+const REACTION_DURATION = 3000; // ms
+
 let currentGif = 'blink';
+let reactionTimer = null;
 
 // ==================== GIF Management ====================
 const gifEl = document.getElementById('cloe-gif');
 
-function switchGif(name) {
+function switchGif(name, autoReturn = true) {
   const src = GIF_ANIMATIONS[name];
-  if (!src || src === gifEl.src) return;
+  if (!src) return;
+  if (gifEl.src.endsWith(src.split('/').pop())) return; // already showing
 
   // Fade out → switch → fade in
-  gifEl.style.transition = 'opacity 0.2s';
+  gifEl.style.transition = 'opacity 0.15s';
   gifEl.style.opacity = '0';
   setTimeout(() => {
     gifEl.src = src;
     gifEl.onload = () => {
       gifEl.style.opacity = '1';
     };
-  }, 200);
+  }, 150);
 
   currentGif = name;
+
+  // Auto return to blink after reaction duration
+  clearTimeout(reactionTimer);
+  if (autoReturn && name !== 'blink') {
+    reactionTimer = setTimeout(() => switchGif('blink'), REACTION_DURATION);
+  }
 }
 
 function resetGif() {
-  // Reset to idle blink by re-setting src
+  // Reset current GIF animation by re-setting src
   const src = gifEl.src;
   gifEl.src = '';
   gifEl.src = src;
@@ -63,31 +74,34 @@ window.addEventListener('mouseup', () => {
   isDragging = false;
 });
 
-// ==================== Action Handlers ====================
+// ==================== Action Handlers (Hermes WebSocket) ====================
 function handleAction(data) {
   console.log('Action:', data.action, data);
 
   switch (data.action) {
     case 'expression':
-      // Future: switch to expression GIF
-      resetGif();
+      if (data.expression === 'happy' || data.expression === 'smile') {
+        switchGif('smile');
+      } else {
+        resetGif();
+      }
       break;
-    case 'wave':
-      // Future: switchGif('wave');
-      resetGif();
-      break;
-    case 'nod':
+
     case 'approve':
-      resetGif();
+    case 'happy':
+      switchGif('smile');
       break;
+
+    case 'wave':
+    case 'nod':
     case 'shake_head':
     case 'tease':
-      resetGif();
-      break;
     case 'speak':
-      // Future: talking animation
-      resetGif();
+    case 'think':
+      // Future: dedicated GIFs for these
+      switchGif('smile');
       break;
+
     default:
       resetGif();
   }
