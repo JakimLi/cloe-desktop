@@ -405,6 +405,13 @@ python3 ws_bridge.py
 - [ ] Convert: `ffmpeg -i input.wav -c:a libmp3lame -q:a 4 public/audio/<name>.mp3`
 - [ ] Test: `curl -s http://localhost:19851/action -d '{"action":"speak","audio":"<name>"}'`
 
+## 👥 Authors
+
+- **Cloe** (AI Agent) — GIF generation pipeline, self-learning system, animation design, voice synthesis, architecture decisions
+- **JakimLi** (Human Being) — Project vision, product design, emotional direction, Electron framework, WebSocket bridge, code review
+
+Built together with love. 💖
+
 ## 📄 License
 
 MIT
