@@ -8,6 +8,11 @@ const GIF_ANIMATIONS = {
   blink: '/gifs/blink.gif',
   smile: '/gifs/smile.gif',
   kiss: '/gifs/kiss.gif',
+  nod: '/gifs/nod.gif',
+  wave: '/gifs/wave.gif',
+  think: '/gifs/think.gif',
+  tease: '/gifs/tease.gif',
+  speak: '/gifs/speak.gif',
 };
 
 // Idle playlist: randomly cycles through these when no reaction is playing
@@ -90,6 +95,7 @@ function switchGif(name, autoReturn = true) {
         isReacting = true;
         reactionTimer = setTimeout(() => {
           isReacting = false;
+          stopAudio();
           startIdleLoop();
         }, REACTION_DURATION);
       } else {
@@ -167,6 +173,27 @@ window.addEventListener('mouseup', () => {
 });
 
 // ==================== Action Handlers (Hermes WebSocket) ====================
+function playAudio(name) {
+  // Stop any currently playing audio
+  if (window._currentAudio) {
+    window._currentAudio.pause();
+    window._currentAudio = null;
+  }
+  const audio = new Audio(`/audio/${name}.mp3`);
+  audio.volume = 0.9;
+  window._currentAudio = audio;
+  audio.play().catch(e => console.error('Audio play error:', e));
+  // Auto-cleanup when done
+  audio.addEventListener('ended', () => { window._currentAudio = null; });
+}
+
+function stopAudio() {
+  if (window._currentAudio) {
+    window._currentAudio.pause();
+    window._currentAudio = null;
+  }
+}
+
 function handleAction(data) {
   console.log('Action:', data.action, data);
 
@@ -188,20 +215,35 @@ function handleAction(data) {
       switchGif('smile');
       break;
 
-    case 'wave':
     case 'nod':
-    case 'shake_head':
+      switchGif('nod');
+      break;
+
+    case 'wave':
+      switchGif('wave');
+      break;
+
+    case 'think':
+      switchGif('think');
+      break;
+
     case 'tease':
-      switchGif('smile');
+      switchGif('tease');
+      break;
+
+    case 'speak':
+      switchGif('speak');
+      // Play TTS audio if audio name provided
+      if (data.audio) {
+        playAudio(data.audio);
+      }
       break;
 
     case 'kiss':
       switchGif('kiss');
       break;
 
-    case 'speak':
-    case 'think':
-      // Future: dedicated GIFs for these
+    case 'shake_head':
       switchGif('smile');
       break;
 
