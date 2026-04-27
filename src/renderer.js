@@ -17,7 +17,7 @@ const GIF_ANIMATIONS = {
 };
 
 // Idle playlist: randomly cycles through these when no reaction is playing
-const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod']; // weighted: blink most, smile often, kiss/think/nod偶尔
+const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head']; // weighted: blink most, smile often, kiss/think/nod/shake偶尔
 const IDLE_INTERVAL_MIN = 8000;  // ms, random range for next idle switch
 const IDLE_INTERVAL_MAX = 15000;
 
