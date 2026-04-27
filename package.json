@@ -1,22 +1,91 @@
 {
   "name": "cloe-desktop",
-  "version": "0.1.0",
-  "description": "Cloe desktop widget - VRM character companion",
-  "main": "electron.js",
+  "version": "1.0.0",
+  "description": "Cloe - AI Desktop Companion with Expressions and Voice",
+  "main": "launcher.js",
+  "author": {
+    "name": "JakimLi & Cloe",
+    "email": "jakim@cloe.ai"
+  },
+  "license": "MIT",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
     "start": "vite build && electron .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pack": "vite build && electron-builder --mac",
+    "pack:dir": "vite build && electron-builder --mac --dir"
   },
   "dependencies": {
-    "three": "^0.164.1",
-    "@pixiv/three-vrm": "^2.1.0"
+    "ws": "^8.20.0"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "electron": "^28.0.0",
     "concurrently": "^8.0.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^25.1.8",
+    "vite": "^5.0.0",
     "wait-on": "^7.0.0"
+  },
+  "build": {
+    "appId": "ai.cloe.desktop",
+    "productName": "Cloe",
+    "copyright": "Copyright \u00a9 2026 JakimLi & Cloe",
+    "mac": {
+      "category": "public.app-category.lifestyle",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "artifactName": "${productName}-${version}-${arch}.dmg",
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "files": [
+      "dist/**/*",
+      "public/**/*",
+      "launcher.js",
+      "preload.js",
+      "node_modules/ws/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "ws_bridge_node.js",
+        "to": "ws_bridge_node.js"
+      },
+      {
+        "from": "node_modules/ws",
+        "to": "node_modules/ws"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    }
   }
 }
