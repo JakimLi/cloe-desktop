@@ -13,6 +13,7 @@ const GIF_ANIMATIONS = {
   think: '/gifs/think.gif',
   tease: '/gifs/tease.gif',
   speak: '/gifs/speak.gif',
+  shake_head: '/gifs/shake_head.gif',
 };
 
 // Idle playlist: randomly cycles through these when no reaction is playing
@@ -244,7 +245,7 @@ function handleAction(data) {
       break;
 
     case 'shake_head':
-      switchGif('smile');
+      switchGif('shake_head');
       break;
 
     default:
