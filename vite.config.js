@@ -9,4 +9,6 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  // 排除 _work_* 和中间产物，只打包最终 GIF 和 audio
+  publicDir: false,
 });
