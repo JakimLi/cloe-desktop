@@ -12,7 +12,6 @@
     "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
     "start": "vite build && electron .",
-    "preview": "vite preview",
     "pack": "vite build && electron-builder --mac",
     "pack:dir": "vite build && electron-builder --mac --dir"
   },
@@ -29,7 +28,7 @@
   "build": {
     "appId": "ai.cloe.desktop",
     "productName": "Cloe",
-    "copyright": "Copyright \u00a9 2026 JakimLi & Cloe",
+    "copyright": "Copyright © 2026 JakimLi & Cloe",
     "mac": {
       "category": "public.app-category.lifestyle",
       "target": [
@@ -69,20 +68,9 @@
     },
     "files": [
       "dist/**/*",
-      "public/**/*",
       "launcher.js",
       "preload.js",
       "node_modules/ws/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "ws_bridge_node.js",
-        "to": "ws_bridge_node.js"
-      },
-      {
-        "from": "node_modules/ws",
-        "to": "node_modules/ws"
-      }
     ],
     "directories": {
       "output": "release"

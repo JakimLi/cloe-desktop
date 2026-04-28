@@ -1,7 +1,8 @@
 node_modules/
 dist/
-models/*.vrm
+release/
 *.log
 .DS_Store
-_work_smile/
-release/
+models/*.zip
+models/*.vrm
+public/gifs/_work_*/

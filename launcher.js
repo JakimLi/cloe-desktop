@@ -1,82 +1,66 @@
 #!/usr/bin/env node
 /**
- * Cloe Desktop Launcher
- * 
- * 启动顺序：
- * 1. 内嵌启动 WebSocket+HTTP bridge（无需外部 node 进程）
- * 2. 等待 bridge 就绪
- * 3. 启动 Electron 窗口
+ * Cloe Desktop — Electron Main Process
+ *
+ * Responsibilities:
+ * 1. Embed WebSocket+HTTP bridge (no external subprocess needed)
+ * 2. Create transparent always-on-top window
+ * 3. Handle window drag via IPC
  */
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const http = require('http');
+const { WebSocketServer } = require('ws');
 
-let win;
-
+// ==================== Config ====================
 const WS_PORT = 19850;
 const HTTP_PORT = 19851;
 
-// ==================== Embedded WebSocket+HTTP Bridge ====================
-const { WebSocketServer } = require('ws');
+let win;
 const bridgeClients = new Set();
 
-function startEmbeddedBridge() {
+// ==================== Embedded Bridge ====================
+function startBridge() {
   return new Promise((resolve) => {
-    // Check if bridge is already running (e.g. dev mode)
-    const check = http.get(`http://127.0.0.1:${HTTP_PORT}/status`, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        console.log('[Bridge] Already running, skipping');
-        resolve();
-      });
+    // If already running (e.g. dev mode with separate vite), reuse it
+    const probe = http.get(`http://127.0.0.1:${HTTP_PORT}/status`, () => {
+      console.log('[Bridge] Reusing existing instance');
+      resolve();
     });
-    check.on('error', () => {
-      // Not running, start our own
-      startBridgeServers();
+    probe.on('error', () => {
+      // Not running — start our own
+      createBridgeServers();
       resolve();
     });
   });
 }
 
-function startBridgeServers() {
-  // WebSocket server
+function createBridgeServers() {
+  // --- WebSocket ---
   const wss = new WebSocketServer({ port: WS_PORT, host: '127.0.0.1' });
 
   wss.on('connection', (ws) => {
     bridgeClients.add(ws);
-    console.log(`[WS] Client connected (${bridgeClients.size} total)`);
+    console.log(`[WS] Client connected (${bridgeClients.size})`);
 
-    ws.on('message', (data) => {
-      try {
-        const msg = JSON.parse(data.toString());
-        console.log(`[WS] Received: ${JSON.stringify(msg)}`);
-      } catch (e) {
-        console.error(`[WS] Parse error: ${e.message}`);
-      }
+    ws.on('message', (raw) => {
+      try { console.log(`[WS] ${raw.toString()}`); } catch (_) {}
     });
-
-    ws.on('error', (err) => console.error(`[WS] Error: ${err.message}`));
+    ws.on('error', (e) => console.error(`[WS] ${e.message}`));
     ws.on('close', () => {
       bridgeClients.delete(ws);
-      console.log(`[WS] Client disconnected (${bridgeClients.size} total)`);
+      console.log(`[WS] Client disconnected (${bridgeClients.size})`);
     });
   });
 
-  console.log(`WebSocket server: ws://127.0.0.1:${WS_PORT}`);
-
-  // HTTP server
+  // --- HTTP ---
   const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
     if (req.method === 'GET' && req.url === '/status') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -86,7 +70,7 @@ function startBridgeServers() {
 
     if (req.method === 'POST' && req.url === '/action') {
       let body = '';
-      req.on('data', chunk => body += chunk);
+      req.on('data', (chunk) => (body += chunk));
       req.on('end', () => {
         try {
           const data = JSON.parse(body);
@@ -94,11 +78,11 @@ function startBridgeServers() {
           let sent = 0;
           const dead = [];
           for (const ws of bridgeClients) {
-            if (ws.readyState === 1) { sent++; ws.send(msg); }
-            else { dead.push(ws); }
+            if (ws.readyState === 1) { ws.send(msg); sent++; }
+            else dead.push(ws);
           }
-          dead.forEach(ws => bridgeClients.delete(ws));
-          console.log(`[HTTP] action=${data.action} → ${sent} client(s)`);
+          dead.forEach((ws) => bridgeClients.delete(ws));
+          console.log(`[HTTP] ${data.action} → ${sent} client(s)`);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ sent_to: sent, action: data }));
         } catch (e) {
@@ -114,47 +98,37 @@ function startBridgeServers() {
   });
 
   server.listen(HTTP_PORT, '127.0.0.1', () => {
-    console.log(`HTTP API: http://127.0.0.1:${HTTP_PORT}`);
-    console.log(`Trigger: curl -s http://localhost:${HTTP_PORT}/action -d '{"action":"smile"}'`);
+    console.log(`[Bridge] WS: ws://127.0.0.1:${WS_PORT}  HTTP: http://127.0.0.1:${HTTP_PORT}`);
   });
 
   // Graceful shutdown
-  function shutdown() {
-    console.log('[Bridge] Shutting down...');
+  const shutdown = () => {
     for (const ws of bridgeClients) ws.close();
     wss.close(() => server.close(() => process.exit(0)));
     setTimeout(() => process.exit(0), 2000);
-  }
+  };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
 
-function waitForBridge(maxWait = 5000) {
+function waitForBridge(maxWait = 3000) {
   return new Promise((resolve) => {
     const start = Date.now();
     const tryConnect = () => {
-      const req = http.get(`http://127.0.0.1:${HTTP_PORT}/status`, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          console.log('[Launcher] Bridge ready');
-          resolve(true);
-        });
-      });
-      req.on('error', () => {
-        if (Date.now() - start < maxWait) {
-          setTimeout(tryConnect, 500);
-        } else {
-          console.warn('[Launcher] Bridge not responding, continuing anyway...');
-          resolve(false);
-        }
+      http.get(`http://127.0.0.1:${HTTP_PORT}/status`, (res) => {
+        res.resume(); // drain
+        console.log('[Bridge] Ready');
+        resolve(true);
+      }).on('error', () => {
+        if (Date.now() - start < maxWait) setTimeout(tryConnect, 300);
+        else { console.warn('[Bridge] Not responding, continuing...'); resolve(false); }
       });
     };
     tryConnect();
   });
 }
 
-// ==================== Electron Window ====================
+// ==================== Window ====================
 function createWindow() {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
 
@@ -173,12 +147,11 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false, // allow file:// protocol modules
+      webSecurity: false, // required for file:// ES modules
     },
   });
 
-  const isDev = !app.isPackaged;
-  if (isDev) {
+  if (!app.isPackaged) {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
@@ -186,7 +159,6 @@ function createWindow() {
   }
 }
 
-// Window drag via IPC
 ipcMain.on('window-move', (_e, { dx, dy }) => {
   if (win) {
     const [x, y] = win.getPosition();
@@ -194,8 +166,9 @@ ipcMain.on('window-move', (_e, { dx, dy }) => {
   }
 });
 
+// ==================== Bootstrap ====================
 app.whenReady().then(async () => {
-  await startEmbeddedBridge();
+  await startBridge();
   await waitForBridge();
   createWindow();
 });
