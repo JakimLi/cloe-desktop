@@ -3,75 +3,130 @@
  * Cloe Desktop Launcher
  * 
  * 启动顺序：
- * 1. 启动 ws_bridge_node.js (Node.js WebSocket+HTTP bridge)
- * 2. 等待 ws_bridge 就绪
+ * 1. 内嵌启动 WebSocket+HTTP bridge（无需外部 node 进程）
+ * 2. 等待 bridge 就绪
  * 3. 启动 Electron 窗口
  */
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
-const { fork } = require('child_process');
 const http = require('http');
 
 let win;
-let bridgeProcess = null;
 
 const WS_PORT = 19850;
 const HTTP_PORT = 19851;
 
-function startBridge() {
+// ==================== Embedded WebSocket+HTTP Bridge ====================
+const { WebSocketServer } = require('ws');
+const bridgeClients = new Set();
+
+function startEmbeddedBridge() {
   return new Promise((resolve) => {
-    // Check if bridge is already running
-    const check = () => {
-      const req = http.get(`http://127.0.0.1:${HTTP_PORT}/status`, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          console.log('[Launcher] ws_bridge already running');
-          resolve(true);
-        });
+    // Check if bridge is already running (e.g. dev mode)
+    const check = http.get(`http://127.0.0.1:${HTTP_PORT}/status`, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        console.log('[Bridge] Already running, skipping');
+        resolve();
       });
-      req.on('error', () => resolve(false));
-    };
-
-    check();
-  }).then(running => {
-    if (running) return;
-
-    // Start Node.js bridge
-    const isDev = !app.isPackaged;
-    let bridgeScript;
-
-    if (isDev) {
-      bridgeScript = path.join(__dirname, 'ws_bridge_node.js');
-    } else {
-      bridgeScript = path.join(process.resourcesPath, 'ws_bridge_node.js');
-    }
-
-    console.log(`[Launcher] Starting ws_bridge: ${bridgeScript}`);
-
-    bridgeProcess = fork(bridgeScript, [], {
-      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-      env: { ...process.env },
     });
-
-    bridgeProcess.stdout.on('data', (data) => {
-      console.log(`[ws_bridge] ${data.toString().trim()}`);
-    });
-
-    bridgeProcess.stderr.on('data', (data) => {
-      console.error(`[ws_bridge] ${data.toString().trim()}`);
-    });
-
-    bridgeProcess.on('error', (err) => {
-      console.error(`[Launcher] Failed to start ws_bridge: ${err.message}`);
-    });
-
-    bridgeProcess.on('close', (code) => {
-      console.log(`[ws_bridge] exited with code ${code}`);
-      bridgeProcess = null;
+    check.on('error', () => {
+      // Not running, start our own
+      startBridgeServers();
+      resolve();
     });
   });
+}
+
+function startBridgeServers() {
+  // WebSocket server
+  const wss = new WebSocketServer({ port: WS_PORT, host: '127.0.0.1' });
+
+  wss.on('connection', (ws) => {
+    bridgeClients.add(ws);
+    console.log(`[WS] Client connected (${bridgeClients.size} total)`);
+
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        console.log(`[WS] Received: ${JSON.stringify(msg)}`);
+      } catch (e) {
+        console.error(`[WS] Parse error: ${e.message}`);
+      }
+    });
+
+    ws.on('error', (err) => console.error(`[WS] Error: ${err.message}`));
+    ws.on('close', () => {
+      bridgeClients.delete(ws);
+      console.log(`[WS] Client disconnected (${bridgeClients.size} total)`);
+    });
+  });
+
+  console.log(`WebSocket server: ws://127.0.0.1:${WS_PORT}`);
+
+  // HTTP server
+  const server = http.createServer((req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/status') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ws_port: WS_PORT, http_port: HTTP_PORT, clients: bridgeClients.size }));
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/action') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          const msg = JSON.stringify(data);
+          let sent = 0;
+          const dead = [];
+          for (const ws of bridgeClients) {
+            if (ws.readyState === 1) { sent++; ws.send(msg); }
+            else { dead.push(ws); }
+          }
+          dead.forEach(ws => bridgeClients.delete(ws));
+          console.log(`[HTTP] action=${data.action} → ${sent} client(s)`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ sent_to: sent, action: data }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid JSON' }));
+        }
+      });
+      return;
+    }
+
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  server.listen(HTTP_PORT, '127.0.0.1', () => {
+    console.log(`HTTP API: http://127.0.0.1:${HTTP_PORT}`);
+    console.log(`Trigger: curl -s http://localhost:${HTTP_PORT}/action -d '{"action":"smile"}'`);
+  });
+
+  // Graceful shutdown
+  function shutdown() {
+    console.log('[Bridge] Shutting down...');
+    for (const ws of bridgeClients) ws.close();
+    wss.close(() => server.close(() => process.exit(0)));
+    setTimeout(() => process.exit(0), 2000);
+  }
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 function waitForBridge(maxWait = 5000) {
@@ -82,7 +137,7 @@ function waitForBridge(maxWait = 5000) {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
-          console.log('[Launcher] ws_bridge ready');
+          console.log('[Launcher] Bridge ready');
           resolve(true);
         });
       });
@@ -90,7 +145,7 @@ function waitForBridge(maxWait = 5000) {
         if (Date.now() - start < maxWait) {
           setTimeout(tryConnect, 500);
         } else {
-          console.warn('[Launcher] ws_bridge not responding, continuing anyway...');
+          console.warn('[Launcher] Bridge not responding, continuing anyway...');
           resolve(false);
         }
       });
@@ -99,6 +154,7 @@ function waitForBridge(maxWait = 5000) {
   });
 }
 
+// ==================== Electron Window ====================
 function createWindow() {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
 
@@ -117,6 +173,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      webSecurity: false, // allow file:// protocol modules
     },
   });
 
@@ -138,22 +195,9 @@ ipcMain.on('window-move', (_e, { dx, dy }) => {
 });
 
 app.whenReady().then(async () => {
-  await startBridge();
+  await startEmbeddedBridge();
   await waitForBridge();
   createWindow();
 });
 
-app.on('window-all-closed', () => {
-  if (bridgeProcess) {
-    bridgeProcess.kill();
-    bridgeProcess = null;
-  }
-  app.quit();
-});
-
-app.on('before-quit', () => {
-  if (bridgeProcess) {
-    bridgeProcess.kill();
-    bridgeProcess = null;
-  }
-});
+app.on('window-all-closed', () => app.quit());
