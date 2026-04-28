@@ -1,48 +1,57 @@
-// ==================== Cloe Desktop — GIF Mode ====================
+// ==================== Cloe Desktop — Renderer (GIF Mode) ====================
 
 // ==================== Config ====================
 const WS_PORT = 19850;
+const CROSSFADE_MS = 300;
+const IDLE_INTERVAL = { min: 8000, max: 15000 };
+const REACTION_DURATION = 3000;
 
-// Available GIF animations
 const GIF_ANIMATIONS = {
-  blink: './gifs/blink.gif',
-  smile: './gifs/smile.gif',
-  kiss: './gifs/kiss.gif',
-  nod: './gifs/nod.gif',
-  wave: './gifs/wave.gif',
-  think: './gifs/think.gif',
-  tease: './gifs/tease.gif',
-  speak: './gifs/speak.gif',
-  shake_head: './gifs/shake_head.gif',
+  blink:       './gifs/blink.gif',
+  smile:       './gifs/smile.gif',
+  kiss:        './gifs/kiss.gif',
+  nod:         './gifs/nod.gif',
+  wave:        './gifs/wave.gif',
+  think:       './gifs/think.gif',
+  tease:       './gifs/tease.gif',
+  speak:       './gifs/speak.gif',
+  shake_head:  './gifs/shake_head.gif',
 };
 
-// Idle playlist: randomly cycles through these when no reaction is playing
-const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head']; // weighted: blink most, smile often, kiss/think/nod/shake偶尔
-const IDLE_INTERVAL_MIN = 8000;  // ms, random range for next idle switch
-const IDLE_INTERVAL_MAX = 15000;
+// Weighted idle playlist (blink & smile most frequent)
+const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
 
-// How long to show a reaction GIF before returning to idle
-const REACTION_DURATION = 3000; // ms
+// Action name → GIF name mapping (1:1 pass-through)
+const ACTION_MAP = {
+  smile: 'smile', approve: 'smile', happy: 'smile',
+  nod: 'nod', wave: 'wave', think: 'think', tease: 'tease',
+  kiss: 'kiss', shake_head: 'shake_head', speak: 'speak',
+};
 
+// ==================== State ====================
 let currentGif = 'blink';
-let reactionTimer = null;
+let activeLayer = 'a';
+let isTransitioning = false;
+let isReacting = false;
+let pendingGif = null;
 let idleTimer = null;
-let isReacting = false; // true while a reaction GIF is showing
+let reactionTimer = null;
 
-// ==================== GIF Management (Double-buffer crossfade) ====================
+// ==================== DOM ====================
 const gifLayerA = document.getElementById('cloe-gif-a');
 const gifLayerB = document.getElementById('cloe-gif-b');
+const wsStatus = document.getElementById('ws-status');
 
-let activeLayer = 'a'; // which layer is currently visible
-let isTransitioning = false;
-let pendingGif = null; // if switch requested during transition, queue it
+function getActive()  { return activeLayer === 'a' ? gifLayerA : gifLayerB; }
+function getHidden()  { return activeLayer === 'a' ? gifLayerB : gifLayerA; }
+function swapLayers() { activeLayer = activeLayer === 'a' ? 'b' : 'a'; }
 
-// Preload a GIF and return a promise
+// ==================== GIF Switch (double-buffer crossfade) ====================
 function preloadGif(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => reject(new Error(`Failed to load: ${src}`));
     img.src = src;
   });
 }
@@ -51,39 +60,34 @@ function switchGif(name, autoReturn = true) {
   const src = GIF_ANIMATIONS[name];
   if (!src) return;
 
-  const active = activeLayer === 'a' ? gifLayerA : gifLayerB;
-  const next = activeLayer === 'a' ? gifLayerB : gifLayerA;
+  const active = getActive();
 
-  // Already showing this GIF on the active layer
+  // Already showing — skip but keep scheduling
   if (active.src.endsWith(src.split('/').pop())) {
-    // Still schedule next idle even if skipped
     if (!autoReturn) scheduleNextIdle();
     return;
   }
 
-  // If already transitioning, queue the new request
+  // Queue if mid-transition
   if (isTransitioning) {
     pendingGif = { name, autoReturn };
     return;
   }
 
   isTransitioning = true;
+  const next = getHidden();
 
-  // Preload new GIF into the hidden layer
   preloadGif(src).then(() => {
-    console.log(`[switchGif] OK: ${name} → ${src}`);
     next.src = src;
     next.style.opacity = '1';
-
-    // Swap roles: next becomes visible, active fades out
     active.style.opacity = '0';
-    activeLayer = activeLayer === 'a' ? 'b' : 'a';
+    swapLayers();
     currentGif = name;
 
     setTimeout(() => {
       isTransitioning = false;
 
-      // Process queued switch if any
+      // Drain queue first
       if (pendingGif) {
         const queued = pendingGif;
         pendingGif = null;
@@ -91,8 +95,6 @@ function switchGif(name, autoReturn = true) {
         return;
       }
 
-      // Reaction → return to idle after duration
-      clearTimeout(reactionTimer);
       if (autoReturn) {
         isReacting = true;
         reactionTimer = setTimeout(() => {
@@ -101,18 +103,17 @@ function switchGif(name, autoReturn = true) {
           startIdleLoop();
         }, REACTION_DURATION);
       } else {
-        // Idle switch — schedule next idle
         scheduleNextIdle();
       }
-    }, 300); // match CSS transition duration
+    }, CROSSFADE_MS);
   }).catch((err) => {
-    console.error(`[switchGif] FAIL: ${name} → ${src}`, err);
+    console.error(`[switchGif] ${name}: ${err.message}`);
     isTransitioning = false;
   });
 }
 
 function resetGif() {
-  const active = activeLayer === 'a' ? gifLayerA : gifLayerB;
+  const active = getActive();
   const src = active.src;
   active.src = '';
   active.src = src;
@@ -121,34 +122,71 @@ function resetGif() {
 // ==================== Idle Loop ====================
 function scheduleNextIdle() {
   clearTimeout(idleTimer);
-  if (isReacting) return; // don't schedule idle while reacting
-  const delay = IDLE_INTERVAL_MIN + Math.random() * (IDLE_INTERVAL_MAX - IDLE_INTERVAL_MIN);
+  if (isReacting) return;
+  const delay = IDLE_INTERVAL.min + Math.random() * (IDLE_INTERVAL.max - IDLE_INTERVAL.min);
   idleTimer = setTimeout(playRandomIdle, delay);
 }
 
 function playRandomIdle() {
   if (isReacting) return;
-  // Pick a random idle animation, try not to repeat the same one
-  let choices = IDLE_PLAYLIST.filter(n => n !== currentGif);
-  if (choices.length === 0) choices = IDLE_PLAYLIST;
-  const next = choices[Math.floor(Math.random() * choices.length)];
-  switchGif(next, false); // false = idle mode, no reaction auto-return
+  const choices = IDLE_PLAYLIST.filter((n) => n !== currentGif);
+  const pool = choices.length > 0 ? choices : IDLE_PLAYLIST;
+  const next = pool[Math.floor(Math.random() * pool.length)];
+  switchGif(next, false);
 }
 
 function startIdleLoop() {
-  // Pick a random starting idle animation
   const first = IDLE_PLAYLIST[Math.floor(Math.random() * IDLE_PLAYLIST.length)];
   switchGif(first, false);
 }
 
-function stopIdleLoop() {
-  clearTimeout(idleTimer);
-  clearTimeout(reactionTimer);
-  isReacting = false;
+// ==================== Audio ====================
+function playAudio(name) {
+  stopAudio();
+  const audio = new Audio(`./audio/${name}.mp3`);
+  audio.volume = 0.9;
+  window._currentAudio = audio;
+  audio.play().catch((e) => console.error('Audio error:', e));
+  audio.addEventListener('ended', () => { window._currentAudio = null; });
 }
 
-// Start idle on load
-startIdleLoop();
+function stopAudio() {
+  if (window._currentAudio) {
+    window._currentAudio.pause();
+    window._currentAudio = null;
+  }
+}
+
+// ==================== Action Dispatch ====================
+function handleAction(data) {
+  const action = data.action;
+  console.log('[Action]', action, data);
+
+  // Interrupt idle
+  clearTimeout(idleTimer);
+  isReacting = true;
+
+  // Handle compound action (expression with sub-type)
+  if (action === 'expression') {
+    if (data.expression === 'happy' || data.expression === 'smile') {
+      switchGif('smile');
+    } else {
+      resetGif();
+    }
+    return;
+  }
+
+  // Direct mapping or fallback
+  const gifName = ACTION_MAP[action];
+  if (gifName) {
+    switchGif(gifName);
+    if (action === 'speak' && data.audio) {
+      playAudio(data.audio);
+    }
+  } else {
+    resetGif();
+  }
+}
 
 // ==================== Window Drag ====================
 const container = document.getElementById('gif-container');
@@ -164,98 +202,14 @@ container.addEventListener('mousedown', (e) => {
 
 window.addEventListener('mousemove', (e) => {
   if (!isDragging) return;
-  const dx = e.screenX - dragStartX;
-  const dy = e.screenY - dragStartY;
+  window.electronAPI?.moveWindow(e.screenX - dragStartX, e.screenY - dragStartY);
   dragStartX = e.screenX;
   dragStartY = e.screenY;
-  window.electronAPI?.moveWindow(dx, dy);
 });
 
-window.addEventListener('mouseup', () => {
-  isDragging = false;
-});
+window.addEventListener('mouseup', () => { isDragging = false; });
 
-// ==================== Action Handlers (Hermes WebSocket) ====================
-function playAudio(name) {
-  // Stop any currently playing audio
-  if (window._currentAudio) {
-    window._currentAudio.pause();
-    window._currentAudio = null;
-  }
-  const audio = new Audio(`./audio/${name}.mp3`);
-  audio.volume = 0.9;
-  window._currentAudio = audio;
-  audio.play().catch(e => console.error('Audio play error:', e));
-  // Auto-cleanup when done
-  audio.addEventListener('ended', () => { window._currentAudio = null; });
-}
-
-function stopAudio() {
-  if (window._currentAudio) {
-    window._currentAudio.pause();
-    window._currentAudio = null;
-  }
-}
-
-function handleAction(data) {
-  console.log('Action:', data.action, data);
-
-  // Any reaction interrupts idle
-  clearTimeout(idleTimer);
-  isReacting = true;
-
-  switch (data.action) {
-    case 'expression':
-      if (data.expression === 'happy' || data.expression === 'smile') {
-        switchGif('smile');
-      } else {
-        resetGif();
-      }
-      break;
-
-    case 'approve':
-    case 'happy':
-      switchGif('smile');
-      break;
-
-    case 'nod':
-      switchGif('nod');
-      break;
-
-    case 'wave':
-      switchGif('wave');
-      break;
-
-    case 'think':
-      switchGif('think');
-      break;
-
-    case 'tease':
-      switchGif('tease');
-      break;
-
-    case 'speak':
-      switchGif('speak');
-      // Play TTS audio if audio name provided
-      if (data.audio) {
-        playAudio(data.audio);
-      }
-      break;
-
-    case 'kiss':
-      switchGif('kiss');
-      break;
-
-    case 'shake_head':
-      switchGif('shake_head');
-      break;
-
-    default:
-      resetGif();
-  }
-}
-
-// ==================== WebSocket (Hermes Integration) ====================
+// ==================== WebSocket ====================
 let ws = null;
 let reconnectTimer = null;
 
@@ -264,34 +218,27 @@ function connectWebSocket() {
     ws = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
 
     ws.onopen = () => {
-      document.getElementById('ws-status').style.color = '#4CAF50';
-      console.log('WebSocket connected to Hermes');
+      wsStatus.style.color = '#4CAF50';
     };
 
     ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        handleAction(data);
-      } catch (e) {
-        console.error('WS parse error:', e);
-      }
+      try { handleAction(JSON.parse(event.data)); }
+      catch (e) { console.error('WS parse:', e); }
     };
 
     ws.onclose = () => {
-      document.getElementById('ws-status').style.color = '#f44336';
-      clearTimeout(reconnectTimer);
+      wsStatus.style.color = '#f44336';
       reconnectTimer = setTimeout(connectWebSocket, 3000);
     };
 
     ws.onerror = () => ws.close();
   } catch (e) {
-    console.error('WebSocket init error:', e);
-    document.getElementById('ws-status').style.color = '#f44336';
-    clearTimeout(reconnectTimer);
+    console.error('WS init:', e);
+    wsStatus.style.color = '#f44336';
     reconnectTimer = setTimeout(connectWebSocket, 5000);
   }
 }
 
+// ==================== Init ====================
+startIdleLoop();
 connectWebSocket();
-
-console.log('Cloe Desktop — GIF mode loaded');
