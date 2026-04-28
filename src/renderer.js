@@ -98,8 +98,16 @@ function switchGif(name, autoReturn = true) {
       }
 
       if (autoReturn) {
-        // In working mode, stay locked — no timeout back to idle
-        if (isWorking) return;
+        // In working mode, return to working.gif after reaction
+        if (isWorking) {
+          isReacting = true;
+          reactionTimer = setTimeout(() => {
+            isReacting = false;
+            stopAudio();
+            switchGif('working', false);
+          }, REACTION_DURATION);
+          return;
+        }
 
         isReacting = true;
         reactionTimer = setTimeout(() => {
