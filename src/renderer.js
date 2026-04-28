@@ -71,6 +71,7 @@ function switchGif(name, autoReturn = true) {
 
   // Preload new GIF into the hidden layer
   preloadGif(src).then(() => {
+    console.log(`[switchGif] OK: ${name} → ${src}`);
     next.src = src;
     next.style.opacity = '1';
 
@@ -104,7 +105,8 @@ function switchGif(name, autoReturn = true) {
         scheduleNextIdle();
       }
     }, 300); // match CSS transition duration
-  }).catch(() => {
+  }).catch((err) => {
+    console.error(`[switchGif] FAIL: ${name} → ${src}`, err);
     isTransitioning = false;
   });
 }
@@ -259,7 +261,7 @@ let reconnectTimer = null;
 
 function connectWebSocket() {
   try {
-    ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
+    ws = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
 
     ws.onopen = () => {
       document.getElementById('ws-status').style.color = '#4CAF50';
