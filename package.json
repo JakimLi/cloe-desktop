@@ -13,7 +13,10 @@
     "build": "vite build",
     "start": "vite build && electron .",
     "pack": "vite build && electron-builder --mac",
-    "pack:dir": "vite build && electron-builder --mac --dir"
+    "pack:dir": "vite build && electron-builder --mac --dir",
+    "test:bridge": "node test/bridge.test.js",
+    "test:smoke": "node test/smoke-test.js",
+    "test:smoke:dev": "node test/smoke-test.js --dev"
   },
   "dependencies": {
     "ws": "^8.20.0"
