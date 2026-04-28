@@ -16,6 +16,7 @@ const GIF_ANIMATIONS = {
   tease:       './gifs/tease.gif',
   speak:       './gifs/speak.gif',
   shake_head:  './gifs/shake_head.gif',
+  working:     './gifs/working.gif',
 };
 
 // Weighted idle playlist (blink & smile most frequent)
@@ -33,6 +34,7 @@ let currentGif = 'blink';
 let activeLayer = 'a';
 let isTransitioning = false;
 let isReacting = false;
+let isWorking = false;      // True = locked in working mode (no idle)
 let pendingGif = null;
 let idleTimer = null;
 let reactionTimer = null;
@@ -96,6 +98,9 @@ function switchGif(name, autoReturn = true) {
       }
 
       if (autoReturn) {
+        // In working mode, stay locked — no timeout back to idle
+        if (isWorking) return;
+
         isReacting = true;
         reactionTimer = setTimeout(() => {
           isReacting = false;
@@ -122,13 +127,13 @@ function resetGif() {
 // ==================== Idle Loop ====================
 function scheduleNextIdle() {
   clearTimeout(idleTimer);
-  if (isReacting) return;
+  if (isReacting || isWorking) return;
   const delay = IDLE_INTERVAL.min + Math.random() * (IDLE_INTERVAL.max - IDLE_INTERVAL.min);
   idleTimer = setTimeout(playRandomIdle, delay);
 }
 
 function playRandomIdle() {
-  if (isReacting) return;
+  if (isReacting || isWorking) return;
   const choices = IDLE_PLAYLIST.filter((n) => n !== currentGif);
   const pool = choices.length > 0 ? choices : IDLE_PLAYLIST;
   const next = pool[Math.floor(Math.random() * pool.length)];
@@ -161,6 +166,28 @@ function stopAudio() {
 function handleAction(data) {
   const action = data.action;
   console.log('[Action]', action, data);
+
+  // ── Working mode: lock into working GIF until "idle" action ──
+  if (action === 'working') {
+    clearTimeout(idleTimer);
+    clearTimeout(reactionTimer);
+    isWorking = true;
+    isReacting = false;
+    // Use working.gif as default working animation, allow override
+    const gifName = data.gif || 'working';
+    switchGif(gifName);
+    return;
+  }
+
+  // ── Exit working mode, resume idle loop ──
+  if (action === 'idle') {
+    isWorking = false;
+    isReacting = false;
+    clearTimeout(reactionTimer);
+    stopAudio();
+    startIdleLoop();
+    return;
+  }
 
   // Interrupt idle
   clearTimeout(idleTimer);
