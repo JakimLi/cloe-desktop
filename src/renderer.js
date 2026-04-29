@@ -154,9 +154,16 @@ function startIdleLoop() {
 }
 
 // ==================== Audio ====================
-function playAudio(name) {
+function playAudio(source) {
   stopAudio();
-  const audio = new Audio(`./audio/${name}.mp3`);
+  // Support: data URL (data:audio/...;base64,...), full URL, or pre-recorded name
+  let src;
+  if (source.startsWith('data:') || source.startsWith('http://') || source.startsWith('https://')) {
+    src = source;
+  } else {
+    src = `./audio/${source}.mp3`;
+  }
+  const audio = new Audio(src);
   audio.volume = 0.9;
   window._currentAudio = audio;
   audio.play().catch((e) => console.error('Audio error:', e));
@@ -215,8 +222,13 @@ function handleAction(data) {
   const gifName = ACTION_MAP[action];
   if (gifName) {
     switchGif(gifName);
-    if (action === 'speak' && data.audio) {
-      playAudio(data.audio);
+    if (action === 'speak') {
+      // Priority: audio_url (dynamic TTS) > audio (pre-recorded name)
+      if (data.audio_url) {
+        playAudio(data.audio_url);
+      } else if (data.audio) {
+        playAudio(data.audio);
+      }
     }
   } else {
     resetGif();
