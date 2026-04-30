@@ -33,7 +33,45 @@
   },
   "delete": {
     "button": "删除",
-    "title": "删除（M2）"
+    "title": "删除"
+  },
+  "common": {
+    "cancel": "取消",
+    "creating": "创建中",
+    "adding": "添加中"
+  },
+  "createSet": {
+    "title": "新建动作集",
+    "button": "创建",
+    "success": "动作集 \"{{name}}\" 创建成功",
+    "error": "创建失败: {{error}}",
+    "errorNameRequired": "请输入动作集名称"
+  },
+  "addAction": {
+    "title": "添加动作",
+    "button": "添加",
+    "toolbar": "+ 添加动作",
+    "success": "动作 \"{{name}}\" 添加成功",
+    "error": "添加失败: {{error}}",
+    "errorNameRequired": "请输入动作名称",
+    "errorGifRequired": "请选择 GIF 文件"
+  },
+  "set": {
+    "activate": "激活此动作集",
+    "activated": "动作集已激活",
+    "activateError": "激活失败: {{error}}",
+    "delete": "删除动作集",
+    "deleted": "动作集 \"{{name}}\" 已删除",
+    "deleteError": "删除失败: {{error}}",
+    "errorDeleteActive": "不能删除当前激活的动作集",
+    "deleteConfirmTitle": "确认删除",
+    "deleteConfirm": "确定要删除动作集 \"{{name}}\" 吗？此操作不可撤销。"
+  },
+  "action": {
+    "deleteConfirmTitle": "确认删除",
+    "deleteConfirm": "确定要删除动作 \"{{name}}\" 吗？",
+    "deleted": "动作 \"{{name}}\" 已删除",
+    "deleteError": "删除失败: {{error}}"
   },
   "tag": {
     "idle": "待机自动",
