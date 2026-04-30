@@ -1,21 +1,26 @@
-/* ==================== Cloe Action Manager — Dark Theme ==================== */
+/* ==================== Cloe Settings — Dark Theme ==================== */
 
 :root {
   --bg: #1a1b2e;
+  --bg-sidebar: #16172a;
   --bg-card: #242640;
   --bg-card-hover: #2d2f52;
   --bg-modal: #1e2038;
+  --bg-hover: rgba(124, 92, 252, 0.08);
   --text: #e8e8f0;
   --text-dim: #8888aa;
   --text-muted: #5c5c7a;
   --accent: #7c5cfc;
   --accent-hover: #9580ff;
+  --accent-dim: rgba(124, 92, 252, 0.2);
   --danger: #fc5c7c;
   --danger-hover: #ff7090;
   --success: #5cfc9a;
-  --border: #33345a;
+  --border: #2a2b48;
+  --border-light: #33345a;
   --radius: 10px;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --sidebar-width: 200px;
 }
 
 * {
@@ -27,7 +32,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans SC', sans-serif;
@@ -35,44 +40,108 @@ html, body {
   line-height: 1.5;
 }
 
+/* ==================== Layout ==================== */
 .app {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px 24px 48px;
-}
-
-/* Header */
-.header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+  width: 100%;
+  height: 100vh;
 }
 
-.header h1 {
-  font-size: 20px;
+/* ==================== Sidebar ==================== */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100%;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.sidebar-title {
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 8px 20px 16px;
+  -webkit-app-region: drag;
 }
 
-.header-info {
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.badge {
-  background: var(--accent);
-  color: white;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-dim);
+  font-size: 13px;
   font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
 }
 
-/* Buttons */
+.sidebar-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar-item.active {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+.sidebar-item-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.sidebar-item.active .sidebar-item-icon {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* ==================== Content Area ==================== */
+.content {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-app-region: no-drag;
+}
+
+.tab-panel {
+  display: none;
+  height: 100%;
+  padding: 24px 28px 48px;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* ==================== Buttons ==================== */
 .btn {
   padding: 7px 16px;
   border: none;
@@ -100,7 +169,7 @@ html, body {
 .btn-secondary {
   background: transparent;
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
 }
 
 .btn-secondary:hover {
@@ -121,7 +190,7 @@ html, body {
 .btn-icon {
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   background: transparent;
   color: var(--text-dim);
@@ -140,33 +209,17 @@ html, body {
   border-color: var(--accent);
 }
 
-/* Language Switch Button */
-.btn-lang {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
+/* ==================== Badge ==================== */
+.badge {
+  background: var(--accent);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  font-family: inherit;
-  user-select: none;
+  font-weight: 500;
 }
 
-.btn-lang:hover {
-  background: var(--bg-card-hover);
-  color: var(--text);
-  border-color: var(--accent);
-}
-
-/* Status Bar */
+/* ==================== Status Bar ==================== */
 .status-bar {
   padding: 8px 14px;
   border-radius: var(--radius);
@@ -187,142 +240,7 @@ html, body {
   border: 1px solid rgba(252, 92, 124, 0.25);
 }
 
-/* Actions Grid */
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-/* Action Card */
-.action-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  transition: all 0.25s ease;
-}
-
-.action-card:hover {
-  border-color: var(--accent);
-  background: var(--bg-card-hover);
-  box-shadow: var(--shadow);
-  transform: translateY(-2px);
-}
-
-.card-preview {
-  width: 100%;
-  height: 160px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  overflow: hidden;
-  cursor: pointer;
-  position: relative;
-}
-
-.card-preview img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  transition: transform 0.3s ease;
-}
-
-.action-card:hover .card-preview img {
-  transform: scale(1.05);
-}
-
-.card-preview .play-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  transition: opacity 0.25s;
-  pointer-events: none;
-}
-
-.action-card:hover .card-preview .play-overlay {
-  opacity: 1;
-}
-
-.play-overlay span {
-  width: 48px;
-  height: 48px;
-  background: var(--accent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: white;
-}
-
-.card-body {
-  padding: 14px;
-}
-
-.card-name {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-}
-
-.card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.tag {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.tag-idle {
-  background: rgba(92, 252, 154, 0.15);
-  color: var(--success);
-}
-
-.tag-manual {
-  background: rgba(124, 92, 252, 0.15);
-  color: var(--accent);
-}
-
-.tag-hook {
-  background: rgba(255, 180, 60, 0.15);
-  color: #ffb43c;
-}
-
-.tag-weight {
-  background: rgba(136, 136, 170, 0.15);
-  color: var(--text-dim);
-}
-
-.tag-special {
-  background: rgba(252, 92, 124, 0.15);
-  color: var(--danger);
-}
-
-.card-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.card-actions .btn {
-  flex: 1;
-  padding: 6px 0;
-  font-size: 12px;
-}
-
-/* Empty State */
+/* ==================== Empty State ==================== */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -339,7 +257,7 @@ html, body {
   color: var(--text-muted);
 }
 
-/* Loading */
+/* ==================== Loading ==================== */
 .loading {
   display: flex;
   flex-direction: column;
@@ -353,7 +271,7 @@ html, body {
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--border);
+  border: 3px solid var(--border-light);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -363,7 +281,7 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
-/* Modal */
+/* ==================== Modal ==================== */
 .modal {
   position: fixed;
   inset: 0;
@@ -384,7 +302,7 @@ html, body {
 .modal-content {
   position: relative;
   background: var(--bg-modal);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: 14px;
   max-width: 480px;
   width: 90%;
@@ -432,7 +350,145 @@ html, body {
   padding: 8px 20px;
 }
 
-/* Utilities */
+/* ==================== Preferences Styles ==================== */
+.pref-section {
+  margin-bottom: 28px;
+}
+
+.pref-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pref-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pref-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  gap: 16px;
+}
+
+.pref-item + .pref-item {
+  border-top: 1px solid var(--border);
+}
+
+.pref-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pref-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.pref-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.pref-control {
+  flex-shrink: 0;
+}
+
+/* Segmented Control (macOS style) */
+.segmented-control {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.segment {
+  padding: 5px 16px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.segment:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.segment.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 1px 4px rgba(124, 92, 252, 0.3);
+}
+
+/* Toggle Switch (macOS style) */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: all 0.25s ease;
+  border: 1px solid var(--border-light);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.toggle input:checked + .toggle-slider {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+/* ==================== Utilities ==================== */
 .hidden {
   display: none !important;
 }
@@ -442,13 +498,13 @@ html, body {
   to { opacity: 1; }
 }
 
-/* Scrollbar */
+/* ==================== Scrollbar ==================== */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {

@@ -3,36 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cloe — 动作管理</title>
+  <title>Cloe Settings</title>
   <link rel="stylesheet" href="./manager.css">
+  <link rel="stylesheet" href="./actions.css">
 </head>
 <body>
   <div class="app">
-    <header class="header">
-      <h1 id="header-title">动作管理</h1>
-      <div class="header-info">
-        <span id="action-count" class="badge">0 个动作</span>
-        <button id="btn-refresh" class="btn-icon" title="刷新">↻</button>
-        <button id="btn-lang-switch" class="btn-lang" title="Language">EN</button>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-title">Settings</div>
+      <div class="sidebar-nav">
+        <button id="sidebar-actions" class="sidebar-item active" data-tab="actions">
+          <span class="sidebar-item-icon">⚡</span>
+          <span class="sidebar-item-label">Actions</span>
+        </button>
+        <button id="sidebar-preferences" class="sidebar-item" data-tab="preferences">
+          <span class="sidebar-item-icon">⚙</span>
+          <span class="sidebar-item-label">Preferences</span>
+        </button>
       </div>
-    </header>
+    </nav>
 
-    <div id="status-bar" class="status-bar hidden">
-      <span id="status-text"></span>
-    </div>
+    <!-- Content -->
+    <div class="content">
+      <!-- Actions Tab -->
+      <div id="tab-actions" class="tab-panel active">
+        <div class="actions-header">
+          <h2 id="actions-title">Actions</h2>
+          <div class="actions-header-info">
+            <span id="action-count" class="badge">0</span>
+            <button id="btn-refresh" class="btn-icon" title="Refresh">↻</button>
+          </div>
+        </div>
 
-    <div id="actions-grid" class="actions-grid">
-      <!-- Cards injected by JS -->
-    </div>
+        <div id="status-bar" class="status-bar hidden">
+          <span id="status-text"></span>
+        </div>
 
-    <div id="empty-state" class="empty-state hidden">
-      <p>没有找到动作</p>
-      <p class="sub">请确认 Cloe Desktop 正在运行</p>
-    </div>
+        <div id="actions-grid" class="actions-grid"></div>
 
-    <div id="loading" class="loading">
-      <div class="spinner"></div>
-      <p>加载动作列表...</p>
+        <div id="empty-state" class="empty-state hidden">
+          <p>No actions found</p>
+          <p class="sub">Make sure Cloe Desktop is running</p>
+        </div>
+
+        <div id="loading" class="loading">
+          <div class="spinner"></div>
+          <p>Loading actions...</p>
+        </div>
+      </div>
+
+      <!-- Preferences Tab -->
+      <div id="tab-preferences" class="tab-panel">
+        <div id="preferences-content"></div>
+      </div>
     </div>
   </div>
 
@@ -41,19 +65,21 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h2 id="preview-title">预览</h2>
+        <h2 id="preview-title">Preview</h2>
         <button id="btn-close-modal" class="btn-icon">✕</button>
       </div>
       <div class="modal-body">
         <img id="preview-gif" src="" alt="Preview">
       </div>
       <div class="modal-footer">
-        <button id="btn-play-action" class="btn btn-primary">▶ 播放动作</button>
+        <button id="btn-play-action" class="btn btn-primary">▶ Play Action</button>
       </div>
     </div>
   </div>
 
   <script src="./i18n.js"></script>
+  <script src="./actions.js"></script>
+  <script src="./preferences.js"></script>
   <script src="./manager.js"></script>
 </body>
 </html>
