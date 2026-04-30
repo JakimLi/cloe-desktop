@@ -408,6 +408,24 @@ html, body {
   margin-top: 2px;
 }
 
+.pref-api-key-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 340px;
+}
+
+.pref-api-key-wrap .form-input {
+  flex: 1;
+  width: 300px;
+  min-width: 0;
+}
+
+.pref-video-model-select {
+  width: 300px;
+  max-width: 100%;
+}
+
 .pref-control {
   flex-shrink: 0;
 }
@@ -525,7 +543,8 @@ html, body {
 }
 
 .form-input,
-.form-select {
+.form-select,
+.form-textarea {
   padding: 8px 12px;
   border: 1px solid var(--border-light);
   border-radius: 6px;
@@ -537,8 +556,15 @@ html, body {
   outline: none;
 }
 
+.form-textarea {
+  resize: vertical;
+  min-height: 76px;
+  line-height: 1.45;
+}
+
 .form-input:focus,
-.form-select:focus {
+.form-select:focus,
+.form-textarea:focus {
   border-color: var(--accent);
 }
 
@@ -559,6 +585,13 @@ html, body {
 .form-file {
   font-size: 13px;
   color: var(--text-dim);
+}
+
+.form-ref-gen-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .form-file::file-selector-button {

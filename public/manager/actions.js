@@ -1,6 +1,7 @@
 // ==================== Cloe Settings — Actions Tab ====================
 
 const API_BASE = 'http://127.0.0.1:19851';
+const WS_MANAGER_URL = 'ws://127.0.0.1:19850';
 const isDev = location.protocol === 'http:';
 const ASSET_BASE = isDev ? 'http://localhost:5173/' : '../';
 
@@ -12,6 +13,9 @@ let statusBar, statusText;
 let setTabsEl, setInfoEl, referenceThumb, referenceThumbImg;
 let setDescEl, setChromakeyEl;
 let actionsToolbar;
+
+let managerWs = null;
+let pendingReferenceTaskId = null;
 
 // ==================== Init ====================
 function initActionsTab() {
@@ -36,6 +40,7 @@ function initActionsTab() {
   initCreateSetModal();
   initAddActionModal();
   initConfirmModal();
+  connectManagerWs();
   loadSets();
 }
 
@@ -69,7 +74,10 @@ function updateModalsText() {
   const createBtn = document.getElementById('btn-submit-create-set');
   if (createBtn) createBtn.textContent = I18n.t('createSet.button');
   const addBtn = document.getElementById('btn-submit-add-action');
-  if (addBtn) addBtn.textContent = I18n.t('addAction.button');
+  const genModeSelect = document.getElementById('action-gen-mode');
+  if (addBtn && genModeSelect) {
+    addBtn.textContent = genModeSelect.value === 'ai' ? I18n.t('genAction.button') : I18n.t('addAction.button');
+  }
   const cancelCreate = document.getElementById('btn-cancel-create-set');
   if (cancelCreate) cancelCreate.textContent = I18n.t('common.cancel');
   const cancelAdd = document.getElementById('btn-cancel-add-action');
@@ -78,6 +86,142 @@ function updateModalsText() {
   if (addActionBarBtn) addActionBarBtn.textContent = I18n.t('addAction.toolbar');
   const createSetBtn = document.getElementById('btn-create-set');
   if (createSetBtn) createSetBtn.title = I18n.t('createSet.title');
+
+  const genModeLabel = document.querySelector('label[for="action-gen-mode"]');
+  if (genModeLabel) genModeLabel.textContent = I18n.t('genMode.label');
+  const optManual = document.querySelector('#action-gen-mode option[value="manual"]');
+  if (optManual) optManual.textContent = I18n.t('genMode.manual');
+  const optAi = document.querySelector('#action-gen-mode option[value="ai"]');
+  if (optAi) optAi.textContent = I18n.t('genMode.ai');
+  const promptLabel = document.querySelector('label[for="action-prompt"]');
+  if (promptLabel) promptLabel.textContent = I18n.t('genAction.promptLabel');
+  const promptTa = document.getElementById('action-prompt');
+  if (promptTa) promptTa.placeholder = I18n.t('genAction.promptPlaceholder');
+  const durLabel = document.querySelector('label[for="action-duration"]');
+  if (durLabel) durLabel.textContent = I18n.t('genAction.duration');
+  const secl = I18n.t('genAction.seconds');
+  const opt3 = document.querySelector('#action-duration option[value="3"]');
+  const opt5 = document.querySelector('#action-duration option[value="5"]');
+  if (opt3) opt3.textContent = `3 ${secl}`;
+  if (opt5) opt5.textContent = `5 ${secl}`;
+  const rg = document.getElementById('btn-gen-ref-green');
+  const rb = document.getElementById('btn-gen-ref-blue');
+  if (rg && !rg.disabled) rg.textContent = I18n.t('genReference.green');
+  if (rb && !rb.disabled) rb.textContent = I18n.t('genReference.blue');
+  syncAddActionGenUi();
+}
+
+function syncAddActionGenUi() {
+  const modeEl = document.getElementById('action-gen-mode');
+  const aiEl = document.getElementById('add-action-ai-fields');
+  const manualEl = document.getElementById('add-action-manual-fields');
+  const submitBtn = document.getElementById('btn-submit-add-action');
+  if (!modeEl || !aiEl || !manualEl || !submitBtn) return;
+
+  const mode = modeEl.value;
+  const isAi = mode === 'ai';
+  aiEl.classList.toggle('hidden', !isAi);
+  manualEl.classList.toggle('hidden', isAi);
+  submitBtn.textContent = isAi ? I18n.t('genAction.button') : I18n.t('addAction.button');
+}
+
+function connectManagerWs() {
+  try {
+    managerWs = new WebSocket(WS_MANAGER_URL);
+  } catch (e) {
+    setTimeout(connectManagerWs, 3000);
+    return;
+  }
+
+  managerWs.onmessage = (event) => {
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch (_) {
+      return;
+    }
+
+    if (msg.type === 'generation-complete') {
+      showStatus(I18n.t('genAction.complete', { name: msg.actionName || '' }), 'success');
+      if (msg.setId) {
+        loadSetDetail(msg.setId);
+        loadSets();
+      }
+      return;
+    }
+
+    if (msg.type === 'generation-error') {
+      if (pendingReferenceTaskId && msg.taskId === pendingReferenceTaskId) {
+        pendingReferenceTaskId = null;
+        resetReferenceGenButtons();
+        showStatus(`✗ ${msg.error || 'Error'}`, 'error');
+        return;
+      }
+      showStatus(I18n.t('genAction.error', { error: msg.error || '' }), 'error');
+      return;
+    }
+
+    if (msg.type === 'reference-generated') {
+      if (!pendingReferenceTaskId || msg.taskId !== pendingReferenceTaskId) return;
+      pendingReferenceTaskId = null;
+      resetReferenceGenButtons();
+      if (msg.imageBase64) {
+        setReferenceBase64 = msg.imageBase64;
+        const preview = document.getElementById('set-reference-preview');
+        const previewImg = document.getElementById('set-reference-preview-img');
+        if (previewImg) previewImg.src = `data:image/png;base64,${msg.imageBase64}`;
+        if (preview) preview.classList.remove('hidden');
+      }
+      showStatus(`✓ ${I18n.t('genReference.complete')}`, 'success');
+      return;
+    }
+  };
+
+  managerWs.onerror = () => {};
+
+  managerWs.onclose = () => {
+    managerWs = null;
+    setTimeout(connectManagerWs, 3000);
+  };
+}
+
+function resetReferenceGenButtons() {
+  const greenBtn = document.getElementById('btn-gen-ref-green');
+  const blueBtn = document.getElementById('btn-gen-ref-blue');
+  if (greenBtn) {
+    greenBtn.disabled = false;
+    greenBtn.textContent = I18n.t('genReference.green');
+  }
+  if (blueBtn) {
+    blueBtn.disabled = false;
+    blueBtn.textContent = I18n.t('genReference.blue');
+  }
+}
+
+async function postGenerateReference(chromakey) {
+  const res = await fetch(`${API_BASE}/action-sets/generate-reference`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chromakey }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
+async function postGenerateActionAi(setId, payload) {
+  const res = await fetch(`${API_BASE}/action-sets/${encodeURIComponent(setId)}/generate-action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return data;
 }
 
 // ==================== API ====================
@@ -279,6 +423,8 @@ function openCreateSetModal() {
   const modal = document.getElementById('create-set-modal');
   document.getElementById('create-set-form').reset();
   setReferenceBase64 = null;
+  pendingReferenceTaskId = null;
+  resetReferenceGenButtons();
   document.getElementById('set-reference-preview').classList.add('hidden');
   document.getElementById('create-set-modal-title').textContent = I18n.t('createSet.title');
   document.getElementById('btn-submit-create-set').textContent = I18n.t('createSet.button');
@@ -289,6 +435,8 @@ function openCreateSetModal() {
 function closeCreateSetModal() {
   document.getElementById('create-set-modal').classList.add('hidden');
   setReferenceBase64 = null;
+  pendingReferenceTaskId = null;
+  resetReferenceGenButtons();
 }
 
 function initCreateSetModal() {
@@ -311,6 +459,40 @@ function initCreateSetModal() {
     setReferenceBase64 = null;
     document.getElementById('set-reference').value = '';
     document.getElementById('set-reference-preview').classList.add('hidden');
+  });
+
+  document.getElementById('btn-gen-ref-green').addEventListener('click', async () => {
+    const greenBtn = document.getElementById('btn-gen-ref-green');
+    const blueBtn = document.getElementById('btn-gen-ref-blue');
+    greenBtn.disabled = true;
+    blueBtn.disabled = true;
+    greenBtn.textContent = I18n.t('genReference.generating');
+    blueBtn.textContent = I18n.t('genReference.generating');
+    try {
+      const data = await postGenerateReference('green');
+      pendingReferenceTaskId = data.taskId || null;
+    } catch (err) {
+      pendingReferenceTaskId = null;
+      resetReferenceGenButtons();
+      showStatus(`✗ ${I18n.t('createSet.error', { error: err.message })}`, 'error');
+    }
+  });
+
+  document.getElementById('btn-gen-ref-blue').addEventListener('click', async () => {
+    const greenBtn = document.getElementById('btn-gen-ref-green');
+    const blueBtn = document.getElementById('btn-gen-ref-blue');
+    greenBtn.disabled = true;
+    blueBtn.disabled = true;
+    greenBtn.textContent = I18n.t('genReference.generating');
+    blueBtn.textContent = I18n.t('genReference.generating');
+    try {
+      const data = await postGenerateReference('blue');
+      pendingReferenceTaskId = data.taskId || null;
+    } catch (err) {
+      pendingReferenceTaskId = null;
+      resetReferenceGenButtons();
+      showStatus(`✗ ${I18n.t('createSet.error', { error: err.message })}`, 'error');
+    }
   });
 
   // Submit
@@ -354,12 +536,14 @@ function openAddActionModal() {
   if (!currentSetId) return;
   const modal = document.getElementById('add-action-modal');
   document.getElementById('add-action-form').reset();
+  const genMode = document.getElementById('action-gen-mode');
+  if (genMode) genMode.value = 'manual';
   actionGifBase64 = null;
   document.getElementById('action-gif-preview').classList.add('hidden');
   document.getElementById('action-weight-group').style.display = 'none';
   document.getElementById('add-action-modal-title').textContent = I18n.t('addAction.title');
-  document.getElementById('btn-submit-add-action').textContent = I18n.t('addAction.button');
   document.getElementById('btn-cancel-add-action').textContent = I18n.t('common.cancel');
+  syncAddActionGenUi();
   modal.classList.remove('hidden');
 }
 
@@ -380,6 +564,11 @@ function initAddActionModal() {
       e.target.value === 'idle' ? 'block' : 'none';
   });
 
+  const genModeSel = document.getElementById('action-gen-mode');
+  if (genModeSel) {
+    genModeSel.addEventListener('change', syncAddActionGenUi);
+  }
+
   // GIF preview
   document.getElementById('action-gif').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -398,38 +587,68 @@ function initAddActionModal() {
 
   // Submit
   document.getElementById('btn-submit-add-action').addEventListener('click', async () => {
+    const genModeEl = document.getElementById('action-gen-mode');
+    const genMode = genModeEl ? genModeEl.value : 'manual';
+
     const name = document.getElementById('action-name').value.trim();
     if (!name) {
       showStatus(`✗ ${I18n.t('addAction.errorNameRequired')}`, 'error');
       return;
     }
-    if (!actionGifBase64) {
-      showStatus(`✗ ${I18n.t('addAction.errorGifRequired')}`, 'error');
-      return;
-    }
+
     const trigger = document.getElementById('action-trigger').value;
     const weight = parseInt(document.getElementById('action-weight').value, 10) || 1;
 
+    let promptText = '';
+    let durationSec = 5;
+
+    if (genMode === 'ai') {
+      promptText = document.getElementById('action-prompt').value.trim();
+      if (!promptText) {
+        showStatus(`✗ ${I18n.t('genAction.promptMissing')}`, 'error');
+        return;
+      }
+      durationSec = parseInt(document.getElementById('action-duration').value, 10) || 5;
+      if (durationSec !== 3 && durationSec !== 5) durationSec = 5;
+    } else if (!actionGifBase64) {
+      showStatus(`✗ ${I18n.t('addAction.errorGifRequired')}`, 'error');
+      return;
+    }
+
     const submitBtn = document.getElementById('btn-submit-add-action');
     submitBtn.disabled = true;
-    submitBtn.textContent = I18n.t('common.adding') + '...';
+    submitBtn.textContent =
+      `${genMode === 'ai' ? I18n.t('genAction.button') : I18n.t('addAction.button')}…`;
 
     try {
-      const result = await addAction(currentSetId, {
-        name, gifBase64: actionGifBase64, trigger, idleWeight: weight,
-      });
-      closeAddActionModal();
-      showStatus(`✓ ${I18n.t('addAction.success', { name })}`, 'success');
-      renderActions(result.actions || []);
-      // Refresh set tabs to update action count
-      const setData = await fetchSets();
-      setsCache = setData.sets || [];
-      renderSetTabs();
+      if (genMode === 'ai') {
+        await postGenerateActionAi(currentSetId, {
+          name,
+          prompt: promptText,
+          duration: durationSec,
+          trigger,
+        });
+        closeAddActionModal();
+        showStatus(I18n.t('genAction.generating'), 'success', false);
+      } else {
+        const result = await addAction(currentSetId, {
+          name,
+          gifBase64: actionGifBase64,
+          trigger,
+          idleWeight: weight,
+        });
+        closeAddActionModal();
+        showStatus(`✓ ${I18n.t('addAction.success', { name })}`, 'success');
+        renderActions(result.actions || []);
+        const setData = await fetchSets();
+        setsCache = setData.sets || [];
+        renderSetTabs();
+      }
     } catch (err) {
       showStatus(`✗ ${I18n.t('addAction.error', { error: err.message })}`, 'error');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = I18n.t('addAction.button');
+      syncAddActionGenUi();
     }
   });
 }
@@ -531,11 +750,14 @@ function handleDeleteAction(actionName) {
 }
 
 // ==================== UI ====================
-function showStatus(msg, type = 'success') {
+function showStatus(msg, type = 'success', ttlMs = 3200) {
+  statusBar.classList.remove('hidden');
   statusBar.className = `status-bar ${type}`;
   statusText.textContent = msg;
   clearTimeout(statusBar._timer);
-  statusBar._timer = setTimeout(() => statusBar.classList.add('hidden'), 3000);
+  if (ttlMs === false) return;
+  const ms = typeof ttlMs === 'number' && Number.isFinite(ttlMs) ? ttlMs : 3200;
+  statusBar._timer = setTimeout(() => statusBar.classList.add('hidden'), ms);
 }
 
 function renderActions(actions) {
