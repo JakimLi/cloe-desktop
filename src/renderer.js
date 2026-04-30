@@ -11,7 +11,7 @@ const REACTION_DURATION = 3000;
 // Production: file:// protocol → use relative ./gifs/
 const BASE = (location.protocol === 'file:') ? './' : '/';
 
-const GIF_ANIMATIONS = {
+let GIF_ANIMATIONS = {
   blink:       `${BASE}gifs/blink.gif`,
   smile:       `${BASE}gifs/smile.gif`,
   kiss:        `${BASE}gifs/kiss.gif`,
@@ -25,10 +25,10 @@ const GIF_ANIMATIONS = {
 };
 
 // Weighted idle playlist (blink & smile most frequent)
-const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
+let IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
 
 // Action name → GIF name mapping (1:1 pass-through)
-const ACTION_MAP = {
+let ACTION_MAP = {
   smile: 'smile', approve: 'smile', happy: 'smile',
   nod: 'nod', wave: 'wave', think: 'think', tease: 'tease',
   kiss: 'kiss', shake_head: 'shake_head', speak: 'speak',
@@ -447,8 +447,33 @@ function connectWebSocket() {
     };
 
     ws.onmessage = (event) => {
-      try { handleAction(JSON.parse(event.data)); }
-      catch (e) { console.error('WS parse:', e); }
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'set-config') {
+          // Dynamic config update from action set switch
+          const newAnims = {};
+          for (const [key, val] of Object.entries(msg.animations || {})) {
+            // Values come as "gifs/xxx.gif" — prepend BASE
+            const relative = val.startsWith('/') ? val.slice(1) : val;
+            newAnims[key] = `${BASE}${relative}`;
+          }
+          GIF_ANIMATIONS = newAnims;
+          IDLE_PLAYLIST = msg.idlePlaylist || [];
+          ACTION_MAP = msg.actionMap || {};
+
+          // If current GIF doesn't exist in new set, reset to idle
+          if (!GIF_ANIMATIONS[currentGif]) {
+            clearTimeout(idleTimer);
+            clearTimeout(reactionTimer);
+            isReacting = false;
+            currentGif = null;
+            startIdleLoop();
+          }
+          console.log(`[set-config] Updated: ${Object.keys(GIF_ANIMATIONS).length} animations, ${IDLE_PLAYLIST.length} idle entries`);
+        } else {
+          handleAction(msg);
+        }
+      } catch (e) { console.error('WS parse:', e); }
     };
 
     ws.onclose = () => {

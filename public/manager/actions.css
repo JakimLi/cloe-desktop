@@ -29,13 +29,21 @@
 }
 
 /* Set Tabs */
-.set-tabs {
+.set-tabs-wrapper {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
+}
+
+.set-tabs {
+  display: flex;
+  gap: 8px;
+  flex: 1;
   overflow-x: auto;
+  min-width: 0;
 }
 
 .set-tab {
@@ -249,3 +257,99 @@
 
 .card-actions { display: flex; gap: 8px; }
 .card-actions .btn { flex: 1; padding: 5px 0; font-size: 12px; }
+
+/* Set Tab Wrapper (for delete/activate buttons) */
+.set-tab-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.set-tab-wrapper .set-tab {
+  flex: 1;
+}
+
+.set-tab-wrapper .set-tab-delete,
+.set-tab-wrapper .set-tab-activate {
+  opacity: 0;
+  transition: opacity 0.2s;
+  width: 24px;
+  height: 24px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.set-tab-wrapper:hover .set-tab-delete,
+.set-tab-wrapper:hover .set-tab-activate {
+  opacity: 1;
+}
+
+.set-tab-delete {
+  color: var(--danger) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.set-tab-delete:hover {
+  background: rgba(252, 92, 124, 0.15) !important;
+  border-color: var(--danger) !important;
+}
+
+.set-tab-activate {
+  color: var(--success) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.set-tab-activate:hover {
+  background: rgba(92, 252, 154, 0.15) !important;
+  border-color: var(--success) !important;
+}
+
+.set-tab-active-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+/* Add Set Button */
+.btn-icon-add {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-icon-add:hover {
+  background: var(--accent-dim);
+  border-style: solid;
+}
+
+/* Actions Toolbar */
+.actions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.btn-sm {
+  padding: 5px 14px;
+  font-size: 12px;
+}

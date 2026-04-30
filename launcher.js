@@ -132,6 +132,56 @@ function buildSetsSummary() {
   }));
 }
 
+// ==================== Action Sets CRUD Helpers ====================
+function getActionSetsPath() {
+  if (!app.isPackaged) {
+    return path.join(__dirname, 'public', 'action-sets.json');
+  }
+  return path.join(__dirname, 'dist', 'action-sets.json');
+}
+
+function saveActionSets() {
+  const filePath = getActionSetsPath();
+  fs.writeFileSync(filePath, JSON.stringify(actionSetsData, null, 2), 'utf-8');
+  console.log(`[ActionSets] Saved to ${filePath}`);
+}
+
+function generateSetId(name) {
+  // Lowercase + underscore + short timestamp
+  const slug = name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const ts = Math.floor(Date.now() / 1000) % 100000;
+  return `${slug}_${ts}`;
+}
+
+function broadcastSetConfig(setId) {
+  const set = getSetById(setId);
+  if (!set) return;
+  const msg = JSON.stringify({
+    type: 'set-config',
+    animations: set.animations || {},
+    idlePlaylist: set.idlePlaylist || [],
+    actionMap: set.actionMap || {},
+  });
+  let sent = 0;
+  const dead = [];
+  for (const ws of bridgeClients) {
+    if (ws.readyState === 1) { ws.send(msg); sent++; }
+    else dead.push(ws);
+  }
+  dead.forEach((ws) => bridgeClients.delete(ws));
+  console.log(`[broadcast] set-config for "${setId}" → ${sent} client(s)`);
+}
+
+function broadcastToClients(data) {
+  const msg = JSON.stringify(data);
+  const dead = [];
+  for (const ws of bridgeClients) {
+    if (ws.readyState === 1) { ws.send(msg); }
+    else dead.push(ws);
+  }
+  dead.forEach((ws) => bridgeClients.delete(ws));
+}
+
 // ==================== Embedded Bridge ====================
 function handleActionPost(req, res) {
   let body = '';
@@ -193,7 +243,7 @@ function createBridgeServers() {
   // --- HTTP ---
   const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -219,7 +269,7 @@ function createBridgeServers() {
 
     // GET /action-sets/:id — get one set with its actions
     if (req.method === 'GET' && req.url.startsWith('/action-sets/')) {
-      const setId = req.url.split('/action-sets/')[1]?.split('?')[0];
+      const setId = decodeURIComponent(req.url.split('/action-sets/')[1]?.split('?')[0]);
       const set = getSetById(setId);
       if (!set) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -257,6 +307,187 @@ function createBridgeServers() {
 
     if (req.method === 'POST' && req.url === '/actions/preview') {
       handleActionPost(req, res);
+      return;
+    }
+
+    // --- Action Sets CRUD API ---
+
+    // POST /action-sets — create new action set
+    if (req.method === 'POST' && req.url === '/action-sets') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (!data.name) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'name is required' }));
+            return;
+          }
+          const id = generateSetId(data.name);
+          // Save reference image if provided
+          if (data.referenceBase64) {
+            const refDir = path.join(path.dirname(getActionSetsPath()), 'references');
+            if (!fs.existsSync(refDir)) fs.mkdirSync(refDir, { recursive: true });
+            fs.writeFileSync(path.join(refDir, `${id}.png`), Buffer.from(data.referenceBase64, 'base64'));
+          }
+          const newSet = {
+            id,
+            name: data.name,
+            nameEn: data.nameEn || '',
+            description: data.description || '',
+            descriptionEn: data.descriptionEn || '',
+            reference: data.referenceBase64 ? `references/${id}.png` : '',
+            chromakey: data.chromakey || 'green',
+            animations: {},
+            idlePlaylist: [],
+            actionMap: {},
+          };
+          actionSetsData.sets.push(newSet);
+          saveActionSets();
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(newSet));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    // DELETE /action-sets/:id — delete action set (must not match /action-sets/:id/actions/...)
+    if (req.method === 'DELETE' && req.url.startsWith('/action-sets/') && !req.url.includes('/actions/')) {
+      const setId = decodeURIComponent(req.url.split('/action-sets/')[1]?.split('?')[0]);
+      if (setId === activeSetId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'cannot delete the active set' }));
+        return;
+      }
+      if (actionSetsData.sets.length <= 1) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'cannot delete the last set' }));
+        return;
+      }
+      const idx = actionSetsData.sets.findIndex(s => s.id === setId);
+      if (idx === -1) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+      actionSetsData.sets.splice(idx, 1);
+      saveActionSets();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ sets: buildSetsSummary(), activeSetId }));
+      return;
+    }
+
+    // POST /action-sets/:id/activate — activate action set
+    if (req.method === 'POST' && req.url.match(/^\/action-sets\/[^/]+\/activate$/)) {
+      const setId = decodeURIComponent(req.url.split('/')[2]);
+      const set = getSetById(setId);
+      if (!set) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+      activeSetId = setId;
+      actionSetsData.activeSetId = setId;
+      saveActionSets();
+      broadcastSetConfig(setId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, activeSetId: setId }));
+      return;
+    }
+
+    // POST /action-sets/:id/actions — add action to set
+    if (req.method === 'POST' && req.url.match(/^\/action-sets\/[^/]+\/actions$/)) {
+      const setId = decodeURIComponent(req.url.split('/')[2]);
+      const set = getSetById(setId);
+      if (!set) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (!data.name || !data.gifBase64) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'name and gifBase64 are required' }));
+            return;
+          }
+          // Save GIF file
+          const gifsDir = path.join(path.dirname(getActionSetsPath()), 'gifs');
+          if (!fs.existsSync(gifsDir)) fs.mkdirSync(gifsDir, { recursive: true });
+          fs.writeFileSync(path.join(gifsDir, `${data.name}.gif`), Buffer.from(data.gifBase64, 'base64'));
+
+          // Update set data
+          if (!set.animations) set.animations = {};
+          set.animations[data.name] = `gifs/${data.name}.gif`;
+
+          if (!set.actionMap) set.actionMap = {};
+          set.actionMap[data.name] = data.name;
+
+          if (data.trigger === 'idle') {
+            if (!set.idlePlaylist) set.idlePlaylist = [];
+            set.idlePlaylist.push(data.name);
+          }
+
+          saveActionSets();
+
+          // Broadcast if this is the active set
+          if (setId === activeSetId) {
+            broadcastSetConfig(setId);
+          }
+
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ actions: buildActionsList(setId) }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    // DELETE /action-sets/:id/actions/:name — delete action from set
+    if (req.method === 'DELETE' && req.url.match(/^\/action-sets\/[^/]+\/actions\/[^/]+$/)) {
+      const parts = req.url.split('/');
+      const setId = decodeURIComponent(parts[2]);
+      const actionName = decodeURIComponent(parts[4]);
+      const set = getSetById(setId);
+      if (!set) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+
+      // Remove from animations
+      if (set.animations) delete set.animations[actionName];
+
+      // Remove from idlePlaylist
+      if (set.idlePlaylist) {
+        set.idlePlaylist = set.idlePlaylist.filter(n => n !== actionName);
+      }
+
+      // Remove from actionMap where value matches
+      if (set.actionMap) {
+        for (const [trigger, gifName] of Object.entries(set.actionMap)) {
+          if (gifName === actionName) delete set.actionMap[trigger];
+        }
+      }
+
+      saveActionSets();
+
+      // Broadcast if this is the active set
+      if (setId === activeSetId) {
+        broadcastSetConfig(setId);
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ actions: buildActionsList(setId) }));
       return;
     }
 

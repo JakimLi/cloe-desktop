@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "activeSetId": "default",
+  "activeSetId": "可可2_61204",
   "sets": [
     {
       "id": "default",
@@ -22,12 +22,40 @@
         "shake_head": "gifs/shake_head.gif",
         "working": "gifs/working.gif"
       },
-      "idlePlaylist": ["blink", "blink", "smile", "smile", "kiss", "think", "nod", "shake_head"],
+      "idlePlaylist": [
+        "blink",
+        "blink",
+        "smile",
+        "smile",
+        "kiss",
+        "think",
+        "nod",
+        "shake_head"
+      ],
       "actionMap": {
-        "smile": "smile", "approve": "smile", "happy": "smile",
-        "nod": "nod", "wave": "wave", "think": "think", "tease": "tease",
-        "kiss": "kiss", "shake_head": "shake_head", "speak": "speak"
+        "smile": "smile",
+        "approve": "smile",
+        "happy": "smile",
+        "nod": "nod",
+        "wave": "wave",
+        "think": "think",
+        "tease": "tease",
+        "kiss": "kiss",
+        "shake_head": "shake_head",
+        "speak": "speak"
       }
+    },
+    {
+      "id": "可可2_61204",
+      "name": "可可2",
+      "nameEn": "",
+      "description": "",
+      "descriptionEn": "",
+      "reference": "references/可可2_61204.png",
+      "chromakey": "green",
+      "animations": {},
+      "idlePlaylist": [],
+      "actionMap": {}
     }
   ]
 }

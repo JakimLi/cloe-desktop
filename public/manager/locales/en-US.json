@@ -33,7 +33,45 @@
   },
   "delete": {
     "button": "Delete",
-    "title": "Delete (M2)"
+    "title": "Delete"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "creating": "Creating",
+    "adding": "Adding"
+  },
+  "createSet": {
+    "title": "New Action Set",
+    "button": "Create",
+    "success": "Action set \"{{name}}\" created",
+    "error": "Create failed: {{error}}",
+    "errorNameRequired": "Please enter a name"
+  },
+  "addAction": {
+    "title": "Add Action",
+    "button": "Add",
+    "toolbar": "+ Add Action",
+    "success": "Action \"{{name}}\" added",
+    "error": "Add failed: {{error}}",
+    "errorNameRequired": "Please enter an action name",
+    "errorGifRequired": "Please select a GIF file"
+  },
+  "set": {
+    "activate": "Activate this set",
+    "activated": "Action set activated",
+    "activateError": "Activation failed: {{error}}",
+    "delete": "Delete set",
+    "deleted": "Action set \"{{name}}\" deleted",
+    "deleteError": "Delete failed: {{error}}",
+    "errorDeleteActive": "Cannot delete the active set",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirm": "Are you sure you want to delete action set \"{{name}}\"? This cannot be undone."
+  },
+  "action": {
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirm": "Are you sure you want to delete action \"{{name}}\"?",
+    "deleted": "Action \"{{name}}\" deleted",
+    "deleteError": "Delete failed: {{error}}"
   },
   "tag": {
     "idle": "Idle Auto",
