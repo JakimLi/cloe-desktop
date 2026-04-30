@@ -287,7 +287,7 @@ function createManagerWindow() {
   managerWin = new BrowserWindow({
     width: 800,
     height: 600,
-    title: 'Cloe — 动作管理',
+    title: 'Cloe — Action Manager',
     transparent: false,
     frame: true,
     alwaysOnTop: false,
@@ -318,26 +318,37 @@ function createManagerWindow() {
 
 // ==================== System Tray ====================
 function createTray() {
-  // Use a 16x16 or 22x22 PNG for the tray icon
-  // Try build/Cloe.iconset first, fall back to a minimal generated icon
-  let iconPath = path.join(__dirname, 'build', 'Cloe.iconset', 'icon_16x16.png');
-  if (!fs.existsSync(iconPath)) {
-    // Try 32x32 as fallback
-    iconPath = path.join(__dirname, 'build', 'Cloe.iconset', 'icon_32x32.png');
+  // macOS tray icon: prefer 22x22 for @1x, resize from larger if needed
+  // Template image adapts automatically to light/dark menu bar
+  let trayIcon;
+
+  const tryPaths = [
+    path.join(__dirname, 'build', 'Cloe.iconset', 'icon_16x16.png'),
+    path.join(__dirname, 'build', 'Cloe.iconset', 'icon_32x32.png'),
+    path.join(__dirname, 'build', 'Cloe.iconset', 'icon_64x64.png'),
+  ];
+
+  for (const p of tryPaths) {
+    if (fs.existsSync(p)) {
+      trayIcon = nativeImage.createFromPath(p);
+      break;
+    }
   }
 
-  let trayIcon;
-  if (fs.existsSync(iconPath)) {
-    trayIcon = nativeImage.createFromPath(iconPath);
-    // macOS tray icon should be 16x16 or 22x22
-    if (trayIcon.getSize().width > 22) {
-      trayIcon = trayIcon.resize({ width: 16, height: 16 });
-    }
-    // Set as template image for macOS (respects light/dark menu bar)
+  // If we got an icon, resize to 22x22 for crisp macOS tray display
+  if (trayIcon && !trayIcon.isEmpty()) {
+    trayIcon = trayIcon.resize({ width: 22, height: 22 });
     trayIcon.setTemplateImage(true);
   } else {
-    // Create a minimal 16x16 icon as fallback
-    trayIcon = nativeImage.createEmpty();
+    // Fallback: try to extract from icns
+    const icnsPath = path.join(__dirname, 'build', 'icon.icns');
+    if (fs.existsSync(icnsPath)) {
+      trayIcon = nativeImage.createFromPath(icnsPath);
+      trayIcon = trayIcon.resize({ width: 22, height: 22 });
+      trayIcon.setTemplateImage(true);
+    } else {
+      trayIcon = nativeImage.createEmpty();
+    }
   }
 
   tray = new Tray(trayIcon);
@@ -345,7 +356,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: '🎭 管理动作',
+      label: '管理动作',
       click: () => createManagerWindow(),
     },
     { type: 'separator' },

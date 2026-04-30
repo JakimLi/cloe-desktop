@@ -1,0 +1,40 @@
+{
+  "title": "Action Manager",
+  "windowTitle": "Cloe — Action Manager",
+  "actionCount": "{{count}} actions",
+  "refresh": "Refresh",
+  "loading": "Loading actions...",
+  "empty": {
+    "title": "No actions found",
+    "sub": "Make sure Cloe Desktop is running"
+  },
+  "error": {
+    "connection": "Cannot connect to Cloe Desktop",
+    "connectionSub": "Make sure Cloe Desktop is running ({{error}})",
+    "connectionFailed": "Connection failed: {{error}}",
+    "sendFailed": "Send failed: {{error}}"
+  },
+  "success": {
+    "sent": "\"{{name}}\" sent ({{count}} client(s))"
+  },
+  "preview": {
+    "title": "Preview",
+    "titleWith": "Preview — {{name}}",
+    "button": "Preview",
+    "play": "Play Action"
+  },
+  "delete": {
+    "button": "Delete",
+    "title": "Delete (M2)"
+  },
+  "tag": {
+    "idle": "Idle Auto",
+    "manual": "Manual Trigger",
+    "hook": "hook: {{names}}",
+    "weight": "Weight {{weight}}",
+    "specialWork": "Work Mode",
+    "specialSpeak": "Voice"
+  },
+  "lang": "Language",
+  "langSwitch": "中"
+}
