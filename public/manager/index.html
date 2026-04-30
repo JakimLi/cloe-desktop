@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloe Settings</title>
+  <link rel="stylesheet" href="./manager.css">
+  <link rel="stylesheet" href="./actions.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-title">Settings</div>
+      <div class="sidebar-nav">
+        <button id="sidebar-actions" class="sidebar-item active" data-tab="actions">
+          <span class="sidebar-item-icon">⚡</span>
+          <span class="sidebar-item-label">Actions</span>
+        </button>
+        <button id="sidebar-preferences" class="sidebar-item" data-tab="preferences">
+          <span class="sidebar-item-icon">⚙</span>
+          <span class="sidebar-item-label">Preferences</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Actions Tab -->
+      <div id="tab-actions" class="tab-panel active">
+        <div class="sets-header">
+          <div class="sets-header-left">
+            <h2 id="actions-title">Actions</h2>
+            <span id="set-count" class="badge">0</span>
+          </div>
+          <div class="sets-header-right">
+            <button id="btn-refresh" class="btn-icon" title="Refresh">↻</button>
+          </div>
+        </div>
+
+        <!-- Set Tabs (horizontal) -->
+        <div id="set-tabs" class="set-tabs"></div>
+
+        <!-- Set Info: reference thumbnail + description -->
+        <div id="set-info" class="set-info hidden">
+          <div class="set-info-left">
+            <div class="reference-thumb" id="reference-thumb" title="">
+              <img id="reference-thumb-img" src="" alt="Reference">
+              <div class="reference-thumb-overlay"><span>🔍</span></div>
+            </div>
+            <div class="set-info-text">
+              <div class="set-info-desc" id="set-desc"></div>
+              <div class="set-info-chromakey" id="set-chromakey"></div>
+            </div>
+          </div>
+          <div class="set-info-right">
+            <span id="action-count" class="badge">0</span>
+          </div>
+        </div>
+
+        <div id="status-bar" class="status-bar hidden">
+          <span id="status-text"></span>
+        </div>
+
+        <div id="actions-grid" class="actions-grid"></div>
+
+        <div id="empty-state" class="empty-state hidden">
+          <p>No actions found</p>
+          <p class="sub">Make sure Cloe Desktop is running</p>
+        </div>
+
+        <div id="loading" class="loading">
+          <div class="spinner"></div>
+          <p>Loading actions...</p>
+        </div>
+      </div>
+
+      <!-- Preferences Tab -->
+      <div id="tab-preferences" class="tab-panel">
+        <div id="preferences-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GIF Preview Modal -->
+  <div id="preview-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="preview-title">Preview</h2>
+        <button id="btn-close-modal" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <img id="preview-gif" src="" alt="Preview">
+      </div>
+      <div class="modal-footer">
+        <button id="btn-play-action" class="btn btn-primary">▶ Play Action</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reference Image Modal -->
+  <div id="reference-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-content-large">
+      <div class="modal-header">
+        <h2 id="reference-modal-title">Reference</h2>
+        <button id="btn-close-reference" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body modal-body-reference">
+        <img id="reference-full-img" src="" alt="Reference Image">
+      </div>
+    </div>
+  </div>
+
+  <script src="./i18n.js"></script>
+  <script src="./actions.js"></script>
+  <script src="./preferences.js"></script>
+  <script src="./manager.js"></script>
+</body>
+</html>

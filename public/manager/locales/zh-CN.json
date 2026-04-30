@@ -1,0 +1,63 @@
+{
+  "windowTitle": "Cloe 设置",
+  "title": "动作管理",
+  "tabs": {
+    "actions": "动作管理",
+    "preferences": "偏好设置"
+  },
+  "setCount": "{{count}} 套形象",
+  "actionCount": "{{count}} 个动作",
+  "refresh": "刷新",
+  "loading": "加载动作列表...",
+  "empty": {
+    "title": "没有找到动作",
+    "sub": "请确认 Cloe Desktop 正在运行",
+    "noSets": "没有找到动作集",
+    "noSetsSub": "请确认 public/action-sets.json 存在且格式正确"
+  },
+  "error": {
+    "connection": "无法连接到 Cloe Desktop",
+    "connectionSub": "请确认 Cloe Desktop 正在运行 ({{error}})",
+    "connectionFailed": "连接失败: {{error}}",
+    "sendFailed": "发送失败: {{error}}",
+    "loadFailed": "加载失败: {{error}}"
+  },
+  "success": {
+    "sent": "\"{{name}}\" 已发送 ({{count}} 客户端)"
+  },
+  "preview": {
+    "title": "预览",
+    "titleWith": "预览 — {{name}}",
+    "button": "预览",
+    "play": "播放动作"
+  },
+  "delete": {
+    "button": "删除",
+    "title": "删除（M2）"
+  },
+  "tag": {
+    "idle": "待机自动",
+    "manual": "手动触发",
+    "hook": "hook: {{names}}",
+    "weight": "权重 {{weight}}",
+    "specialWork": "工作模式",
+    "specialSpeak": "语音"
+  },
+  "reference": {
+    "viewTitle": "点击查看参考图",
+    "modalTitle": "参考图 — {{name}}",
+    "chromakey": "色幕: {{color}}"
+  },
+  "prefs": {
+    "appearance": "外观",
+    "language": "语言",
+    "languageDesc": "选择界面显示语言",
+    "general": "通用",
+    "autoStart": "开机自动启动",
+    "autoStartDesc": "系统启动时自动运行 Cloe Desktop",
+    "minimizeToTray": "最小化到托盘",
+    "minimizeToTrayDesc": "关闭窗口时最小化到系统托盘",
+    "about": "关于",
+    "aboutDesc": "桌面宠物伴侣 · 让你的桌面更有趣"
+  }
+}

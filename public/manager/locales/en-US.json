@@ -1,0 +1,63 @@
+{
+  "windowTitle": "Cloe Settings",
+  "title": "Actions",
+  "tabs": {
+    "actions": "Actions",
+    "preferences": "Preferences"
+  },
+  "setCount": "{{count}} set(s)",
+  "actionCount": "{{count}} actions",
+  "refresh": "Refresh",
+  "loading": "Loading actions...",
+  "empty": {
+    "title": "No actions found",
+    "sub": "Make sure Cloe Desktop is running",
+    "noSets": "No action sets found",
+    "noSetsSub": "Make sure public/action-sets.json exists and is valid"
+  },
+  "error": {
+    "connection": "Cannot connect to Cloe Desktop",
+    "connectionSub": "Make sure Cloe Desktop is running ({{error}})",
+    "connectionFailed": "Connection failed: {{error}}",
+    "sendFailed": "Send failed: {{error}}",
+    "loadFailed": "Load failed: {{error}}"
+  },
+  "success": {
+    "sent": "\"{{name}}\" sent ({{count}} client(s))"
+  },
+  "preview": {
+    "title": "Preview",
+    "titleWith": "Preview — {{name}}",
+    "button": "Preview",
+    "play": "Play Action"
+  },
+  "delete": {
+    "button": "Delete",
+    "title": "Delete (M2)"
+  },
+  "tag": {
+    "idle": "Idle Auto",
+    "manual": "Manual Trigger",
+    "hook": "hook: {{names}}",
+    "weight": "Weight {{weight}}",
+    "specialWork": "Work Mode",
+    "specialSpeak": "Voice"
+  },
+  "reference": {
+    "viewTitle": "Click to view reference image",
+    "modalTitle": "Reference — {{name}}",
+    "chromakey": "Chromakey: {{color}}"
+  },
+  "prefs": {
+    "appearance": "Appearance",
+    "language": "Language",
+    "languageDesc": "Choose the display language",
+    "general": "General",
+    "autoStart": "Launch at Login",
+    "autoStartDesc": "Automatically start Cloe Desktop on system boot",
+    "minimizeToTray": "Minimize to Tray",
+    "minimizeToTrayDesc": "Minimize to system tray when window is closed",
+    "about": "About",
+    "aboutDesc": "Desktop pet companion · Make your desktop more fun"
+  }
+}
