@@ -217,35 +217,10 @@ const IMAGE_TASK_POLL_INTERVAL_MS = 5000;
 /** taskId → { status, progress, startedAt, kind, actionName?, setId?, chromakey?, error? } */
 const generationTasks = new Map();
 
-function loadHermesEnvValue(key) {
-  const envPath = path.join(os.homedir(), '.hermes', '.env');
-  if (!fs.existsSync(envPath)) return '';
-  try {
-    const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
-    for (const line of lines) {
-      const t = line.trim();
-      if (!t || t.startsWith('#')) continue;
-      const eq = t.indexOf('=');
-      if (eq === -1) continue;
-      const k = t.slice(0, eq).trim();
-      if (k !== key) continue;
-      let v = t.slice(eq + 1).trim();
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-        v = v.slice(1, -1);
-      }
-      return v;
-    }
-  } catch (e) {
-    console.warn(`[Hermes] read .env failed: ${e.message}`);
-  }
-  return '';
-}
-
 function resolveBailianApiKey() {
   const cfg = loadConfig();
   const fromCfg = cfg.dashscopeApiKey != null ? String(cfg.dashscopeApiKey).trim() : '';
-  if (fromCfg) return fromCfg;
-  return loadHermesEnvValue('BAILIAN_API_KEY').trim();
+  return fromCfg || '';
 }
 
 function getPublicAssetsRoot() {
@@ -417,7 +392,7 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
 
     const apiKey = resolveBailianApiKey();
     if (!apiKey) {
-      const err = 'DashScope API key missing: set dashscopeApiKey in ~/.cloe-desktop/config.json or BAILIAN_API_KEY in ~/.hermes/.env';
+      const err = 'DashScope API key not configured. Please go to Settings → API Configuration and enter your key.';
       if (rec) {
         rec.status = 'failed';
         rec.error = err;
