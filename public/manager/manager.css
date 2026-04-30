@@ -310,6 +310,8 @@ html, body {
   overflow: hidden;
 }
 
+.modal-content-large { max-width: 720px; }
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -337,6 +339,9 @@ html, body {
   max-height: 300px;
   object-fit: contain;
 }
+
+.modal-body-reference { min-height: 320px; }
+.modal-body-reference img { max-height: 500px; border-radius: 8px; }
 
 .modal-footer {
   padding: 14px 20px;

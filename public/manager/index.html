@@ -28,11 +28,33 @@
     <div class="content">
       <!-- Actions Tab -->
       <div id="tab-actions" class="tab-panel active">
-        <div class="actions-header">
-          <h2 id="actions-title">Actions</h2>
-          <div class="actions-header-info">
-            <span id="action-count" class="badge">0</span>
+        <div class="sets-header">
+          <div class="sets-header-left">
+            <h2 id="actions-title">Actions</h2>
+            <span id="set-count" class="badge">0</span>
+          </div>
+          <div class="sets-header-right">
             <button id="btn-refresh" class="btn-icon" title="Refresh">↻</button>
+          </div>
+        </div>
+
+        <!-- Set Tabs (horizontal) -->
+        <div id="set-tabs" class="set-tabs"></div>
+
+        <!-- Set Info: reference thumbnail + description -->
+        <div id="set-info" class="set-info hidden">
+          <div class="set-info-left">
+            <div class="reference-thumb" id="reference-thumb" title="">
+              <img id="reference-thumb-img" src="" alt="Reference">
+              <div class="reference-thumb-overlay"><span>🔍</span></div>
+            </div>
+            <div class="set-info-text">
+              <div class="set-info-desc" id="set-desc"></div>
+              <div class="set-info-chromakey" id="set-chromakey"></div>
+            </div>
+          </div>
+          <div class="set-info-right">
+            <span id="action-count" class="badge">0</span>
           </div>
         </div>
 
@@ -60,7 +82,7 @@
     </div>
   </div>
 
-  <!-- Preview Modal -->
+  <!-- GIF Preview Modal -->
   <div id="preview-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
@@ -73,6 +95,20 @@
       </div>
       <div class="modal-footer">
         <button id="btn-play-action" class="btn btn-primary">▶ Play Action</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reference Image Modal -->
+  <div id="reference-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-content-large">
+      <div class="modal-header">
+        <h2 id="reference-modal-title">Reference</h2>
+        <button id="btn-close-reference" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body modal-body-reference">
+        <img id="reference-full-img" src="" alt="Reference Image">
       </div>
     </div>
   </div>

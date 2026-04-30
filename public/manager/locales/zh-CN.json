@@ -5,18 +5,22 @@
     "actions": "动作管理",
     "preferences": "偏好设置"
   },
+  "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
   "refresh": "刷新",
   "loading": "加载动作列表...",
   "empty": {
     "title": "没有找到动作",
-    "sub": "请确认 Cloe Desktop 正在运行"
+    "sub": "请确认 Cloe Desktop 正在运行",
+    "noSets": "没有找到动作集",
+    "noSetsSub": "请确认 public/action-sets.json 存在且格式正确"
   },
   "error": {
     "connection": "无法连接到 Cloe Desktop",
     "connectionSub": "请确认 Cloe Desktop 正在运行 ({{error}})",
     "connectionFailed": "连接失败: {{error}}",
-    "sendFailed": "发送失败: {{error}}"
+    "sendFailed": "发送失败: {{error}}",
+    "loadFailed": "加载失败: {{error}}"
   },
   "success": {
     "sent": "\"{{name}}\" 已发送 ({{count}} 客户端)"
@@ -38,6 +42,11 @@
     "weight": "权重 {{weight}}",
     "specialWork": "工作模式",
     "specialSpeak": "语音"
+  },
+  "reference": {
+    "viewTitle": "点击查看参考图",
+    "modalTitle": "参考图 — {{name}}",
+    "chromakey": "色幕: {{color}}"
   },
   "prefs": {
     "appearance": "外观",

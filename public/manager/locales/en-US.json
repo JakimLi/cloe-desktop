@@ -5,18 +5,22 @@
     "actions": "Actions",
     "preferences": "Preferences"
   },
+  "setCount": "{{count}} set(s)",
   "actionCount": "{{count}} actions",
   "refresh": "Refresh",
   "loading": "Loading actions...",
   "empty": {
     "title": "No actions found",
-    "sub": "Make sure Cloe Desktop is running"
+    "sub": "Make sure Cloe Desktop is running",
+    "noSets": "No action sets found",
+    "noSetsSub": "Make sure public/action-sets.json exists and is valid"
   },
   "error": {
     "connection": "Cannot connect to Cloe Desktop",
     "connectionSub": "Make sure Cloe Desktop is running ({{error}})",
     "connectionFailed": "Connection failed: {{error}}",
-    "sendFailed": "Send failed: {{error}}"
+    "sendFailed": "Send failed: {{error}}",
+    "loadFailed": "Load failed: {{error}}"
   },
   "success": {
     "sent": "\"{{name}}\" sent ({{count}} client(s))"
@@ -38,6 +42,11 @@
     "weight": "Weight {{weight}}",
     "specialWork": "Work Mode",
     "specialSpeak": "Voice"
+  },
+  "reference": {
+    "viewTitle": "Click to view reference image",
+    "modalTitle": "Reference — {{name}}",
+    "chromakey": "Chromakey: {{color}}"
   },
   "prefs": {
     "appearance": "Appearance",
