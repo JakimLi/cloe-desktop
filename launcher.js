@@ -25,51 +25,56 @@ let managerWin = null;
 let tray = null;
 const bridgeClients = new Set();
 
-// ==================== Actions Data (mirrors renderer.js GIF_ANIMATIONS) ====================
-// This is read once at startup to serve via the /actions API.
-// In a future version this could be loaded from manifest.json.
-const GIF_ANIMATIONS = {
-  blink:       'gifs/blink.gif',
-  smile:       'gifs/smile.gif',
-  kiss:        'gifs/kiss.gif',
-  nod:         'gifs/nod.gif',
-  wave:        'gifs/wave.gif',
-  think:       'gifs/think.gif',
-  tease:       'gifs/tease.gif',
-  speak:       'gifs/speak.gif',
-  shake_head:  'gifs/shake_head.gif',
-  working:     'gifs/working.gif',
-};
+// ==================== Action Sets — loaded from action-sets.json ====================
+let actionSetsData = null;
+let activeSetId = 'default';
 
-const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
+function loadActionSets() {
+  const manifestPath = path.join(__dirname, 'public', 'action-sets.json');
+  try {
+    const raw = fs.readFileSync(manifestPath, 'utf-8');
+    actionSetsData = JSON.parse(raw);
+    activeSetId = actionSetsData.activeSetId || 'default';
+    console.log(`[ActionSets] Loaded ${actionSetsData.sets.length} set(s), active: ${activeSetId}`);
+  } catch (err) {
+    console.error('[ActionSets] Failed to load action-sets.json:', err.message);
+    actionSetsData = null;
+  }
+}
 
-const ACTION_MAP = {
-  smile: 'smile', approve: 'smile', happy: 'smile',
-  nod: 'nod', wave: 'wave', think: 'think', tease: 'tease',
-  kiss: 'kiss', shake_head: 'shake_head', speak: 'speak',
-};
+function getActiveSet() {
+  if (!actionSetsData || actionSetsData.sets.length === 0) return null;
+  return actionSetsData.sets.find(s => s.id === activeSetId) || actionSetsData.sets[0];
+}
+
+function getSetById(setId) {
+  if (!actionSetsData) return null;
+  return actionSetsData.sets.find(s => s.id === setId) || null;
+}
 
 /**
- * Build the actions list for the management API.
- * Classifies each animation by trigger type and idle weight.
+ * Build actions list for a given set (for the management API).
  */
-function buildActionsList() {
+function buildActionsList(setId) {
+  const set = setId ? getSetById(setId) : getActiveSet();
+  if (!set) return [];
+
   const idleCounts = {};
-  for (const name of IDLE_PLAYLIST) {
+  for (const name of (set.idlePlaylist || [])) {
     idleCounts[name] = (idleCounts[name] || 0) + 1;
   }
 
-  // Build reverse map: gifName -> action triggers that map to it
+  const actionMap = set.actionMap || {};
   const hookTriggers = {};
-  for (const [trigger, gifName] of Object.entries(ACTION_MAP)) {
+  for (const [trigger, gifName] of Object.entries(actionMap)) {
     if (!hookTriggers[gifName]) hookTriggers[gifName] = [];
     hookTriggers[gifName].push(trigger);
   }
 
   const actions = [];
-  for (const [name, gifPath] of Object.entries(GIF_ANIMATIONS)) {
+  for (const [name, gifPath] of Object.entries(set.animations || {})) {
     const gifFile = gifPath.split('/').pop();
-    let trigger = 'manual'; // default
+    let trigger = 'manual';
     let idleWeight = 0;
     let hookNames = [];
     let special = null;
@@ -78,40 +83,36 @@ function buildActionsList() {
       trigger = 'idle';
       idleWeight = idleCounts[name];
     }
+    if (name === 'working') special = '工作模式';
+    if (name === 'speak') special = '语音';
 
-    // Check for special system actions
-    if (name === 'blink' && trigger !== 'idle') {
-      // blink is always idle
-    }
-    if (name === 'working') {
-      special = '工作模式';
-    }
-    if (name === 'speak') {
-      special = '语音';
-    }
-
-    // Collect hook names (action triggers mapped to this gif)
     const hooks = hookTriggers[name];
     if (hooks) {
       hookNames = hooks;
-      // If it's also in idle, it's both; otherwise mark as hook
-      if (trigger !== 'idle') {
-        trigger = 'hook';
-      }
+      if (trigger !== 'idle') trigger = 'hook';
     }
 
-    actions.push({
-      name,
-      gifFile,
-      gifPath,
-      trigger,
-      idleWeight,
-      hookNames,
-      special,
-    });
+    actions.push({ name, gifFile, gifPath, trigger, idleWeight, hookNames, special });
   }
-
   return actions;
+}
+
+/**
+ * Build sets summary (lightweight, for set selector UI).
+ */
+function buildSetsSummary() {
+  if (!actionSetsData) return [];
+  return actionSetsData.sets.map(set => ({
+    id: set.id,
+    name: set.name,
+    nameEn: set.nameEn || set.name,
+    reference: set.reference,
+    chromakey: set.chromakey,
+    description: set.description,
+    descriptionEn: set.descriptionEn || set.description,
+    actionCount: Object.keys(set.animations || {}).length,
+    active: set.id === activeSetId,
+  }));
 }
 
 // ==================== Embedded Bridge ====================
@@ -192,9 +193,48 @@ function createBridgeServers() {
     }
 
     // --- Management API ---
+    // GET /action-sets — list all sets
+    if (req.method === 'GET' && req.url === '/action-sets') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ sets: buildSetsSummary(), activeSetId }));
+      return;
+    }
+
+    // GET /action-sets/:id — get one set with its actions
+    if (req.method === 'GET' && req.url.startsWith('/action-sets/')) {
+      const setId = req.url.split('/action-sets/')[1]?.split('?')[0];
+      const set = getSetById(setId);
+      if (!set) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        id: set.id,
+        name: set.name,
+        nameEn: set.nameEn || set.name,
+        reference: set.reference,
+        chromakey: set.chromakey,
+        description: set.description,
+        descriptionEn: set.descriptionEn || set.description,
+        actions: buildActionsList(setId),
+      }));
+      return;
+    }
+
+    // GET /actions — backward compatible, returns active set's actions
     if (req.method === 'GET' && req.url === '/actions') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ actions: buildActionsList() }));
+      res.end(JSON.stringify({ actions: buildActionsList(), activeSetId }));
+      return;
+    }
+
+    // GET /actions?set=xxx — actions for a specific set
+    if (req.method === 'GET' && req.url.startsWith('/actions?set=')) {
+      const setId = new URL(req.url, 'http://localhost').searchParams.get('set');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ actions: buildActionsList(setId), setId }));
       return;
     }
 
@@ -373,6 +413,7 @@ function createTray() {
 
 // ==================== Bootstrap ====================
 app.whenReady().then(async () => {
+  loadActionSets();
   await startBridge();
   await waitForBridge();
   createWindow();

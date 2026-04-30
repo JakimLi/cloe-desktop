@@ -54,6 +54,7 @@ window.onLocaleChange = function () {
 
   initTabs();
   initPreviewModal();
+  initReferenceModal();
   initActionsTab();
   initPreferencesTab();
   updateAllText();
