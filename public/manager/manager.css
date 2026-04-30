@@ -140,6 +140,32 @@ html, body {
   border-color: var(--accent);
 }
 
+/* Language Switch Button */
+.btn-lang {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-family: inherit;
+  user-select: none;
+}
+
+.btn-lang:hover {
+  background: var(--bg-card-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
 /* Status Bar */
 .status-bar {
   padding: 8px 14px;

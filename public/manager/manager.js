@@ -16,6 +16,7 @@ const loading = document.getElementById('loading');
 const statusBar = document.getElementById('status-bar');
 const statusText = document.getElementById('status-text');
 const btnRefresh = document.getElementById('btn-refresh');
+const btnLangSwitch = document.getElementById('btn-lang-switch');
 
 // Modal
 const previewModal = document.getElementById('preview-modal');
@@ -26,6 +27,30 @@ const btnPlayAction = document.getElementById('btn-play-action');
 const modalBackdrop = previewModal.querySelector('.modal-backdrop');
 
 let currentPreviewAction = null;
+let actionsCache = [];
+
+// ==================== i18n text helpers ====================
+
+function specialLabel(special) {
+  if (special === '工作模式') return I18n.t('tag.specialWork');
+  if (special === '语音') return I18n.t('tag.specialSpeak');
+  return special;
+}
+
+function updateStaticText() {
+  document.title = I18n.t('windowTitle');
+  document.getElementById('header-title').textContent = I18n.t('title');
+  btnRefresh.title = I18n.t('refresh');
+  btnLangSwitch.textContent = I18n.getSwitchLabel();
+  btnLangSwitch.title = I18n.t('lang');
+  loading.querySelector('p').textContent = I18n.t('loading');
+  emptyState.querySelector('p').textContent = I18n.t('empty.title');
+  emptyState.querySelector('.sub').textContent = I18n.t('empty.sub');
+  // Update action count badge if we have cached data
+  if (actionsCache.length > 0) {
+    actionCount.textContent = I18n.t('actionCount', { count: actionsCache.length });
+  }
+}
 
 // ==================== API ====================
 async function fetchActions() {
@@ -55,8 +80,9 @@ function showStatus(msg, type = 'success') {
 }
 
 function renderActions(actions) {
+  actionsCache = actions;
   actionsGrid.innerHTML = '';
-  actionCount.textContent = `${actions.length} 个动作`;
+  actionCount.textContent = I18n.t('actionCount', { count: actions.length });
 
   if (actions.length === 0) {
     emptyState.classList.remove('hidden');
@@ -73,18 +99,18 @@ function renderActions(actions) {
     // Build tags
     const tags = [];
     if (action.trigger === 'idle') {
-      tags.push(`<span class="tag tag-idle">idle</span>`);
+      tags.push(`<span class="tag tag-idle">${I18n.t('tag.idle')}</span>`);
       if (action.idleWeight > 0) {
-        tags.push(`<span class="tag tag-weight">权重 ${action.idleWeight}</span>`);
+        tags.push(`<span class="tag tag-weight">${I18n.t('tag.weight', { weight: action.idleWeight })}</span>`);
       }
     } else if (action.trigger === 'manual') {
-      tags.push(`<span class="tag tag-manual">manual</span>`);
+      tags.push(`<span class="tag tag-manual">${I18n.t('tag.manual')}</span>`);
     } else if (action.trigger === 'hook') {
-      tags.push(`<span class="tag tag-hook">hook: ${action.hookNames.join(', ')}</span>`);
+      tags.push(`<span class="tag tag-hook">${I18n.t('tag.hook', { names: action.hookNames.join(', ') })}</span>`);
     }
 
     if (action.special) {
-      tags.push(`<span class="tag tag-special">${action.special}</span>`);
+      tags.push(`<span class="tag tag-special">${specialLabel(action.special)}</span>`);
     }
 
     const gifUrl = `${GIF_BASE}${action.gifFile}`;
@@ -98,8 +124,8 @@ function renderActions(actions) {
         <div class="card-name">${action.name}</div>
         <div class="card-meta">${tags.join('')}</div>
         <div class="card-actions">
-          <button class="btn btn-primary btn-preview" data-action="${action.name}" title="播放此动作">▶ 预览</button>
-          <button class="btn btn-danger btn-delete" data-action="${action.name}" title="删除（M2）" disabled>🗑 删除</button>
+          <button class="btn btn-primary btn-preview" data-action="${action.name}" title="${I18n.t('preview.button')}">▶ ${I18n.t('preview.button')}</button>
+          <button class="btn btn-danger btn-delete" data-action="${action.name}" title="${I18n.t('delete.title')}" disabled>${I18n.t('delete.button')}</button>
         </div>
       </div>
     `;
@@ -126,8 +152,9 @@ function renderActions(actions) {
 
 function openPreview(name) {
   currentPreviewAction = name;
-  previewTitle.textContent = `预览 — ${name}`;
+  previewTitle.textContent = I18n.t('preview.titleWith', { name });
   previewGif.src = `${GIF_BASE}${name}.gif`;
+  btnPlayAction.textContent = '▶ ' + I18n.t('preview.play');
   previewModal.classList.remove('hidden');
 }
 
@@ -140,9 +167,9 @@ function closePreview() {
 async function playAction(name) {
   try {
     const result = await previewAction(name);
-    showStatus(`✓ "${name}" 已发送 (${result.sent_to} 客户端)`, 'success');
+    showStatus(`✓ ${I18n.t('success.sent', { name, count: result.sent_to })}`, 'success');
   } catch (err) {
-    showStatus(`✗ 发送失败: ${err.message}`, 'error');
+    showStatus(`✗ ${I18n.t('error.sendFailed', { error: err.message })}`, 'error');
   }
 }
 
@@ -157,9 +184,9 @@ async function load() {
     renderActions(data.actions);
   } catch (err) {
     emptyState.classList.remove('hidden');
-    emptyState.querySelector('p').textContent = '无法连接到 Cloe Desktop';
-    emptyState.querySelector('.sub').textContent = `请确认 Cloe Desktop 正在运行 (${err.message})`;
-    showStatus(`✗ 连接失败: ${err.message}`, 'error');
+    emptyState.querySelector('p').textContent = I18n.t('error.connection');
+    emptyState.querySelector('.sub').textContent = I18n.t('error.connectionSub', { error: err.message });
+    showStatus(`✗ ${I18n.t('error.connectionFailed', { error: err.message })}`, 'error');
   } finally {
     loading.classList.add('hidden');
   }
@@ -167,6 +194,20 @@ async function load() {
 
 // ==================== Event listeners ====================
 btnRefresh.addEventListener('click', load);
+
+btnLangSwitch.addEventListener('click', async () => {
+  const nextLocale = I18n.getSwitchLocale();
+  await I18n.switchLocale(nextLocale);
+  updateStaticText();
+  // Re-render cards with new language (no refetch needed)
+  if (actionsCache.length > 0) {
+    renderActions(actionsCache);
+  }
+  // Update empty/loading text
+  emptyState.querySelector('p').textContent = I18n.t('empty.title');
+  emptyState.querySelector('.sub').textContent = I18n.t('empty.sub');
+  loading.querySelector('p').textContent = I18n.t('loading');
+});
 
 btnCloseModal.addEventListener('click', closePreview);
 modalBackdrop.addEventListener('click', closePreview);
@@ -181,5 +222,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePreview();
 });
 
-// Initial load
-load();
+// ==================== Bootstrap ====================
+(async () => {
+  await I18n.init();
+  updateStaticText();
+  load();
+})();
