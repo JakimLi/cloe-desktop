@@ -30,14 +30,31 @@ let actionSetsData = null;
 let activeSetId = 'default';
 
 function loadActionSets() {
-  const manifestPath = path.join(__dirname, 'public', 'action-sets.json');
-  try {
-    const raw = fs.readFileSync(manifestPath, 'utf-8');
-    actionSetsData = JSON.parse(raw);
-    activeSetId = actionSetsData.activeSetId || 'default';
-    console.log(`[ActionSets] Loaded ${actionSetsData.sets.length} set(s), active: ${activeSetId}`);
-  } catch (err) {
-    console.error('[ActionSets] Failed to load action-sets.json:', err.message);
+  // Try multiple candidate paths: packaged (dist/) then dev (public/)
+  const candidates = [
+    path.join(__dirname, 'dist', 'action-sets.json'),
+    path.join(__dirname, 'public', 'action-sets.json'),
+  ];
+  if (!app.isPackaged) {
+    candidates.reverse(); // dev: public first
+  }
+  let loaded = false;
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        actionSetsData = JSON.parse(raw);
+        activeSetId = actionSetsData.activeSetId || 'default';
+        console.log(`[ActionSets] Loaded ${actionSetsData.sets.length} set(s) from ${p}`);
+        loaded = true;
+        break;
+      }
+    } catch (err) {
+      console.warn(`[ActionSets] Failed to load ${p}: ${err.message}`);
+    }
+  }
+  if (!loaded) {
+    console.error('[ActionSets] No action-sets.json found in any candidate path');
     actionSetsData = null;
   }
 }
