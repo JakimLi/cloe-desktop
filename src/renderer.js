@@ -266,7 +266,12 @@ function connectTtsWebSocket() {
         ttsIsPlaying = false;
         ttsChunks = [];
         isReacting = false;
-        startIdleLoop();
+        // Restore previous state (same logic as done branch)
+        if (ttsPrevWorking) {
+          switchGif('working', false);
+        } else {
+          startIdleLoop();
+        }
       }
     } catch (e) {
       console.error('[TTS WS] Parse error:', e);

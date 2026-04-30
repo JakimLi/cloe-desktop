@@ -11,37 +11,26 @@ export default defineConfig({
   server: {
     port: 5173,
   },
-  // publicDir: true (default) for dev server; custom copy plugin filters for build
+  // publicDir: 'public' — needed for dev server to serve GIFs/audio/references.
+  // Build cleanup: Vite copies public/ wholesale first, then we remove _work_* from dist.
   publicDir: 'public',
   plugins: [
     {
       name: 'copy-public-assets',
-      // Only runs during build, not dev
       apply: 'build',
       closeBundle() {
-        const src = path.resolve('public');
         const dest = path.resolve('dist');
-        const skipDirs = new Set(['_work_actions', '_work_idle', '_work_working', '_work_smile']);
+        const skipDirs = ['_work_actions', '_work_idle', '_work_working', '_work_smile'];
 
-        function copyDir(srcDir, destDir) {
-          for (const entry of fs.readdirSync(srcDir)) {
-            if (entry === '.DS_Store') continue;
-            const srcPath = path.join(srcDir, entry);
-            const destPath = path.join(destDir, entry);
-            const stat = fs.statSync(srcPath);
-            if (stat.isDirectory()) {
-              if (skipDirs.has(entry)) continue;
-              fs.mkdirSync(destDir, { recursive: true });
-              copyDir(srcPath, destPath);
-            } else {
-              fs.mkdirSync(destDir, { recursive: true });
-              fs.copyFileSync(srcPath, destPath);
-            }
+        // Remove _work_* directories that Vite already copied
+        for (const dir of skipDirs) {
+          const dirPath = path.join(dest, 'gifs', dir);
+          if (fs.existsSync(dirPath)) {
+            fs.rmSync(dirPath, { recursive: true, force: true });
+            console.log(`[build-cleanup] Removed dist/gifs/${dir}`);
           }
         }
-
-        copyDir(src, dest);
-        console.log('[copy-public] Copied public/ assets to dist/');
+        console.log('[build-cleanup] Done');
       },
     },
   ],
