@@ -287,7 +287,7 @@ function createManagerWindow() {
   managerWin = new BrowserWindow({
     width: 800,
     height: 600,
-    title: 'Cloe — Action Manager',
+    title: 'Cloe Settings',
     transparent: false,
     frame: true,
     alwaysOnTop: false,
@@ -356,7 +356,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: '管理动作',
+      label: '设置...',
       click: () => createManagerWindow(),
     },
     { type: 'separator' },

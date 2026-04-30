@@ -1,6 +1,10 @@
 {
+  "windowTitle": "Cloe 设置",
   "title": "动作管理",
-  "windowTitle": "Cloe — 动作管理",
+  "tabs": {
+    "actions": "动作管理",
+    "preferences": "偏好设置"
+  },
   "actionCount": "{{count}} 个动作",
   "refresh": "刷新",
   "loading": "加载动作列表...",
@@ -35,6 +39,16 @@
     "specialWork": "工作模式",
     "specialSpeak": "语音"
   },
-  "lang": "语言",
-  "langSwitch": "EN"
+  "prefs": {
+    "appearance": "外观",
+    "language": "语言",
+    "languageDesc": "选择界面显示语言",
+    "general": "通用",
+    "autoStart": "开机自动启动",
+    "autoStartDesc": "系统启动时自动运行 Cloe Desktop",
+    "minimizeToTray": "最小化到托盘",
+    "minimizeToTrayDesc": "关闭窗口时最小化到系统托盘",
+    "about": "关于",
+    "aboutDesc": "桌面宠物伴侣 · 让你的桌面更有趣"
+  }
 }

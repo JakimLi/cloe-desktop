@@ -1,6 +1,10 @@
 {
-  "title": "Action Manager",
-  "windowTitle": "Cloe — Action Manager",
+  "windowTitle": "Cloe Settings",
+  "title": "Actions",
+  "tabs": {
+    "actions": "Actions",
+    "preferences": "Preferences"
+  },
   "actionCount": "{{count}} actions",
   "refresh": "Refresh",
   "loading": "Loading actions...",
@@ -35,6 +39,16 @@
     "specialWork": "Work Mode",
     "specialSpeak": "Voice"
   },
-  "lang": "Language",
-  "langSwitch": "中"
+  "prefs": {
+    "appearance": "Appearance",
+    "language": "Language",
+    "languageDesc": "Choose the display language",
+    "general": "General",
+    "autoStart": "Launch at Login",
+    "autoStartDesc": "Automatically start Cloe Desktop on system boot",
+    "minimizeToTray": "Minimize to Tray",
+    "minimizeToTrayDesc": "Minimize to system tray when window is closed",
+    "about": "About",
+    "aboutDesc": "Desktop pet companion · Make your desktop more fun"
+  }
 }
