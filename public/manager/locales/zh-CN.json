@@ -86,6 +86,28 @@
     "modalTitle": "参考图 — {{name}}",
     "chromakey": "色幕: {{color}}"
   },
+  "genMode": {
+    "label": "生成方式",
+    "ai": "AI 生成",
+    "manual": "手动上传"
+  },
+  "genAction": {
+    "promptLabel": "动作提示词",
+    "promptPlaceholder": "描述动作，如：她开心地大笑",
+    "promptMissing": "请填写动作提示词",
+    "duration": "视频时长",
+    "seconds": "秒",
+    "generating": "动作 GIF 正在生成中...",
+    "button": "开始生成",
+    "error": "GIF 生成失败: {{error}}",
+    "complete": "动作 \"{{name}}\" 生成完成"
+  },
+  "genReference": {
+    "green": "AI 生成绿幕参考图",
+    "blue": "AI 生成蓝幕参考图",
+    "generating": "参考图生成中...",
+    "complete": "参考图生成完成"
+  },
   "prefs": {
     "appearance": "外观",
     "language": "语言",
@@ -95,6 +117,11 @@
     "autoStartDesc": "系统启动时自动运行 Cloe Desktop",
     "minimizeToTray": "最小化到托盘",
     "minimizeToTrayDesc": "关闭窗口时最小化到系统托盘",
+    "apiConfig": "API 配置",
+    "apiKey": "百炼 API Key",
+    "apiKeyDesc": "用于万相视频生成和千问图片生成",
+    "videoModel": "视频生成模型",
+    "videoModelDesc": "默认 wan2.7-i2v",
     "about": "关于",
     "aboutDesc": "桌面宠物伴侣 · 让你的桌面更有趣"
   }

@@ -161,6 +161,10 @@
               <img id="set-reference-preview-img" src="" alt="Preview">
               <button type="button" id="set-reference-remove" class="btn-icon btn-icon-sm" title="Remove">✕</button>
             </div>
+            <div class="form-ref-gen-buttons">
+              <button type="button" id="btn-gen-ref-green" class="btn btn-secondary btn-sm btn-ref-gen"></button>
+              <button type="button" id="btn-gen-ref-blue" class="btn btn-secondary btn-sm btn-ref-gen"></button>
+            </div>
           </div>
         </form>
       </div>
@@ -183,9 +187,30 @@
         <form id="add-action-form" class="form">
           <div class="form-group">
             <label class="form-label" for="action-name">Action Name *</label>
-            <input id="action-name" type="text" class="form-input" placeholder="e.g. laugh" required pattern="[a-z_]+">
-            <div class="form-hint">Use snake_case (letters and underscores only)</div>
+            <input id="action-name" type="text" class="form-input" placeholder="e.g. laugh" required pattern="[a-z][a-z0-9_]*">
+            <div class="form-hint">Use snake_case (letters, digits, underscores)</div>
           </div>
+          <div class="form-group">
+            <label class="form-label" for="action-gen-mode">Generation Mode</label>
+            <select id="action-gen-mode" class="form-select">
+              <option value="manual"></option>
+              <option value="ai"></option>
+            </select>
+          </div>
+          <div id="add-action-ai-fields" class="hidden">
+            <div class="form-group">
+              <label class="form-label" for="action-prompt">Action Prompt</label>
+              <textarea id="action-prompt" class="form-textarea" rows="3" maxlength="1200"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="action-duration">Duration</label>
+              <select id="action-duration" class="form-select">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+              </select>
+            </div>
+          </div>
+          <div id="add-action-manual-fields">
           <div class="form-group">
             <label class="form-label" for="action-gif">GIF File *</label>
             <input id="action-gif" type="file" accept=".gif,image/gif" class="form-file">
@@ -193,6 +218,7 @@
               <img id="action-gif-preview-img" src="" alt="Preview">
               <button type="button" id="action-gif-remove" class="btn-icon btn-icon-sm" title="Remove">✕</button>
             </div>
+          </div>
           </div>
           <div class="form-group">
             <label class="form-label" for="action-trigger">Trigger Type</label>

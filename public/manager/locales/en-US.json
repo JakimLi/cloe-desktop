@@ -86,6 +86,28 @@
     "modalTitle": "Reference — {{name}}",
     "chromakey": "Chromakey: {{color}}"
   },
+  "genMode": {
+    "label": "Generation Mode",
+    "ai": "AI Generate",
+    "manual": "Manual Upload"
+  },
+  "genAction": {
+    "promptLabel": "Action Prompt",
+    "promptPlaceholder": "Describe the action, e.g.: She laughs happily",
+    "promptMissing": "Please enter an action prompt",
+    "duration": "Duration",
+    "seconds": "sec",
+    "generating": "Generating action GIF...",
+    "button": "Generate",
+    "error": "GIF generation failed: {{error}}",
+    "complete": "Action \"{{name}}\" generated"
+  },
+  "genReference": {
+    "green": "Generate Green Screen Reference",
+    "blue": "Generate Blue Screen Reference",
+    "generating": "Generating reference...",
+    "complete": "Reference generated"
+  },
   "prefs": {
     "appearance": "Appearance",
     "language": "Language",
@@ -95,6 +117,11 @@
     "autoStartDesc": "Automatically start Cloe Desktop on system boot",
     "minimizeToTray": "Minimize to Tray",
     "minimizeToTrayDesc": "Minimize to system tray when window is closed",
+    "apiConfig": "API Configuration",
+    "apiKey": "DashScope API Key",
+    "apiKeyDesc": "Used for video and image generation",
+    "videoModel": "Video Generation Model",
+    "videoModelDesc": "Default: wan2.7-i2v",
     "about": "About",
     "aboutDesc": "Desktop pet companion · Make your desktop more fun"
   }
