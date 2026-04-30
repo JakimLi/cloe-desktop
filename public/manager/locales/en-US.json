@@ -106,7 +106,8 @@
     "green": "Generate Green Screen Reference",
     "blue": "Generate Blue Screen Reference",
     "generating": "Generating reference...",
-    "complete": "Reference generated"
+    "complete": "Reference generated",
+    "noRefImage": "Please upload a reference image first"
   },
   "prefs": {
     "appearance": "Appearance",

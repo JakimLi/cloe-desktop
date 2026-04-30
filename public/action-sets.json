@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "activeSetId": "可可2_61204",
+  "activeSetId": "kekecute_63013",
   "sets": [
     {
       "id": "default",
@@ -52,6 +52,18 @@
       "description": "",
       "descriptionEn": "",
       "reference": "references/可可2_61204.png",
+      "chromakey": "green",
+      "animations": {},
+      "idlePlaylist": [],
+      "actionMap": {}
+    },
+    {
+      "id": "kekecute_63013",
+      "name": "kekecute",
+      "nameEn": "",
+      "description": "",
+      "descriptionEn": "",
+      "reference": "references/kekecute_63013.png",
       "chromakey": "green",
       "animations": {},
       "idlePlaylist": [],

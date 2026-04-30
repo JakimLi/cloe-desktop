@@ -199,10 +199,14 @@ function resetReferenceGenButtons() {
 }
 
 async function postGenerateReference(chromakey) {
+  if (!setReferenceBase64) {
+    showStatus('\u2717 ' + I18n.t('genReference.noRefImage'), 'error');
+    return;
+  }
   const res = await fetch(`${API_BASE}/action-sets/generate-reference`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chromakey }),
+    body: JSON.stringify({ chromakey, imageBase64: setReferenceBase64 }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
