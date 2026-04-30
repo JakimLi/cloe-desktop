@@ -106,7 +106,8 @@
     "green": "AI 生成绿幕参考图",
     "blue": "AI 生成蓝幕参考图",
     "generating": "参考图生成中...",
-    "complete": "参考图生成完成"
+    "complete": "参考图生成完成",
+    "noRefImage": "请先上传参考图"
   },
   "prefs": {
     "appearance": "外观",

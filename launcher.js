@@ -328,10 +328,6 @@ function httpsGet(url, headers = {}) {
 }
 
 /** Default prompts for Wanx reference (green / blue screen). */
-const REFERENCE_PROMPT_GREEN =
-  '一个美丽的亚洲女孩上半身半身照，纯绿色背景(#00FF00)，自然坐姿，双手自然放身前，表情自然放松。电影质感，高清摄影风格。上半身取景，从肩膀到腰部以上。';
-const REFERENCE_PROMPT_BLUE =
-  '一个美丽的亚洲女孩上半身半身照，纯蓝色背景(#0000FF)，自然坐姿，双手自然放身前，表情自然放松。电影质感，高清摄影风格。上半身取景，从肩膀到腰部以上。';
 
 function dashScopeJson(postBody, headersExtra = {}) {
   const key = resolveBailianApiKey();
@@ -521,7 +517,7 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
   })();
 }
 
-function runReferenceGenerationJob(taskId, chromakey, promptText) {
+function runReferenceGenerationJob(taskId, chromakey, promptText, imageBase64) {
   (async () => {
     broadcastToClients({ type: 'generation-progress', taskId, status: 'starting', progress: 5 });
     const rec = generationTasks.get(taskId);
@@ -530,114 +526,76 @@ function runReferenceGenerationJob(taskId, chromakey, promptText) {
       rec.progress = 5;
     }
 
-    let apiTaskId = null;
-
     try {
       const apiKey = resolveBailianApiKey();
       if (!apiKey) throw new Error('DashScope API key missing');
 
-      const prompt = promptText || (chromakey === 'blue' ? REFERENCE_PROMPT_BLUE : REFERENCE_PROMPT_GREEN);
+      if (!imageBase64) throw new Error('No reference image provided');
 
-      const postResp = await dashScopeJson({
-        model: 'wanx2.1-t2i-turbo',
-        input: { prompt },
-        parameters: { size: '1024*1024', n: 1 },
+      const colorHint = chromakey === 'blue'
+        ? '纯蓝色背景(#0000FF)'
+        : '纯绿色背景(#00FF00)';
+      const prompt = promptText ||
+        `参考这张照片中女孩的长相，生成一张上半身半身照，${colorHint}，自然坐姿，双手自然放身前，表情自然放松。真实感写真照片风格，高清。上半身取景，从肩膀到腰部以上。`;
+
+      if (rec) {
+        rec.status = 'running';
+        rec.progress = 20;
+        broadcastToClients({ type: 'generation-progress', taskId, status: 'running', progress: 20 });
+      }
+
+      // Use wan2.7-image-pro (multimodal, sync, ~10s) — keeps character consistency via reference image
+      const body = JSON.stringify({
+        model: 'wan2.7-image-pro',
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { image: `data:image/png;base64,${imageBase64}` },
+                { text: prompt },
+              ],
+            },
+          ],
+        },
+        parameters: { n: 1, watermark: false },
       });
 
-      apiTaskId =
-        postResp.output?.task_id ||
-        postResp.task_id ||
-        postResp.output?.taskId;
+      const respBuf = await httpsPost(
+        'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+        body,
+        { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      );
+      const resp = JSON.parse(respBuf.toString('utf-8'));
 
-      if (!apiTaskId) {
-        throw new Error(`No task id in response: ${JSON.stringify(postResp).slice(0, 400)}`);
+      // Extract image URL from wan2.7-image-pro response
+      const content = resp?.output?.choices?.[0]?.message?.content;
+      let imageUrl = null;
+      if (Array.isArray(content)) {
+        for (const item of content) {
+          if (item && item.image) { imageUrl = item.image; break; }
+        }
+      }
+      if (!imageUrl) {
+        throw new Error(`No image in response: ${JSON.stringify(resp).slice(0, 500)}`);
       }
 
       if (rec) {
-        rec.dashscopeTaskId = apiTaskId;
-        rec.status = 'running';
+        rec.progress = 80;
+        broadcastToClients({ type: 'generation-progress', taskId, status: 'running', progress: 80 });
       }
 
-      const deadline = Date.now() + 50 * 60 * 1000;
-      /** @type {any} */
-      let statusObj = {};
+      const imgBuf = await httpsGet(imageUrl);
+      const b64 = Buffer.from(imgBuf).toString('base64');
 
-      while (Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, IMAGE_TASK_POLL_INTERVAL_MS));
-        statusObj = await dashScopeTaskGet(apiTaskId);
-        const st =
-          statusObj.output?.task_status ||
-          statusObj.task_status ||
-          statusObj.output?.taskStatus;
-
-        if (rec && st) rec.statusDetail = String(st);
-
-        const prog = statusObj.output?.task_metrics?.percentage;
-        if (rec && typeof prog === 'number') {
-          rec.progress = Math.min(90, Math.max(10, prog));
-          broadcastToClients({ type: 'generation-progress', taskId, status: 'running', progress: rec.progress });
-        }
-
-        if (st === 'FAILED' || st === 'UNKNOWN') {
-          const errDetail =
-            statusObj.output?.message ||
-            statusObj.message ||
-            statusObj.output?.message ||
-            JSON.stringify(statusObj.output || statusObj).slice(0, 600);
-          throw new Error(typeof errDetail === 'string' ? errDetail : 'Image task failed');
-        }
-
-        if (st === 'SUCCEEDED' || st === 'SUCCESS') {
-          const out = statusObj.output;
-          /** @type {string | undefined} */
-          let imageUrl = null;
-          const results = out?.results || out?.images;
-          if (Array.isArray(results) && results[0]?.url) {
-            imageUrl = results[0].url;
-          } else if (out?.choices?.[0]?.message?.content) {
-            const c = out.choices[0].message.content;
-            if (Array.isArray(c) && c[0]?.image) {
-              imageUrl = c[0].image;
-            }
-          } else if (typeof results?.[0]?.code === 'string' && /^https?:\/\//.test(results[0].code)) {
-            imageUrl = results[0].code;
-          }
-
-          if (!imageUrl) {
-            const rawImg = statusObj.results?.output?.choices?.[0]?.message?.content?.[0]?.image;
-            if (typeof rawImg === 'string' && rawImg.startsWith('http')) {
-              imageUrl = rawImg;
-            }
-          }
-
-          if (!imageUrl && out?.render_urls?.[0]) {
-            imageUrl = out.render_urls[0];
-          }
-
-          if (!imageUrl && statusObj.results?.results?.[0]?.url) {
-            imageUrl = statusObj.results.results[0].url;
-          }
-
-          if (!imageUrl) {
-            throw new Error(`SUCCEEDED but no image URL: ${JSON.stringify(out || statusObj).slice(0, 500)}`);
-          }
-
-          const imgBuf = await httpsGet(imageUrl);
-          const b64 = Buffer.from(imgBuf).toString('base64');
-
-          if (rec) {
-            rec.status = 'succeeded';
-            rec.progress = 100;
-            rec.completedAt = Date.now();
-          }
-          broadcastToClients({
-            type: 'reference-generated', taskId, imageBase64: b64, chromakey,
-          });
-          return;
-        }
+      if (rec) {
+        rec.status = 'succeeded';
+        rec.progress = 100;
+        rec.completedAt = Date.now();
       }
-
-      throw new Error('DashScope reference image polling timed out');
+      broadcastToClients({
+        type: 'reference-generated', taskId, imageBase64: b64, chromakey,
+      });
     } catch (e) {
       const msg = e?.message || String(e);
       if (rec) {
@@ -870,7 +828,7 @@ function createBridgeServers() {
             kind: 'reference',
             chromakey,
           });
-          runReferenceGenerationJob(taskId, chromakey, prompt || null);
+          runReferenceGenerationJob(taskId, chromakey, prompt || null, data.imageBase64 || null);
           res.writeHead(202, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ taskId, status: 'pending' }));
         } catch (e) {
