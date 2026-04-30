@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloe — 动作管理</title>
+  <link rel="stylesheet" href="./manager.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>🎬 动作管理</h1>
+      <div class="header-info">
+        <span id="action-count" class="badge">0 个动作</span>
+        <button id="btn-refresh" class="btn-icon" title="刷新">↻</button>
+      </div>
+    </header>
+
+    <div id="status-bar" class="status-bar hidden">
+      <span id="status-text"></span>
+    </div>
+
+    <div id="actions-grid" class="actions-grid">
+      <!-- Cards injected by JS -->
+    </div>
+
+    <div id="empty-state" class="empty-state hidden">
+      <p>没有找到动作</p>
+      <p class="sub">请确认 Cloe Desktop 正在运行</p>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>加载动作列表...</p>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="preview-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="preview-title">预览</h2>
+        <button id="btn-close-modal" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <img id="preview-gif" src="" alt="Preview">
+      </div>
+      <div class="modal-footer">
+        <button id="btn-play-action" class="btn btn-primary">▶ 播放动作</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./manager.js"></script>
+</body>
+</html>
