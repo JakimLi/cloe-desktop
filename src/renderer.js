@@ -6,17 +6,22 @@ const CROSSFADE_MS = 300;
 const IDLE_INTERVAL = { min: 8000, max: 15000 };
 const REACTION_DURATION = 3000;
 
+// Resolve base path for assets (GIFs, audio)
+// Dev mode: Vite serves from http://localhost:5173/ → use /gifs/
+// Production: file:// protocol → use relative ./gifs/
+const BASE = (location.protocol === 'file:') ? './' : '/';
+
 const GIF_ANIMATIONS = {
-  blink:       './gifs/blink.gif',
-  smile:       './gifs/smile.gif',
-  kiss:        './gifs/kiss.gif',
-  nod:         './gifs/nod.gif',
-  wave:        './gifs/wave.gif',
-  think:       './gifs/think.gif',
-  tease:       './gifs/tease.gif',
-  speak:       './gifs/speak.gif',
-  shake_head:  './gifs/shake_head.gif',
-  working:     './gifs/working.gif',
+  blink:       `${BASE}gifs/blink.gif`,
+  smile:       `${BASE}gifs/smile.gif`,
+  kiss:        `${BASE}gifs/kiss.gif`,
+  nod:         `${BASE}gifs/nod.gif`,
+  wave:        `${BASE}gifs/wave.gif`,
+  think:       `${BASE}gifs/think.gif`,
+  tease:       `${BASE}gifs/tease.gif`,
+  speak:       `${BASE}gifs/speak.gif`,
+  shake_head:  `${BASE}gifs/shake_head.gif`,
+  working:     `${BASE}gifs/working.gif`,
 };
 
 // Weighted idle playlist (blink & smile most frequent)
@@ -154,13 +159,179 @@ function startIdleLoop() {
 }
 
 // ==================== Audio ====================
-function playAudio(name) {
+// --- Streaming TTS Audio (AudioContext) ---
+const TTS_WS_PORT = 19853;
+let ttsWs = null;
+let ttsAudioCtx = null;
+let ttsGainNode = null;
+let ttsIsPlaying = false;
+
+// Buffer all chunks, play on done (CPU is too slow for real-time streaming)
+let ttsChunks = [];       // collected Float32Array chunks
+let ttsTotalSamples = 0;
+let ttsPrevWorking = false; // remember if we were in working mode before speak
+
+function ensureTtsAudioCtx() {
+  if (!ttsAudioCtx) {
+    ttsAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+    ttsGainNode = ttsAudioCtx.createGain();
+    ttsGainNode.gain.value = 0.9;
+    ttsGainNode.connect(ttsAudioCtx.destination);
+  }
+  if (ttsAudioCtx.state === 'suspended') ttsAudioCtx.resume();
+}
+
+function connectTtsWebSocket() {
+  if (ttsWs && ttsWs.readyState <= 1) return;
+
+  ensureTtsAudioCtx();
+  ttsWs = new WebSocket(`ws://127.0.0.1:${TTS_WS_PORT}`);
+
+  ttsWs.onopen = () => {
+    console.log('[TTS WS] Connected');
+  };
+
+  ttsWs.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === 'meta') {
+        // New synthesis — reset buffer, snapshot previous state
+        ttsChunks = [];
+        ttsTotalSamples = 0;
+        ttsPrevWorking = isWorking;
+        ttsIsPlaying = true;
+        console.log(`[TTS WS] Meta: ${msg.sample_rate}Hz, ${msg.channels}ch — buffering...`);
+      }
+      else if (msg.type === 'audio') {
+        // Decode base64 PCM float32 (interleaved stereo) and buffer
+        const pcmBytes = atob(msg.data);
+        const buf = new ArrayBuffer(pcmBytes.length);
+        const uint8 = new Uint8Array(buf);
+        for (let i = 0; i < pcmBytes.length; i++) uint8[i] = pcmBytes.charCodeAt(i);
+        const pcmArray = new Float32Array(buf);
+        ttsChunks.push(pcmArray);
+        ttsTotalSamples += pcmArray.length / 2; // samples per channel
+        console.log(`[TTS WS] Buffered chunk, total: ${ttsTotalSamples} samples (${(ttsTotalSamples/48000).toFixed(2)}s)`);
+      }
+      else if (msg.type === 'done') {
+        // All chunks received — assemble and play
+        if (ttsTotalSamples > 0) {
+          const buffer = ttsAudioCtx.createBuffer(2, ttsTotalSamples, 48000);
+          const left = buffer.getChannelData(0);
+          const right = buffer.getChannelData(1);
+          let offset = 0;
+          for (const pcm of ttsChunks) {
+            const samplesPerChannel = pcm.length / 2;
+            for (let i = 0; i < samplesPerChannel; i++) {
+              left[offset + i] = pcm[i * 2];
+              right[offset + i] = pcm[i * 2 + 1];
+            }
+            offset += samplesPerChannel;
+          }
+
+          // Switch to speak.gif RIGHT when audio starts
+          switchGif('speak', false);
+
+          const source = ttsAudioCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ttsGainNode);
+          source.start(0);
+          source.onended = () => {
+            ttsIsPlaying = false;
+            isReacting = false;
+            clearTimeout(reactionTimer);
+            // Restore previous state
+            if (ttsPrevWorking) {
+              switchGif('working', false);
+            } else {
+              startIdleLoop();
+            }
+          };
+          console.log(`[TTS WS] Playing ${ttsTotalSamples} samples (${(ttsTotalSamples/48000).toFixed(2)}s)`);
+        } else {
+          ttsIsPlaying = false;
+          isReacting = false;
+          if (ttsPrevWorking) {
+            switchGif('working', false);
+          } else {
+            startIdleLoop();
+          }
+        }
+        ttsChunks = [];
+        console.log('[TTS WS] Synthesis complete');
+      }
+      else if (msg.type === 'error') {
+        console.error('[TTS WS] Error:', msg.message);
+        ttsIsPlaying = false;
+        ttsChunks = [];
+        isReacting = false;
+        // Restore previous state (same logic as done branch)
+        if (ttsPrevWorking) {
+          switchGif('working', false);
+        } else {
+          startIdleLoop();
+        }
+      }
+    } catch (e) {
+      console.error('[TTS WS] Parse error:', e);
+    }
+  };
+
+  ttsWs.onclose = () => {
+    console.log('[TTS WS] Disconnected');
+    ttsWs = null;
+    setTimeout(connectTtsWebSocket, 5000);
+  };
+
+  ttsWs.onerror = () => {
+    console.error('[TTS WS] Error');
+    ttsWs.close();
+  };
+}
+
+function ttsSpeak(text) {
+  if (!ttsWs || ttsWs.readyState !== 1) {
+    console.warn('[TTS] WebSocket not connected, falling back...');
+    switchGif('speak');
+    return;
+  }
   stopAudio();
-  const audio = new Audio(`./audio/${name}.mp3`);
+  // Clear all timers to prevent previous idle/reaction from interrupting
+  clearTimeout(idleTimer);
+  clearTimeout(reactionTimer);
+  isReacting = true; // block idle during buffering + playback
+  // Don't switch GIF yet — wait until audio is ready to play
+  ttsPrevWorking = isWorking;
+  console.log('[TTS] Sending text to TTS server:', text);
+  ttsWs.send(JSON.stringify({ text }));
+}
+
+// --- Legacy Audio (non-streaming, for pre-recorded and HTTP audio) ---
+function playAudio(source, onEnded) {
+  stopAudio();
+  // Support: data URL (data:audio/...;base64,...), full URL, or pre-recorded name
+  let src;
+  if (source.startsWith('data:') || source.startsWith('http://') || source.startsWith('https://')) {
+    src = source;
+  } else {
+    src = `${BASE}audio/${source}.mp3`;
+  }
+  const audio = new Audio(src);
   audio.volume = 0.9;
   window._currentAudio = audio;
   audio.play().catch((e) => console.error('Audio error:', e));
-  audio.addEventListener('ended', () => { window._currentAudio = null; });
+  audio.addEventListener('ended', () => {
+    window._currentAudio = null;
+    if (onEnded) onEnded();
+  });
+  // Also handle load error — don't get stuck if audio fails
+  audio.addEventListener('error', () => {
+    console.error('[Audio] Failed to load:', src.substring(0, 80));
+    window._currentAudio = null;
+    if (onEnded) onEnded();
+  });
+  return audio;
 }
 
 function stopAudio() {
@@ -214,9 +385,28 @@ function handleAction(data) {
   // Direct mapping or fallback
   const gifName = ACTION_MAP[action];
   if (gifName) {
-    switchGif(gifName);
-    if (action === 'speak' && data.audio) {
-      playAudio(data.audio);
+    if (action === 'speak') {
+      // Priority 1: Streaming TTS via WebSocket (text field)
+      if (data.text) {
+        ttsSpeak(data.text);
+      }
+      // Priority 2: Dynamic TTS via HTTP (audio_url field, legacy)
+      else if (data.audio_url) {
+        switchGif(gifName, false);
+        playAudio(data.audio_url, () => {
+          isReacting = false;
+          startIdleLoop();
+        });
+      }
+      // Priority 3: Pre-recorded audio (audio field)
+      else {
+        switchGif(gifName);
+        if (data.audio) {
+          playAudio(data.audio);
+        }
+      }
+    } else {
+      switchGif(gifName);
     }
   } else {
     resetGif();
@@ -277,3 +467,4 @@ function connectWebSocket() {
 // ==================== Init ====================
 startIdleLoop();
 connectWebSocket();
+connectTtsWebSocket();  // Connect to TTS streaming server
