@@ -1468,10 +1468,7 @@ function waitForBridge(maxWait = 3000) {
 // ==================== Saved main window position ====================
 
 function getWindowPositionFilePath() {
-  if (app.isPackaged) {
-    return path.join(app.getPath('userData'), 'window-position.json');
-  }
-  return path.join(__dirname, '.window-position.json');
+  return path.join(getCloeConfigDir(), 'window-position.json');
 }
 
 function loadWindowPosition() {
