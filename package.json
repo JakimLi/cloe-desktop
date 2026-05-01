@@ -75,6 +75,13 @@
       "preload.js",
       "node_modules/ws/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "scripts",
+        "to": "scripts",
+        "filter": ["**/*.py"]
+      }
+    ],
     "directories": {
       "output": "release"
     }

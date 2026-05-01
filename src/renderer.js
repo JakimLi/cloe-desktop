@@ -8,8 +8,8 @@ const REACTION_DURATION = 3000;
 
 // Resolve base path for assets (GIFs, audio)
 // Dev mode: Vite serves from http://localhost:5173/ → use /gifs/
-// Production: file:// protocol → use relative ./gifs/
-const BASE = (location.protocol === 'file:') ? './' : '/';
+// Production: file:// protocol → use bridge HTTP (localhost:19851) so generated GIFs are accessible
+const BASE = (location.protocol === 'file:') ? `http://127.0.0.1:19851/` : '/';
 
 let GIF_ANIMATIONS = {
   blink:       `${BASE}gifs/blink.gif`,
