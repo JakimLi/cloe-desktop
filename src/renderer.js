@@ -22,6 +22,10 @@ let GIF_ANIMATIONS = {
   speak:       `${BASE}gifs/speak.gif`,
   shake_head:  `${BASE}gifs/shake_head.gif`,
   working:     `${BASE}gifs/working.gif`,
+  clap:        `${BASE}gifs/clap.gif`,
+  shy:         `${BASE}gifs/shy.gif`,
+  yawn:        `${BASE}gifs/yawn.gif`,
+  laugh:       `${BASE}gifs/laugh.gif`,
 };
 
 // Weighted idle playlist (blink & smile most frequent)
@@ -31,7 +35,8 @@ let IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod',
 let ACTION_MAP = {
   smile: 'smile', approve: 'smile', happy: 'smile',
   nod: 'nod', wave: 'wave', think: 'think', tease: 'tease',
-  kiss: 'kiss', shake_head: 'shake_head', speak: 'speak',
+  kiss: 'kiss', shake_head: 'shake_head', speak: 'speak', clap: 'clap',
+  shy: 'shy', yawn: 'yawn', laugh: 'laugh',
 };
 
 // ==================== State ====================
