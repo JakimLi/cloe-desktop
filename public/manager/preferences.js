@@ -56,6 +56,22 @@ function renderPreferences() {
             </label>
           </div>
         </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.windowPosition')}</div>
+            <div class="pref-desc">${I18n.t('prefs.windowPositionDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div class="pref-window-pos-stack" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <div id="pref-window-pos-display" class="pref-desc" style="margin-top:0;text-align:right;"></div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">
+                <button type="button" class="btn btn-primary btn-sm" id="pref-window-pos-save">${I18n.t('prefs.windowPositionSave')}</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="pref-window-pos-clear">${I18n.t('prefs.windowPositionClear')}</button>
+              </div>
+              <span id="pref-window-pos-feedback" style="font-size:11px;color:var(--accent);min-height:14px;"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -181,6 +197,73 @@ function renderPreferences() {
   });
 
   loadApiConfig();
+
+  const winPosDisplay = document.getElementById('pref-window-pos-display');
+  const winPosFeedback = document.getElementById('pref-window-pos-feedback');
+  let winPosFeedbackTimer;
+
+  function showWindowPosFeedback(msg) {
+    if (!winPosFeedback) return;
+    winPosFeedback.textContent = msg || '';
+    if (winPosFeedbackTimer) clearTimeout(winPosFeedbackTimer);
+    if (msg) {
+      winPosFeedbackTimer = setTimeout(() => {
+        winPosFeedback.textContent = '';
+      }, 2800);
+    }
+  }
+
+  async function refreshWindowPositionUi() {
+    if (!winPosDisplay) return;
+    try {
+      const res = await fetch(`${API_CONFIG_BASE}/window-position`);
+      if (!res.ok) throw new Error('http');
+      const data = await res.json();
+      winPosDisplay.textContent = data.saved
+        ? I18n.t('prefs.windowPositionSaved', { x: data.saved.x, y: data.saved.y })
+        : I18n.t('prefs.windowPositionNotSet');
+    } catch (_) {
+      winPosDisplay.textContent = '—';
+    }
+  }
+
+  document.getElementById('pref-window-pos-save')?.addEventListener('click', async () => {
+    showWindowPosFeedback('');
+    try {
+      const res = await fetch(`${API_CONFIG_BASE}/window-position`);
+      if (!res.ok) throw new Error('http');
+      const data = await res.json();
+      if (!data.current) throw new Error('no window');
+      const postRes = await fetch(`${API_CONFIG_BASE}/window-position`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: data.current.x, y: data.current.y }),
+      });
+      if (!postRes.ok) throw new Error('save');
+      showWindowPosFeedback(I18n.t('prefs.windowPositionSaveSuccess'));
+      await refreshWindowPositionUi();
+    } catch (_) {
+      showWindowPosFeedback('');
+    }
+  });
+
+  document.getElementById('pref-window-pos-clear')?.addEventListener('click', async () => {
+    showWindowPosFeedback('');
+    try {
+      const postRes = await fetch(`${API_CONFIG_BASE}/window-position`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear: true }),
+      });
+      if (!postRes.ok) throw new Error('clear');
+      showWindowPosFeedback(I18n.t('prefs.windowPositionClearSuccess'));
+      await refreshWindowPositionUi();
+    } catch (_) {
+      showWindowPosFeedback('');
+    }
+  });
+
+  refreshWindowPositionUi();
 }
 
 function updatePreferencesText() {
