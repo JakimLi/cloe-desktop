@@ -10,6 +10,7 @@
 
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const os = require('os');
 const http = require('http');
 const https = require('https');
@@ -29,10 +30,23 @@ let managerWin = null;
 let tray = null;
 const bridgeClients = new Set();
 
-// ==================== User config (~/.cloe-desktop/config.json) ====================
+// ==================== User config (~/.cloe/config.json) ====================
+
+function getCloeConfigDir() {
+  return path.join(os.homedir(), '.cloe');
+}
 
 function getConfigPath() {
-  return path.join(os.homedir(), '.cloe-desktop', 'config.json');
+  return path.join(getCloeConfigDir(), 'config.json');
+}
+
+function expandDataDir(raw) {
+  const def = path.join(os.homedir(), '.cloe');
+  const s = raw != null && String(raw).trim() !== '' ? String(raw).trim() : '~/.cloe';
+  if (s.startsWith('~/')) return path.normalize(path.join(os.homedir(), s.slice(2)));
+  if (s === '~') return os.homedir();
+  if (path.isAbsolute(s)) return path.normalize(s);
+  return path.normalize(path.join(os.homedir(), s));
 }
 
 function loadConfig() {
@@ -51,54 +65,182 @@ function saveConfig(config) {
   fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8');
 }
 
+/**
+ * Writable data root: packaged → config dataDir; dev → project public/
+ */
+function getDataDir() {
+  if (!app.isPackaged) {
+    return path.join(__dirname, 'public');
+  }
+  const cfg = loadConfig();
+  return expandDataDir(cfg.dataDir);
+}
+
+function getBundledSeedRoot() {
+  return app.isPackaged ? path.join(__dirname, 'dist') : path.join(__dirname, 'public');
+}
+
+function copyTreeMissingOnly(srcDir, destDir) {
+  if (!fs.existsSync(srcDir)) return;
+  fs.mkdirSync(destDir, { recursive: true });
+  for (const ent of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const s = path.join(srcDir, ent.name);
+    const d = path.join(destDir, ent.name);
+    if (ent.isDirectory()) {
+      copyTreeMissingOnly(s, d);
+    } else if (!fs.existsSync(d)) {
+      fs.copyFileSync(s, d);
+    }
+  }
+}
+
+function copyTreeOverwrite(srcDir, destDir) {
+  if (!fs.existsSync(srcDir)) return;
+  fs.mkdirSync(destDir, { recursive: true });
+  for (const ent of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const s = path.join(srcDir, ent.name);
+    const d = path.join(destDir, ent.name);
+    if (ent.isDirectory()) {
+      copyTreeOverwrite(s, d);
+    } else {
+      fs.copyFileSync(s, d);
+    }
+  }
+}
+
+function ensureCloeConfigDirAndMigrateConfig() {
+  const cloeDir = getCloeConfigDir();
+  if (!fs.existsSync(cloeDir)) {
+    fs.mkdirSync(cloeDir, { recursive: true });
+  }
+  const cfgPath = getConfigPath();
+  if (!fs.existsSync(cfgPath)) {
+    const merged = {
+      version: 1,
+      dataDir: '~/.cloe',
+      videoModel: 'wan2.7-i2v',
+      language: 'zh-CN',
+    };
+    const legacyDesktop = path.join(os.homedir(), '.cloe-desktop', 'config.json');
+    if (fs.existsSync(legacyDesktop)) {
+      try {
+        const old = JSON.parse(fs.readFileSync(legacyDesktop, 'utf-8'));
+        if (old.dashscopeApiKey != null) merged.dashscopeApiKey = old.dashscopeApiKey;
+        if (old.videoModel != null) merged.videoModel = old.videoModel;
+        if (old.language != null) merged.language = old.language;
+        if (old.dataDir != null && String(old.dataDir).trim() !== '') merged.dataDir = old.dataDir;
+        console.log('[Config] Migrated keys from ~/.cloe-desktop/config.json');
+      } catch (err) {
+        console.warn('[Config] Legacy ~/.cloe-desktop/config.json unreadable:', err.message);
+      }
+    }
+    saveConfig(merged);
+  } else {
+    const cfg = loadConfig();
+    let changed = false;
+    if (cfg.dataDir == null || String(cfg.dataDir).trim() === '') {
+      cfg.dataDir = '~/.cloe';
+      changed = true;
+    }
+    if (cfg.version == null) {
+      cfg.version = 1;
+      changed = true;
+    }
+    if (changed) saveConfig(cfg);
+  }
+
+  const legacyPath = path.join(os.homedir(), '.cloe-desktop', 'config.json');
+  const mergeMarker = path.join(cloeDir, '.merged-from-cloe-desktop-config');
+  if (fs.existsSync(legacyPath) && !fs.existsSync(mergeMarker)) {
+    try {
+      const old = JSON.parse(fs.readFileSync(legacyPath, 'utf-8'));
+      const cur = loadConfig();
+      let changed = false;
+      for (const k of ['dashscopeApiKey', 'videoModel', 'language']) {
+        if (old[k] != null && old[k] !== '' && (cur[k] == null || cur[k] === '')) {
+          cur[k] = old[k];
+          changed = true;
+        }
+      }
+      if (changed) saveConfig(cur);
+    } catch (err) {
+      console.warn('[Config] Legacy ~/.cloe-desktop merge failed:', err.message);
+    }
+    fs.writeFileSync(mergeMarker, `${new Date().toISOString()}\n`);
+  }
+}
+
+function seedPackagedDataDir(dataDir) {
+  const bundledRoot = path.join(__dirname, 'dist');
+  if (!fs.existsSync(bundledRoot)) {
+    console.warn('[Seed] dist/ not found, skipping seed copy');
+    return;
+  }
+  for (const sub of ['gifs', 'references', 'audio']) {
+    copyTreeMissingOnly(path.join(bundledRoot, sub), path.join(dataDir, sub));
+  }
+  const destJson = path.join(dataDir, 'action-sets.json');
+  if (!fs.existsSync(destJson)) {
+    const srcJson = path.join(bundledRoot, 'action-sets.json');
+    if (fs.existsSync(srcJson)) fs.copyFileSync(srcJson, destJson);
+  }
+}
+
+function migrateLegacyElectronUserData(dataDir) {
+  const marker = path.join(dataDir, '.migrated-from-electron-userdata');
+  if (fs.existsSync(marker)) return;
+
+  const legacyBase = app.getPath('userData');
+  if (fs.existsSync(legacyBase)) {
+    const legacyGifs = path.join(legacyBase, 'gifs');
+    const legacyActionSets = path.join(legacyBase, 'action-sets.json');
+    if (fs.existsSync(legacyGifs)) {
+      copyTreeOverwrite(legacyGifs, path.join(dataDir, 'gifs'));
+      console.log('[Migrate] GIFs from', legacyGifs, '→', path.join(dataDir, 'gifs'));
+    }
+    if (fs.existsSync(legacyActionSets)) {
+      fs.copyFileSync(legacyActionSets, path.join(dataDir, 'action-sets.json'));
+      console.log('[Migrate] action-sets.json from legacy userData');
+    }
+  }
+  fs.writeFileSync(marker, `${new Date().toISOString()}\n`);
+}
+
+function bootstrapPackagedData() {
+  const dataDir = getDataDir();
+  for (const sub of ['gifs', 'references', 'audio']) {
+    const d = path.join(dataDir, sub);
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+  }
+  seedPackagedDataDir(dataDir);
+  migrateLegacyElectronUserData(dataDir);
+}
+
 // ==================== Action Sets — loaded from action-sets.json ====================
 let actionSetsData = null;
 let activeSetId = 'default';
 
 function loadActionSets() {
-  // Packaged mode: ensure userData has a copy (first launch copies from asar)
-  if (app.isPackaged) {
-    const userDataPath = path.join(app.getPath('userData'), 'action-sets.json');
-    if (!fs.existsSync(userDataPath)) {
-      // First launch: copy from bundled asar dist
-      const bundledPath = path.join(__dirname, 'dist', 'action-sets.json');
-      try {
-        if (fs.existsSync(bundledPath)) {
-          fs.copyFileSync(bundledPath, userDataPath);
-          console.log(`[ActionSets] Copied bundled → ${userDataPath}`);
-        }
-      } catch (err) {
-        console.warn(`[ActionSets] Failed to copy bundled: ${err.message}`);
-      }
-    }
-  }
-
-  // Try multiple candidate paths
-  const candidates = [
-    path.join(app.getPath('userData'), 'action-sets.json'),  // packaged: writable copy
-    path.join(__dirname, 'dist', 'action-sets.json'),        // packaged: bundled in asar
-    path.join(__dirname, 'public', 'action-sets.json'),      // dev
-  ];
-  if (!app.isPackaged) {
-    candidates.reverse(); // dev: public first
+  const primary = getActionSetsPath();
+  let p = primary;
+  if (!fs.existsSync(p) && app.isPackaged) {
+    const bundled = path.join(__dirname, 'dist', 'action-sets.json');
+    if (fs.existsSync(bundled)) p = bundled;
   }
   let loaded = false;
-  for (const p of candidates) {
-    try {
-      if (fs.existsSync(p)) {
-        const raw = fs.readFileSync(p, 'utf-8');
-        actionSetsData = JSON.parse(raw);
-        activeSetId = actionSetsData.activeSetId || 'default';
-        console.log(`[ActionSets] Loaded ${actionSetsData.sets.length} set(s) from ${p}`);
-        loaded = true;
-        break;
-      }
-    } catch (err) {
-      console.warn(`[ActionSets] Failed to load ${p}: ${err.message}`);
+  try {
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf-8');
+      actionSetsData = JSON.parse(raw);
+      activeSetId = actionSetsData.activeSetId || 'default';
+      console.log(`[ActionSets] Loaded ${actionSetsData.sets.length} set(s) from ${p}`);
+      loaded = true;
     }
+  } catch (err) {
+    console.warn(`[ActionSets] Failed to load ${p}: ${err.message}`);
   }
   if (!loaded) {
-    console.error('[ActionSets] No action-sets.json found in any candidate path');
+    console.error('[ActionSets] No action-sets.json found');
     actionSetsData = null;
   }
 }
@@ -178,11 +320,7 @@ function buildSetsSummary() {
 
 // ==================== Action Sets CRUD Helpers ====================
 function getActionSetsPath() {
-  if (!app.isPackaged) {
-    return path.join(__dirname, 'public', 'action-sets.json');
-  }
-  // Packaged: use writable userData directory (asar is read-only)
-  return path.join(app.getPath('userData'), 'action-sets.json');
+  return path.join(getDataDir(), 'action-sets.json');
 }
 
 function saveActionSets() {
@@ -245,36 +383,21 @@ function getScriptsDir() {
   return path.join(__dirname, 'scripts');
 }
 
-/**
- * Writable directory for GIF generation output & intermediate files.
- * In packaged mode, asar is read-only so we use app data path.
- * In dev mode, use the project's public/gifs/ directory.
- */
-function getGifsDataDir() {
-  if (app.isPackaged) {
-    const dir = path.join(app.getPath('userData'), 'gifs');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    return dir;
-  }
-  return path.join(__dirname, 'public', 'gifs');
+function getGifsDir() {
+  const dir = path.join(getDataDir(), 'gifs');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 /**
- * Resolve reference image to a REAL filesystem path (Python can't read asar).
- * If the path resolves inside asar, copy to a temp file first.
+ * Resolve reference image for Python: prefer dataDir (real FS), then bundled seed.
  */
 function resolveReferenceForPython(set) {
   const p = resolveReferenceAbsolutePath(set);
   if (!p) return null;
-  // Electron's fs patches can read from asar, but Python can't.
-  // If path contains ".asar", copy to temp file.
   if (p.includes('.asar')) {
-    const tmpDir = path.join(app.getPath('userData'), 'tmp');
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    const ext = path.extname(p) || '.png';
-    const tmpFile = path.join(tmpDir, `ref_${Date.now()}${ext}`);
-    fs.copyFileSync(p, tmpFile);
-    return tmpFile;
+    console.warn('[Python] Reference path unexpectedly inside asar:', p);
+    return null;
   }
   return p;
 }
@@ -282,53 +405,36 @@ function resolveReferenceForPython(set) {
 /** taskId → { status, progress, startedAt, kind, actionName?, setId?, chromakey?, error? } */
 const generationTasks = new Map();
 
-function resolveBailianApiKey() {
-  const cfg = loadConfig();
-  const fromCfg = cfg.dashscopeApiKey != null ? String(cfg.dashscopeApiKey).trim() : '';
-  return fromCfg || '';
-}
-
-function getPublicAssetsRoot() {
-  return app.isPackaged ? path.join(__dirname, 'dist') : path.join(__dirname, 'public');
-}
-
-/**
- * Writable assets root for saving new files (references, action uploads).
- * In packaged mode, asar is read-only, so use userData/assets/.
- */
-function getWritableAssetsRoot() {
-  if (!app.isPackaged) return path.join(__dirname, 'public');
-  const dir = path.join(app.getPath('userData'), 'assets');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
-/**
- * Absolute path to chroma reference image for GIF generation (set reference or bundled fallback).
- */
 function resolveReferenceAbsolutePath(set) {
   const chromakey = set.chromakey || 'green';
+  const bundled = getBundledSeedRoot();
   if (set.reference) {
-    // Try writable root first (newly uploaded/generated), then bundled (asar)
-    for (const root of [getWritableAssetsRoot(), getPublicAssetsRoot()]) {
+    for (const root of [getDataDir(), bundled]) {
       const candidate = path.join(root, set.reference);
       if (fs.existsSync(candidate)) return candidate;
     }
   }
-  const root = getPublicAssetsRoot();
   const fallbacks =
     chromakey === 'blue'
       ? [
-        path.join(root, 'gifs', '_work_idle', '01_blue_bg_sitting.png'),
+        path.join(getDataDir(), 'gifs', '_work_idle', '01_blue_bg_sitting.png'),
+        path.join(bundled, 'gifs', '_work_idle', '01_blue_bg_sitting.png'),
         path.join(__dirname, 'reference_upperbody_bluebg.png'),
       ]
       : [
-        path.join(root, 'gifs', '_work_idle', '01_green_bg_sitting.png'),
+        path.join(getDataDir(), 'gifs', '_work_idle', '01_green_bg_sitting.png'),
+        path.join(bundled, 'gifs', '_work_idle', '01_green_bg_sitting.png'),
       ];
   for (const fp of fallbacks) {
     if (fs.existsSync(fp)) return fp;
   }
   return null;
+}
+
+function resolveBailianApiKey() {
+  const cfg = loadConfig();
+  const fromCfg = cfg.dashscopeApiKey != null ? String(cfg.dashscopeApiKey).trim() : '';
+  return fromCfg || '';
 }
 
 function requestUrlBuffer(urlStr, { method = 'GET', headers = {}, body = null, followRedirects = false } = {}) {
@@ -453,7 +559,7 @@ function mergeGenerateActionIntoSet(set, name, trigger) {
 }
 
 function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chromakey, trigger) {
-  const gifDir = getGifsDataDir();
+  const gifDir = getGifsDir();
   const outputGifAbs = path.join(gifDir, `${name}.gif`);
   const workDir = path.join(gifDir, `_work_${name}`);
 
@@ -525,7 +631,7 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
     }, GIF_GEN_TIMEOUT_MS);
 
     // Use a real writable directory as cwd (Python can't chdir into asar)
-    const spawnCwd = getGifsDataDir();
+    const spawnCwd = getGifsDir();
     proc = spawn(PYTHON_BIN, args, { cwd: spawnCwd, env });
 
     let stderrAcc = '';
@@ -573,8 +679,6 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
           return;
         }
 
-        // In packaged mode, GIF is in userData/gifs/ and served via bridge HTTP
-        // (asar is read-only, so we don't copy there)
         console.log(`[GIF Gen] Output at: ${outputGifAbs}`);
 
         mergeGenerateActionIntoSet(setNow, name, trigger);
@@ -1024,7 +1128,7 @@ function createBridgeServers() {
           const id = generateSetId(data.name);
           // Save reference image if provided
           if (data.referenceBase64) {
-            const refDir = path.join(getWritableAssetsRoot(), 'references');
+            const refDir = path.join(getDataDir(), 'references');
             if (!fs.existsSync(refDir)) fs.mkdirSync(refDir, { recursive: true });
             fs.writeFileSync(path.join(refDir, `${id}.png`), Buffer.from(data.referenceBase64, 'base64'));
           }
@@ -1116,7 +1220,7 @@ function createBridgeServers() {
             return;
           }
           // Save GIF file
-          const gifsDir = getGifsDataDir();
+          const gifsDir = getGifsDir();
           if (!fs.existsSync(gifsDir)) fs.mkdirSync(gifsDir, { recursive: true });
           fs.writeFileSync(path.join(gifsDir, `${data.name}.gif`), Buffer.from(data.gifBase64, 'base64'));
 
@@ -1185,53 +1289,6 @@ function createBridgeServers() {
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ actions: buildActionsList(setId) }));
-      return;
-    }
-
-    // Static file serving: /gifs/:name, /audio/:name, /references/:name
-    if (req.method === 'GET' && (urlPath.startsWith('/gifs/') || urlPath.startsWith('/audio/') || urlPath.startsWith('/references/'))) {
-      const fileName = path.basename(urlPath);
-      const subdir = urlPath.split('/')[1]; // gifs, audio, or references
-
-      // Build search path list depending on subdir
-      let searchPaths;
-      if (subdir === 'gifs') {
-        // GIFs: userData/gifs/ (generated) → asar dist/gifs/ (bundled)
-        searchPaths = [
-          path.join(getGifsDataDir(), fileName),
-          path.join(getPublicAssetsRoot(), 'gifs', fileName),
-        ];
-      } else if (subdir === 'references') {
-        // References: writable assets root → asar dist
-        searchPaths = [
-          path.join(getWritableAssetsRoot(), 'references', fileName),
-          path.join(getPublicAssetsRoot(), 'references', fileName),
-        ];
-      } else {
-        // Audio: asar dist only (bundled)
-        searchPaths = [path.join(getPublicAssetsRoot(), subdir, fileName)];
-      }
-
-      let filePath = null;
-      for (const c of searchPaths) {
-        if (fs.existsSync(c)) { filePath = c; break; }
-      }
-      if (filePath) {
-        const ext = path.extname(filePath).toLowerCase();
-        const mimeMap = { '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.png': 'image/png' };
-        const contentType = mimeMap[ext] || 'application/octet-stream';
-        try {
-          const data = fs.readFileSync(filePath);
-          res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-cache' });
-          res.end(data);
-        } catch (e) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: e.message }));
-        }
-      } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'file not found' }));
-      }
       return;
     }
 
@@ -1308,6 +1365,22 @@ ipcMain.on('window-move', (_e, { dx, dy }) => {
   }
 });
 
+ipcMain.on('get-data-dir', (event) => {
+  if (!app.isPackaged) {
+    event.returnValue = '';
+    return;
+  }
+  try {
+    const dir = getDataDir();
+    let href = pathToFileURL(dir).href;
+    if (!href.endsWith('/')) href += '/';
+    event.returnValue = href;
+  } catch (err) {
+    console.error('[IPC] get-data-dir:', err);
+    event.returnValue = '';
+  }
+});
+
 // ==================== Manager Window ====================
 function createManagerWindow() {
   if (managerWin) {
@@ -1377,6 +1450,10 @@ function createTray() {
 
 // ==================== Bootstrap ====================
 app.whenReady().then(async () => {
+  ensureCloeConfigDirAndMigrateConfig();
+  if (app.isPackaged) {
+    bootstrapPackagedData();
+  }
   loadActionSets();
   await startBridge();
   await waitForBridge();

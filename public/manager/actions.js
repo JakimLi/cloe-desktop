@@ -3,7 +3,12 @@
 const API_BASE = 'http://127.0.0.1:19851';
 const WS_MANAGER_URL = 'ws://127.0.0.1:19850';
 const isDev = location.protocol === 'http:';
-const ASSET_BASE = isDev ? 'http://localhost:5173/' : 'http://127.0.0.1:19851/';
+const _fileAssetBase = (!isDev && window.electronAPI?.getDataDir?.()) || '';
+const ASSET_BASE = isDev
+  ? 'http://localhost:5173/'
+  : (_fileAssetBase
+    ? (_fileAssetBase.endsWith('/') ? _fileAssetBase : `${_fileAssetBase}/`)
+    : 'http://127.0.0.1:19851/');
 
 let actionsCache = [];
 let setsCache = [];

@@ -8,8 +8,11 @@ const REACTION_DURATION = 3000;
 
 // Resolve base path for assets (GIFs, audio)
 // Dev mode: Vite serves from http://localhost:5173/ → use /gifs/
-// Production: file:// protocol → use bridge HTTP (localhost:19851) so generated GIFs are accessible
-const BASE = (location.protocol === 'file:') ? `http://127.0.0.1:19851/` : '/';
+// Packaged file:// → base URL from ~/.cloe dataDir via preload (no HTTP static route)
+const DATA_DIR_BASE = (typeof window !== 'undefined' && window.electronAPI?.getDataDir?.()) || '';
+const BASE = (location.protocol === 'file:' && DATA_DIR_BASE)
+  ? DATA_DIR_BASE
+  : '/';
 
 let GIF_ANIMATIONS = {
   blink:       `${BASE}gifs/blink.gif`,
