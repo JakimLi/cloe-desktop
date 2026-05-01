@@ -390,6 +390,43 @@ function getGifsDir() {
 }
 
 /**
+ * Get the GIF subdirectory path for a specific set.
+ * Default set → flat gifs/ (backward compatible)
+ * Other sets → gifs/{setId}/
+ */
+function getSetGifSubdir(setId) {
+  if (setId === 'default') return '';
+  return setId;
+}
+
+/**
+ * Get the relative animation path for an action in a specific set.
+ * Default set → gifs/{name}.gif
+ * Other sets → gifs/{setId}/{name}.gif
+ */
+function getSetAnimationPath(setId, actionName) {
+  const subdir = getSetGifSubdir(setId);
+  if (subdir) {
+    return `gifs/${subdir}/${actionName}.gif`;
+  }
+  return `gifs/${actionName}.gif`;
+}
+
+/**
+ * Get the absolute GIF output directory for a specific set.
+ * Creates the directory if it doesn't exist.
+ */
+function getSetGifDir(setId) {
+  const subdir = getSetGifSubdir(setId);
+  if (subdir) {
+    const dir = path.join(getGifsDir(), subdir);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+  return getGifsDir();
+}
+
+/**
  * Resolve reference image for Python: prefer dataDir (real FS), then bundled seed.
  */
 function resolveReferenceForPython(set) {
@@ -549,7 +586,7 @@ function dashScopeTaskGet(taskId) {
 
 function mergeGenerateActionIntoSet(set, name, trigger) {
   if (!set.animations) set.animations = {};
-  set.animations[name] = `gifs/${name}.gif`;
+  set.animations[name] = getSetAnimationPath(set.id, name);
   if (!set.actionMap) set.actionMap = {};
   set.actionMap[name] = name;
   if (trigger === 'idle') {
@@ -559,7 +596,7 @@ function mergeGenerateActionIntoSet(set, name, trigger) {
 }
 
 function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chromakey, trigger) {
-  const gifDir = getGifsDir();
+  const gifDir = getSetGifDir(setId);
   const outputGifAbs = path.join(gifDir, `${name}.gif`);
   const workDir = path.join(gifDir, `_work_${name}`);
 
@@ -1219,14 +1256,14 @@ function createBridgeServers() {
             res.end(JSON.stringify({ error: 'name and gifBase64 are required' }));
             return;
           }
-          // Save GIF file
-          const gifsDir = getGifsDir();
+          // Save GIF file (namespace per set to avoid overwriting other sets)
+          const gifsDir = getSetGifDir(setId);
           if (!fs.existsSync(gifsDir)) fs.mkdirSync(gifsDir, { recursive: true });
           fs.writeFileSync(path.join(gifsDir, `${data.name}.gif`), Buffer.from(data.gifBase64, 'base64'));
 
           // Update set data
           if (!set.animations) set.animations = {};
-          set.animations[data.name] = `gifs/${data.name}.gif`;
+          set.animations[data.name] = getSetAnimationPath(setId, data.name);
 
           if (!set.actionMap) set.actionMap = {};
           set.actionMap[data.name] = data.name;
