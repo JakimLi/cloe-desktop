@@ -35,6 +35,7 @@ let GIF_ANIMATIONS = {
 let IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
 
 // Fallback to default set when current set doesn't have the action
+let ACTION_MAP = {};
 let FALLBACK_GIF_ANIMATIONS = {};
 let FALLBACK_ACTION_MAP = {};
 
