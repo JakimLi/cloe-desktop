@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "activeSetId": "kekecute_63013",
+  "activeSetId": "cutekeke_63392",
   "sets": [
     {
       "id": "default",
@@ -20,7 +20,11 @@
         "tease": "gifs/tease.gif",
         "speak": "gifs/speak.gif",
         "shake_head": "gifs/shake_head.gif",
-        "working": "gifs/working.gif"
+        "working": "gifs/working.gif",
+        "clap": "gifs/clap.gif",
+        "shy": "gifs/shy.gif",
+        "yawn": "gifs/yawn.gif",
+        "laugh": "gifs/laugh.gif"
       },
       "idlePlaylist": [
         "blink",
@@ -42,7 +46,11 @@
         "tease": "tease",
         "kiss": "kiss",
         "shake_head": "shake_head",
-        "speak": "speak"
+        "speak": "speak",
+        "clap": "clap",
+        "shy": "shy",
+        "yawn": "yawn",
+        "laugh": "laugh"
       }
     },
     {
@@ -64,6 +72,18 @@
       "description": "",
       "descriptionEn": "",
       "reference": "references/kekecute_63013.png",
+      "chromakey": "green",
+      "animations": {},
+      "idlePlaylist": [],
+      "actionMap": {}
+    },
+    {
+      "id": "cutekeke_63392",
+      "name": "cutekeke",
+      "nameEn": "",
+      "description": "",
+      "descriptionEn": "",
+      "reference": "references/cutekeke_63392.png",
       "chromakey": "green",
       "animations": {},
       "idlePlaylist": [],
