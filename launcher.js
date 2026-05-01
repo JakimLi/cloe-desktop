@@ -56,10 +56,28 @@ let actionSetsData = null;
 let activeSetId = 'default';
 
 function loadActionSets() {
-  // Try multiple candidate paths: packaged (dist/) then dev (public/)
+  // Packaged mode: ensure userData has a copy (first launch copies from asar)
+  if (app.isPackaged) {
+    const userDataPath = path.join(app.getPath('userData'), 'action-sets.json');
+    if (!fs.existsSync(userDataPath)) {
+      // First launch: copy from bundled asar dist
+      const bundledPath = path.join(__dirname, 'dist', 'action-sets.json');
+      try {
+        if (fs.existsSync(bundledPath)) {
+          fs.copyFileSync(bundledPath, userDataPath);
+          console.log(`[ActionSets] Copied bundled → ${userDataPath}`);
+        }
+      } catch (err) {
+        console.warn(`[ActionSets] Failed to copy bundled: ${err.message}`);
+      }
+    }
+  }
+
+  // Try multiple candidate paths
   const candidates = [
-    path.join(__dirname, 'dist', 'action-sets.json'),
-    path.join(__dirname, 'public', 'action-sets.json'),
+    path.join(app.getPath('userData'), 'action-sets.json'),  // packaged: writable copy
+    path.join(__dirname, 'dist', 'action-sets.json'),        // packaged: bundled in asar
+    path.join(__dirname, 'public', 'action-sets.json'),      // dev
   ];
   if (!app.isPackaged) {
     candidates.reverse(); // dev: public first
@@ -163,7 +181,8 @@ function getActionSetsPath() {
   if (!app.isPackaged) {
     return path.join(__dirname, 'public', 'action-sets.json');
   }
-  return path.join(__dirname, 'dist', 'action-sets.json');
+  // Packaged: use writable userData directory (asar is read-only)
+  return path.join(app.getPath('userData'), 'action-sets.json');
 }
 
 function saveActionSets() {
@@ -214,6 +233,52 @@ const PYTHON_BIN = '/usr/local/bin/python3';
 const GIF_GEN_TIMEOUT_MS = 10 * 60 * 1000;
 const IMAGE_TASK_POLL_INTERVAL_MS = 5000;
 
+/**
+ * Resolve real filesystem path for Python scripts.
+ * In packaged mode, scripts are in extraResources (outside asar).
+ * In dev mode, scripts are in the project directory.
+ */
+function getScriptsDir() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'scripts');
+  }
+  return path.join(__dirname, 'scripts');
+}
+
+/**
+ * Writable directory for GIF generation output & intermediate files.
+ * In packaged mode, asar is read-only so we use app data path.
+ * In dev mode, use the project's public/gifs/ directory.
+ */
+function getGifsDataDir() {
+  if (app.isPackaged) {
+    const dir = path.join(app.getPath('userData'), 'gifs');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+  return path.join(__dirname, 'public', 'gifs');
+}
+
+/**
+ * Resolve reference image to a REAL filesystem path (Python can't read asar).
+ * If the path resolves inside asar, copy to a temp file first.
+ */
+function resolveReferenceForPython(set) {
+  const p = resolveReferenceAbsolutePath(set);
+  if (!p) return null;
+  // Electron's fs patches can read from asar, but Python can't.
+  // If path contains ".asar", copy to temp file.
+  if (p.includes('.asar')) {
+    const tmpDir = path.join(app.getPath('userData'), 'tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    const ext = path.extname(p) || '.png';
+    const tmpFile = path.join(tmpDir, `ref_${Date.now()}${ext}`);
+    fs.copyFileSync(p, tmpFile);
+    return tmpFile;
+  }
+  return p;
+}
+
 /** taskId → { status, progress, startedAt, kind, actionName?, setId?, chromakey?, error? } */
 const generationTasks = new Map();
 
@@ -228,15 +293,29 @@ function getPublicAssetsRoot() {
 }
 
 /**
+ * Writable assets root for saving new files (references, action uploads).
+ * In packaged mode, asar is read-only, so use userData/assets/.
+ */
+function getWritableAssetsRoot() {
+  if (!app.isPackaged) return path.join(__dirname, 'public');
+  const dir = path.join(app.getPath('userData'), 'assets');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/**
  * Absolute path to chroma reference image for GIF generation (set reference or bundled fallback).
  */
 function resolveReferenceAbsolutePath(set) {
-  const root = getPublicAssetsRoot();
   const chromakey = set.chromakey || 'green';
   if (set.reference) {
-    const candidate = path.join(root, set.reference);
-    if (fs.existsSync(candidate)) return candidate;
+    // Try writable root first (newly uploaded/generated), then bundled (asar)
+    for (const root of [getWritableAssetsRoot(), getPublicAssetsRoot()]) {
+      const candidate = path.join(root, set.reference);
+      if (fs.existsSync(candidate)) return candidate;
+    }
   }
+  const root = getPublicAssetsRoot();
   const fallbacks =
     chromakey === 'blue'
       ? [
@@ -374,7 +453,7 @@ function mergeGenerateActionIntoSet(set, name, trigger) {
 }
 
 function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chromakey, trigger) {
-  const gifDir = path.join(path.dirname(getActionSetsPath()), 'gifs');
+  const gifDir = getGifsDataDir();
   const outputGifAbs = path.join(gifDir, `${name}.gif`);
   const workDir = path.join(gifDir, `_work_${name}`);
 
@@ -397,7 +476,7 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
       return;
     }
 
-    const referencePath = resolveReferenceAbsolutePath(set);
+    const referencePath = resolveReferenceForPython(set);
     if (!referencePath) {
       const err = 'No reference image: add a reference to the set or add public/gifs/_work_idle fallback image.';
       if (rec) {
@@ -408,7 +487,7 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
       return;
     }
 
-    const pyScript = path.join(__dirname, 'scripts', 'generate_gif_v2.py');
+    const pyScript = path.join(getScriptsDir(), 'generate_gif_v2.py');
     const args = [
       pyScript,
       '--action', name,
@@ -445,7 +524,9 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
       broadcastToClients({ type: 'generation-error', taskId, error: 'GIF generation timed out (10 minutes)' });
     }, GIF_GEN_TIMEOUT_MS);
 
-    proc = spawn(PYTHON_BIN, args, { cwd: __dirname, env });
+    // Use a real writable directory as cwd (Python can't chdir into asar)
+    const spawnCwd = getGifsDataDir();
+    proc = spawn(PYTHON_BIN, args, { cwd: spawnCwd, env });
 
     let stderrAcc = '';
 
@@ -491,6 +572,11 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
           broadcastToClients({ type: 'generation-error', taskId, error: 'Set was removed during generation' });
           return;
         }
+
+        // In packaged mode, GIF is in userData/gifs/ and served via bridge HTTP
+        // (asar is read-only, so we don't copy there)
+        console.log(`[GIF Gen] Output at: ${outputGifAbs}`);
+
         mergeGenerateActionIntoSet(setNow, name, trigger);
         saveActionSets();
 
@@ -654,6 +740,19 @@ function createBridgeServers() {
   wss.on('connection', (ws) => {
     bridgeClients.add(ws);
     console.log(`[WS] Client connected (${bridgeClients.size})`);
+
+    // Send current active set config so renderer knows all animations
+    const set = getActiveSet();
+    if (set) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'set-config',
+          animations: set.animations || {},
+          idlePlaylist: set.idlePlaylist || [],
+          actionMap: set.actionMap || {},
+        }));
+      } catch (_) {}
+    }
 
     ws.on('message', (raw) => {
       try { console.log(`[WS] ${raw.toString()}`); } catch (_) {}
@@ -925,7 +1024,7 @@ function createBridgeServers() {
           const id = generateSetId(data.name);
           // Save reference image if provided
           if (data.referenceBase64) {
-            const refDir = path.join(path.dirname(getActionSetsPath()), 'references');
+            const refDir = path.join(getWritableAssetsRoot(), 'references');
             if (!fs.existsSync(refDir)) fs.mkdirSync(refDir, { recursive: true });
             fs.writeFileSync(path.join(refDir, `${id}.png`), Buffer.from(data.referenceBase64, 'base64'));
           }
@@ -1017,7 +1116,7 @@ function createBridgeServers() {
             return;
           }
           // Save GIF file
-          const gifsDir = path.join(path.dirname(getActionSetsPath()), 'gifs');
+          const gifsDir = getGifsDataDir();
           if (!fs.existsSync(gifsDir)) fs.mkdirSync(gifsDir, { recursive: true });
           fs.writeFileSync(path.join(gifsDir, `${data.name}.gif`), Buffer.from(data.gifBase64, 'base64'));
 
@@ -1086,6 +1185,53 @@ function createBridgeServers() {
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ actions: buildActionsList(setId) }));
+      return;
+    }
+
+    // Static file serving: /gifs/:name, /audio/:name, /references/:name
+    if (req.method === 'GET' && (urlPath.startsWith('/gifs/') || urlPath.startsWith('/audio/') || urlPath.startsWith('/references/'))) {
+      const fileName = path.basename(urlPath);
+      const subdir = urlPath.split('/')[1]; // gifs, audio, or references
+
+      // Build search path list depending on subdir
+      let searchPaths;
+      if (subdir === 'gifs') {
+        // GIFs: userData/gifs/ (generated) → asar dist/gifs/ (bundled)
+        searchPaths = [
+          path.join(getGifsDataDir(), fileName),
+          path.join(getPublicAssetsRoot(), 'gifs', fileName),
+        ];
+      } else if (subdir === 'references') {
+        // References: writable assets root → asar dist
+        searchPaths = [
+          path.join(getWritableAssetsRoot(), 'references', fileName),
+          path.join(getPublicAssetsRoot(), 'references', fileName),
+        ];
+      } else {
+        // Audio: asar dist only (bundled)
+        searchPaths = [path.join(getPublicAssetsRoot(), subdir, fileName)];
+      }
+
+      let filePath = null;
+      for (const c of searchPaths) {
+        if (fs.existsSync(c)) { filePath = c; break; }
+      }
+      if (filePath) {
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeMap = { '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.png': 'image/png' };
+        const contentType = mimeMap[ext] || 'application/octet-stream';
+        try {
+          const data = fs.readFileSync(filePath);
+          res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-cache' });
+          res.end(data);
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'file not found' }));
+      }
       return;
     }
 

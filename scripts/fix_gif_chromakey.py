@@ -181,10 +181,11 @@ def process_frame(
             keep[1:] = sizes >= min_blob
             final_mask = keep[labeled]
 
-    # 去溢色：前景内 G 偏高（绿幕反光）时钳制到 (R+B)/2
+    # 去溢色：仅对明显绿幕反光做去溢色（greenness > 8），
+    # 避免误伤肤色（手的自然 G-R 差异通常 < 8）
     rgb_clean = rgb.copy()
     avg_rb = ((R + B) // 2).clip(0, 255).astype(np.int16)
-    needs_despill = final_mask & (greenness > 0)
+    needs_despill = final_mask & (greenness > 8)
     rgb_clean[..., 1] = np.where(needs_despill, np.minimum(G, avg_rb), G).astype(np.uint8)
 
     # Alpha：mask 内 255 / 外 0 → 轻羽化 → 二值化（GIF 只支持二值透明）
