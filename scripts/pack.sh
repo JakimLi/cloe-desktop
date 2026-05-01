@@ -18,6 +18,10 @@ echo "[2/3] 拷贝静态资源..."
 mkdir -p dist/gifs dist/audio
 cp -f public/gifs/*.gif dist/gifs/
 cp -f public/audio/*.mp3 dist/audio/
+# Tray icon (extracted from icns, used in packaged Electron)
+if [[ -f build/Cloe.iconset/icon_32x32.png ]]; then
+    cp -f build/Cloe.iconset/icon_32x32.png dist/tray_icon.png
+fi
 
 # [3] electron-builder
 if [[ "$1" == "--dir" ]]; then
