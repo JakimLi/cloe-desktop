@@ -1204,38 +1204,10 @@ function createManagerWindow() {
 
 // ==================== System Tray ====================
 function createTray() {
-  // macOS tray icon: prefer 22x22 for @1x, resize from larger if needed
-  // Template image adapts automatically to light/dark menu bar
-  let trayIcon;
-
-  const tryPaths = [
-    path.join(__dirname, 'build', 'Cloe.iconset', 'icon_16x16.png'),
-    path.join(__dirname, 'build', 'Cloe.iconset', 'icon_32x32.png'),
-    path.join(__dirname, 'build', 'Cloe.iconset', 'icon_64x64.png'),
-  ];
-
-  for (const p of tryPaths) {
-    if (fs.existsSync(p)) {
-      trayIcon = nativeImage.createFromPath(p);
-      break;
-    }
-  }
-
-  // If we got an icon, resize to 22x22 for crisp macOS tray display
-  if (trayIcon && !trayIcon.isEmpty()) {
-    trayIcon = trayIcon.resize({ width: 22, height: 22 });
-    trayIcon.setTemplateImage(true);
-  } else {
-    // Fallback: try to extract from icns
-    const icnsPath = path.join(__dirname, 'build', 'icon.icns');
-    if (fs.existsSync(icnsPath)) {
-      trayIcon = nativeImage.createFromPath(icnsPath);
-      trayIcon = trayIcon.resize({ width: 22, height: 22 });
-      trayIcon.setTemplateImage(true);
-    } else {
-      trayIcon = nativeImage.createEmpty();
-    }
-  }
+  // Embedded 32x32 tray icon (base64, pink circle with "C") — no file I/O needed
+  const TRAY_ICON_B64 = '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';
+  let trayIcon = nativeImage.createFromBuffer(Buffer.from(TRAY_ICON_B64, 'base64'));
+  trayIcon = trayIcon.resize({ width: 22, height: 22 });
 
   tray = new Tray(trayIcon);
   tray.setToolTip('Cloe Desktop');
