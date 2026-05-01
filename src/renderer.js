@@ -34,13 +34,9 @@ let GIF_ANIMATIONS = {
 // Weighted idle playlist (blink & smile most frequent)
 let IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
 
-// Action name → GIF name mapping (1:1 pass-through)
-let ACTION_MAP = {
-  smile: 'smile', approve: 'smile', happy: 'smile',
-  nod: 'nod', wave: 'wave', think: 'think', tease: 'tease',
-  kiss: 'kiss', shake_head: 'shake_head', speak: 'speak', clap: 'clap',
-  shy: 'shy', yawn: 'yawn', laugh: 'laugh',
-};
+// Fallback to default set when current set doesn't have the action
+let FALLBACK_GIF_ANIMATIONS = {};
+let FALLBACK_ACTION_MAP = {};
 
 // ==================== State ====================
 let currentGif = 'blink';
@@ -61,6 +57,15 @@ function getActive()  { return activeLayer === 'a' ? gifLayerA : gifLayerB; }
 function getHidden()  { return activeLayer === 'a' ? gifLayerB : gifLayerA; }
 function swapLayers() { activeLayer = activeLayer === 'a' ? 'b' : 'a'; }
 
+/** Resolved absolute href — compares full resource URL, not just filename (img.src getter is always absolute). */
+function resolvedGifHref(s) {
+  try {
+    return new URL(s, location.href).href;
+  } catch {
+    return s;
+  }
+}
+
 // ==================== GIF Switch (double-buffer crossfade) ====================
 function preloadGif(src) {
   return new Promise((resolve, reject) => {
@@ -77,8 +82,8 @@ function switchGif(name, autoReturn = true) {
 
   const active = getActive();
 
-  // Already showing — skip but keep scheduling
-  if (active.src.endsWith(src.split('/').pop())) {
+  // Already showing — skip but keep scheduling (full resolved URL, not filename-only endsWith)
+  if (resolvedGifHref(active.src) === resolvedGifHref(src)) {
     if (!autoReturn) scheduleNextIdle();
     return;
   }
@@ -391,8 +396,17 @@ function handleAction(data) {
   }
 
   // Direct mapping or fallback
-  const gifName = ACTION_MAP[action];
+  let gifName = ACTION_MAP[action];
+  let animSrc = GIF_ANIMATIONS;
+  if (!gifName && FALLBACK_ACTION_MAP[action]) {
+    // Fallback to default set
+    gifName = FALLBACK_ACTION_MAP[action];
+    animSrc = FALLBACK_GIF_ANIMATIONS;
+  }
   if (gifName) {
+    // Temporarily use the fallback animation source for switchGif
+    const savedAnims = GIF_ANIMATIONS;
+    if (animSrc !== GIF_ANIMATIONS) GIF_ANIMATIONS = animSrc;
     if (action === 'speak') {
       // Priority 1: Streaming TTS via WebSocket (text field)
       if (data.text) {
@@ -416,6 +430,8 @@ function handleAction(data) {
     } else {
       switchGif(gifName);
     }
+    // Restore animation source if we used fallback
+    if (animSrc !== savedAnims) GIF_ANIMATIONS = savedAnims;
   } else {
     resetGif();
   }
@@ -469,14 +485,25 @@ function connectWebSocket() {
           IDLE_PLAYLIST = msg.idlePlaylist || [];
           ACTION_MAP = msg.actionMap || {};
 
-          // If current GIF doesn't exist in new set, reset to idle
-          if (!GIF_ANIMATIONS[currentGif]) {
-            clearTimeout(idleTimer);
-            clearTimeout(reactionTimer);
-            isReacting = false;
-            currentGif = null;
-            startIdleLoop();
+          // Store default set as fallback
+          if (msg.fallbackAnimations) {
+            const fbAnims = {};
+            for (const [key, val] of Object.entries(msg.fallbackAnimations)) {
+              const relative = val.startsWith('/') ? val.slice(1) : val;
+              fbAnims[key] = `${BASE}${relative}`;
+            }
+            FALLBACK_GIF_ANIMATIONS = fbAnims;
+            FALLBACK_ACTION_MAP = msg.fallbackActionMap || {};
+          } else {
+            FALLBACK_GIF_ANIMATIONS = {};
+            FALLBACK_ACTION_MAP = {};
           }
+
+          // Always reset timers so the new action set applies immediately (same action name can map to a different file)
+          clearTimeout(idleTimer);
+          clearTimeout(reactionTimer);
+          isReacting = false;
+          startIdleLoop();
           console.log(`[set-config] Updated: ${Object.keys(GIF_ANIMATIONS).length} animations, ${IDLE_PLAYLIST.length} idle entries`);
         } else {
           handleAction(msg);

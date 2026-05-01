@@ -1,23 +1,43 @@
 #!/bin/bash
-# 初始化数据目录（默认 ~/.cloe）；应用始终从 ~/.cloe/config.json 读取配置
-CLOE_HOME="${1:-$HOME/.cloe}"
-mkdir -p "$CLOE_HOME"/{gifs,references,audio}
+# 安装打包好的 Cloe.app 到 /Applications
+# 先杀进程、删旧 app、拷贝新 app、启动
+set -e
+cd "$(dirname "$0")/.."
 
-# 从项目的 public/ 复制默认文件
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cp -n "$SCRIPT_DIR/public/gifs/"*.gif "$CLOE_HOME/gifs/" 2>/dev/null || true
-cp -n "$SCRIPT_DIR/public/audio/"*.mp3 "$CLOE_HOME/audio/" 2>/dev/null || true
-cp -n "$SCRIPT_DIR/public/references/"*.png "$CLOE_HOME/references/" 2>/dev/null || true
-cp -n "$SCRIPT_DIR/public/action-sets.json" "$CLOE_HOME/action-sets.json" 2>/dev/null || true
+APP_SRC="release/mac/Cloe.app"
+APP_DST="/Applications/Cloe.app"
 
-mkdir -p "$HOME/.cloe"
-if [ ! -f "$HOME/.cloe/config.json" ]; then
-  ABS="$(cd "$CLOE_HOME" 2>/dev/null && pwd || echo "$CLOE_HOME")"
-  if [ "$ABS" = "$HOME/.cloe" ]; then
-    printf '%s\n' '{"version":1,"dataDir":"~/.cloe","language":"zh-CN","videoModel":"wan2.7-i2v"}' > "$HOME/.cloe/config.json"
-  else
-    node -e "const fs=require('fs');const p=require('path');const os=require('os');const abs=process.argv[1];const cfg={version:1,dataDir:abs,language:'zh-CN',videoModel:'wan2.7-i2v'};fs.writeFileSync(p.join(os.homedir(),'.cloe','config.json'),JSON.stringify(cfg,null,2));" "$ABS"
-  fi
+if [[ ! -d "$APP_SRC" ]]; then
+    echo "✗ 找不到 $APP_SRC，先运行 ./scripts/pack.sh"
+    exit 1
 fi
 
-echo "✓ Cloe 数据目录初始化完成: $CLOE_HOME"
+echo "=== 安装 Cloe Desktop ==="
+
+# [1] 杀掉正在运行的 Cloe
+echo "[1/4] 关闭旧版..."
+pkill -f "Cloe.app" 2>/dev/null || true
+sleep 1
+
+# [2] 删除旧 app（必须先删，否则 cp -R 可能不覆盖 asar）
+echo "[2/4] 删除旧版..."
+rm -rf "$APP_DST"
+
+# [3] 拷贝新 app
+echo "[3/4] 安装新版..."
+cp -R "$APP_SRC" "$APP_DST"
+
+# [4] 启动
+echo "[4/4] 启动..."
+open "$APP_DST"
+
+# 等待就绪
+for i in $(seq 1 10); do
+    sleep 1
+    STATUS=$(curl -s http://localhost:19851/status 2>/dev/null)
+    if echo "$STATUS" | grep -q "clients"; then
+        echo "✓ Cloe Desktop 已启动 ($STATUS)"
+        exit 0
+    fi
+done
+echo "⚠ 启动中，请稍等..."

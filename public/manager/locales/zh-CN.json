@@ -57,6 +57,8 @@
     "errorGifRequired": "请选择 GIF 文件"
   },
   "set": {
+    "apply": "应用",
+    "inUse": "使用中",
     "activate": "激活此动作集",
     "activated": "动作集已激活",
     "activateError": "激活失败: {{error}}",

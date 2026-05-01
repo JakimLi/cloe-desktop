@@ -57,6 +57,8 @@
     "errorGifRequired": "Please select a GIF file"
   },
   "set": {
+    "apply": "Apply",
+    "inUse": "Active",
     "activate": "Activate this set",
     "activated": "Action set activated",
     "activateError": "Activation failed: {{error}}",
