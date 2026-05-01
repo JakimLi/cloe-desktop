@@ -818,11 +818,10 @@ function runReferenceGenerationJob(taskId, chromakey, promptText, imageBase64) {
 
       if (!imageBase64) throw new Error('No reference image provided');
 
-      const colorHint = chromakey === 'blue'
-        ? '纯蓝色背景(#0000FF)'
-        : '纯绿色背景(#00FF00)';
       const prompt = promptText ||
-        `参考这张照片中女孩的长相，生成一张上半身半身照，${colorHint}，自然坐姿，双手自然放身前，表情自然放松。真实感写真照片风格，高清。上半身取景，从肩膀到腰部以上。`;
+        (chromakey === 'blue'
+          ? '将背景替换为纯蓝色(#0000FF)，保持人物、衣服、表情完全不变'
+          : '将背景替换为纯绿色(#00FF00)，保持人物、衣服、表情完全不变');
 
       if (rec) {
         rec.status = 'running';
@@ -830,40 +829,63 @@ function runReferenceGenerationJob(taskId, chromakey, promptText, imageBase64) {
         broadcastToClients({ type: 'generation-progress', taskId, status: 'running', progress: 20 });
       }
 
-      // Use wan2.7-image-pro (multimodal, sync, ~10s) — keeps character consistency via reference image
       const body = JSON.stringify({
-        model: 'wan2.7-image-pro',
+        model: 'wanx2.1-imageedit',
         input: {
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { image: `data:image/png;base64,${imageBase64}` },
-                { text: prompt },
-              ],
-            },
-          ],
+          function: 'description_edit',
+          prompt,
+          base_image_url: `data:image/png;base64,${imageBase64}`,
         },
-        parameters: { n: 1, watermark: false },
+        parameters: { n: 1, strength: 0.6 },
       });
 
       const respBuf = await httpsPost(
-        'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+        'https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis',
         body,
-        { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'X-DashScope-Async': 'enable',
+        },
       );
       const resp = JSON.parse(respBuf.toString('utf-8'));
+      if (resp.code) {
+        throw new Error(resp.message || resp.code || JSON.stringify(resp).slice(0, 500));
+      }
+      const submitTaskId = resp?.output?.task_id;
+      if (!submitTaskId) {
+        throw new Error(`No task_id in response: ${JSON.stringify(resp).slice(0, 500)}`);
+      }
 
-      // Extract image URL from wan2.7-image-pro response
-      const content = resp?.output?.choices?.[0]?.message?.content;
-      let imageUrl = null;
-      if (Array.isArray(content)) {
-        for (const item of content) {
-          if (item && item.image) { imageUrl = item.image; break; }
+      if (rec) {
+        rec.progress = 35;
+        broadcastToClients({ type: 'generation-progress', taskId, status: 'running', progress: 35 });
+      }
+
+      let taskResult = null;
+      for (let i = 0; i < 60; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 3000));
+        taskResult = await dashScopeTaskGet(submitTaskId);
+        const st = taskResult?.output?.task_status;
+        if (st === 'FAILED') {
+          throw new Error(`Image edit task failed: ${JSON.stringify(taskResult).slice(0, 500)}`);
+        }
+        if (st === 'SUCCEEDED') break;
+        if (rec) {
+          const p = Math.min(75, 35 + (i + 1) * 2);
+          if (rec.progress < p) {
+            rec.progress = p;
+            broadcastToClients({ type: 'generation-progress', taskId, status: 'running', progress: p });
+          }
         }
       }
+      if (taskResult?.output?.task_status !== 'SUCCEEDED') {
+        throw new Error(`Image edit task timeout or failed: ${JSON.stringify(taskResult).slice(0, 500)}`);
+      }
+
+      const imageUrl = taskResult?.output?.results?.[0]?.url;
       if (!imageUrl) {
-        throw new Error(`No image in response: ${JSON.stringify(resp).slice(0, 500)}`);
+        throw new Error(`No image URL in task result: ${JSON.stringify(taskResult).slice(0, 500)}`);
       }
 
       if (rec) {
