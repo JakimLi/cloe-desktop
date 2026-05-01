@@ -245,6 +245,56 @@ function loadActionSets() {
   }
 }
 
+let actionSetsWatcher = null;
+let reloadDebounceTimer = null;
+
+function watchActionSets() {
+  if (actionSetsWatcher) return; // already watching
+
+  const filePath = getActionSetsPath();
+  const dir = path.dirname(filePath);
+
+  // Watch the directory (more reliable than watching the file directly)
+  try {
+    actionSetsWatcher = fs.watch(dir, (eventType, filename) => {
+      if (filename !== 'action-sets.json') return;
+
+      // Debounce: wait 300ms after last change before reloading
+      // (avoids double-reload and self-trigger from saveActionSets)
+      clearTimeout(reloadDebounceTimer);
+      reloadDebounceTimer = setTimeout(() => {
+        const currentHash = JSON.stringify(actionSetsData);
+        try {
+          const raw = fs.readFileSync(filePath, 'utf-8');
+          const newData = JSON.parse(raw);
+          const newHash = JSON.stringify(newData);
+
+          // Skip if data hasn't actually changed (e.g., our own save)
+          if (newHash === currentHash) return;
+
+          actionSetsData = newData;
+          activeSetId = newData.activeSetId || 'default';
+          console.log(`[ActionSets] Hot-reloaded from disk: ${newData.sets.length} set(s)`);
+
+          // Notify renderer of the active set's config
+          broadcastSetConfig(activeSetId);
+        } catch (err) {
+          console.warn(`[ActionSets] Hot-reload failed: ${err.message}`);
+        }
+      }, 300);
+    });
+    actionSetsWatcher.on('error', (err) => {
+      console.warn(`[ActionSets] Watch error: ${err.message}`);
+      actionSetsWatcher = null;
+      // Retry after 5 seconds
+      setTimeout(watchActionSets, 5000);
+    });
+    console.log(`[ActionSets] Watching ${dir} for changes`);
+  } catch (err) {
+    console.warn(`[ActionSets] Failed to watch: ${err.message}`);
+  }
+}
+
 function getActiveSet() {
   if (!actionSetsData || actionSetsData.sets.length === 0) return null;
   return actionSetsData.sets.find(s => s.id === activeSetId) || actionSetsData.sets[0];
@@ -1492,6 +1542,7 @@ app.whenReady().then(async () => {
     bootstrapPackagedData();
   }
   loadActionSets();
+  watchActionSets();
   await startBridge();
   await waitForBridge();
   createWindow();
