@@ -344,37 +344,41 @@ function renderSetTabs() {
     btn.dataset.setId = set.id;
     const thumb = set.reference
       ? `<img src="${ASSET_BASE}${set.reference}" class="set-tab-thumb" alt="">` : '';
-    const activeBadge = set.active ? '<span class="set-tab-active-dot"></span>' : '';
-    btn.innerHTML = `${thumb}<span>${set.name}</span>${activeBadge}`;
+    const inUseBadge = set.active
+      ? `<span class="set-tab-in-use-badge">${I18n.t('set.inUse')}</span>` : '';
+    btn.innerHTML = `${thumb}<span>${set.name}</span>${inUseBadge}`;
     btn.addEventListener('click', (e) => {
-      if (e.target.closest('.set-tab-delete') || e.target.closest('.set-tab-activate')) return;
+      if (e.target.closest('.set-tab-delete') || e.target.closest('.set-tab-apply')) return;
       selectSet(set.id);
     });
     wrapper.appendChild(btn);
 
-    // Activate button (only for non-active sets)
+    // Apply button (only for non-active sets)
     if (!set.active) {
-      const activateBtn = document.createElement('button');
-      activateBtn.className = 'set-tab-activate btn-icon';
-      activateBtn.title = I18n.t('set.activate');
-      activateBtn.innerHTML = '▶';
-      activateBtn.addEventListener('click', (e) => {
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'set-tab-apply';
+      applyBtn.title = I18n.t('set.apply');
+      applyBtn.textContent = I18n.t('set.apply');
+      applyBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         handleActivateSet(set.id);
       });
-      wrapper.appendChild(activateBtn);
+      wrapper.appendChild(applyBtn);
     }
 
-    // Delete button
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'set-tab-delete btn-icon';
-    deleteBtn.title = I18n.t('set.delete');
-    deleteBtn.innerHTML = '×';
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleDeleteSet(set.id, set.name);
-    });
-    wrapper.appendChild(deleteBtn);
+    // Delete button (only for non-active sets)
+    if (!set.active) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'set-tab-delete btn-icon';
+      deleteBtn.title = I18n.t('set.delete');
+      deleteBtn.innerHTML = '×';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleDeleteSet(set.id, set.name);
+      });
+      wrapper.appendChild(deleteBtn);
+    }
 
     setTabsEl.appendChild(wrapper);
   });
@@ -692,17 +696,27 @@ function initConfirmModal() {
 
 // ==================== Set Operations ====================
 async function handleActivateSet(setId) {
+  // Optimistic UI
+  setsCache.forEach(s => s.active = (s.id === setId));
+  currentSetId = setId;
+  renderSetTabs();
+
   try {
     const result = await activateSet(setId);
     showStatus(`✓ ${I18n.t('set.activated')}`, 'success');
-    // Reload all sets to refresh active status
-    const data = await fetchSets();
+    const [data, detail] = await Promise.all([
+      fetchSets(),
+      fetchSetDetail(result.activeSetId || setId),
+    ]);
     setsCache = data.sets || [];
     currentSetId = result.activeSetId || setId;
     renderSetTabs();
-    await loadSetDetail(currentSetId);
+    renderSetInfo(detail);
+    renderActions(detail.actions || []);
+    actionsToolbar.classList.remove('hidden');
   } catch (err) {
     showStatus(`✗ ${I18n.t('set.activateError', { error: err.message })}`, 'error');
+    await loadSets();
   }
 }
 

@@ -389,16 +389,25 @@ function generateSetId(name) {
 function broadcastSetConfig(setId) {
   const set = getSetById(setId);
   if (!set) return;
-  const msg = JSON.stringify({
+  const msg = {
     type: 'set-config',
     animations: set.animations || {},
     idlePlaylist: set.idlePlaylist || [],
     actionMap: set.actionMap || {},
-  });
+  };
+  // Attach default set as fallback for non-default sets
+  if (setId !== 'default') {
+    const defaultSet = getSetById('default');
+    if (defaultSet) {
+      msg.fallbackAnimations = defaultSet.animations || {};
+      msg.fallbackActionMap = defaultSet.actionMap || {};
+    }
+  }
+  const msgStr = JSON.stringify(msg);
   let sent = 0;
   const dead = [];
   for (const ws of bridgeClients) {
-    if (ws.readyState === 1) { ws.send(msg); sent++; }
+    if (ws.readyState === 1) { ws.send(msgStr); sent++; }
     else dead.push(ws);
   }
   dead.forEach((ws) => bridgeClients.delete(ws));
