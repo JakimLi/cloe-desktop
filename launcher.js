@@ -1014,6 +1014,48 @@ function createBridgeServers() {
       return;
     }
 
+    if (req.method === 'GET' && urlPath === '/window-position') {
+      const saved = loadWindowPosition();
+      let current = null;
+      if (win) {
+        const [cx, cy] = win.getPosition();
+        current = { x: cx, y: cy };
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ saved, current }));
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/window-position') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          if (payload && payload.clear === true) {
+            clearSavedWindowPosition();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+          }
+          const x = payload.x;
+          const y = payload.y;
+          if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'expected { x, y } numbers' }));
+            return;
+          }
+          saveWindowPosition(x, y);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (_) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid JSON' }));
+        }
+      });
+      return;
+    }
+
     // --- Management API ---
     // GET /action-sets — list all sets
     if (req.method === 'GET' && req.url === '/action-sets') {
@@ -1423,15 +1465,70 @@ function waitForBridge(maxWait = 3000) {
   });
 }
 
+// ==================== Saved main window position ====================
+
+function getWindowPositionFilePath() {
+  if (app.isPackaged) {
+    return path.join(app.getPath('userData'), 'window-position.json');
+  }
+  return path.join(__dirname, '.window-position.json');
+}
+
+function loadWindowPosition() {
+  const p = getWindowPositionFilePath();
+  if (!fs.existsSync(p)) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    if (typeof data.x !== 'number' || typeof data.y !== 'number'
+      || !Number.isFinite(data.x) || !Number.isFinite(data.y)) {
+      return null;
+    }
+    return { x: Math.round(data.x), y: Math.round(data.y) };
+  } catch {
+    return null;
+  }
+}
+
+function saveWindowPosition(x, y) {
+  const p = getWindowPositionFilePath();
+  const dir = path.dirname(p);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(p, JSON.stringify({ x: Math.round(x), y: Math.round(y) }), 'utf-8');
+}
+
+function clearSavedWindowPosition() {
+  const p = getWindowPositionFilePath();
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+}
+
+/** Returns { x, y } for the main floating window: saved position if valid, else bottom-right fallback. */
+function getInitialMainWindowXY(windowWidth, windowHeight) {
+  const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
+  const fallback = { x: sw - 400, y: sh - 540 };
+
+  const saved = loadWindowPosition();
+  if (!saved) return fallback;
+
+  const wa = screen.getPrimaryDisplay().workArea;
+  const maxX = wa.x + wa.width - windowWidth;
+  const maxY = wa.y + wa.height - windowHeight;
+  if (saved.x < wa.x || saved.y < wa.y || saved.x > maxX || saved.y > maxY) {
+    return fallback;
+  }
+  return saved;
+}
+
 // ==================== Window ====================
 function createWindow() {
-  const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
+  const ww = 380;
+  const wh = 520;
+  const pos = getInitialMainWindowXY(ww, wh);
 
   win = new BrowserWindow({
-    width: 380,
-    height: 520,
-    x: sw - 400,
-    y: sh - 540,
+    width: ww,
+    height: wh,
+    x: pos.x,
+    y: pos.y,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -1475,6 +1572,22 @@ ipcMain.on('get-data-dir', (event) => {
     console.error('[IPC] get-data-dir:', err);
     event.returnValue = '';
   }
+});
+
+ipcMain.handle('get-window-position', () => {
+  if (!win) return null;
+  const [x, y] = win.getPosition();
+  return { x, y };
+});
+
+ipcMain.handle('save-window-position', (_event, payload) => {
+  const x = payload?.x;
+  const y = payload?.y;
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+    return { ok: false };
+  }
+  saveWindowPosition(x, y);
+  return { ok: true };
 });
 
 // ==================== Manager Window ====================
