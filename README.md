@@ -20,11 +20,11 @@
 
 **Responding to actions in Hermes TUI**
 
-![Cloe Desktop Demo 1](docs/demo1.gif)
+<img src="docs/demo1.gif" width="640" alt="Demo 1" />
 
 **Reacting to messages from chat channels — working/idle states**
 
-![Cloe Desktop Demo 2](docs/demo2.gif)
+<img src="docs/demo2.gif" width="640" alt="Demo 2" />
 
 ---
 
