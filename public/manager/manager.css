@@ -583,8 +583,7 @@ html, body {
 }
 
 .form-file {
-  font-size: 13px;
-  color: var(--text-dim);
+  display: none !important;
 }
 
 .form-ref-gen-buttons {
@@ -592,24 +591,6 @@ html, body {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
-}
-
-.form-file::file-selector-button {
-  padding: 5px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text);
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  margin-right: 10px;
-  transition: all 0.2s;
-}
-
-.form-file::file-selector-button:hover {
-  border-color: var(--accent);
-  background: var(--bg-card-hover);
 }
 
 .form-preview {

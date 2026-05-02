@@ -83,7 +83,7 @@ const I18n = (() => {
    * (the *other* language, so user knows what they'll switch to)
    */
   function getSwitchLabel() {
-    return currentLocale === 'zh-CN' ? 'EN' : '中';
+    return currentLocale === 'zh-CN' ? t('i18n.switchToEn') : t('i18n.switchToZh');
   }
 
   /**

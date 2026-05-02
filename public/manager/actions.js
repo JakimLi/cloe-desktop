@@ -13,6 +13,8 @@ const ASSET_BASE = isDev
 let actionsCache = [];
 let setsCache = [];
 let currentSetId = null;
+let currentSetDetail = null;
+let openReferenceSet = null;
 let actionsGrid, actionCount, setCount, emptyState, loadingEl;
 let statusBar, statusText;
 let setTabsEl, setInfoEl, referenceThumb, referenceThumbImg;
@@ -50,9 +52,21 @@ function initActionsTab() {
 }
 
 // ==================== i18n ====================
+function localizedField(set, field) {
+  if (!set) return '';
+  const locale = I18n.getLocale();
+  if (locale === 'en-US') {
+    const enKey = `${field}En`;
+    const enVal = set[enKey];
+    if (enVal != null && String(enVal).trim() !== '') return enVal;
+  }
+  const v = set[field];
+  return v != null && v !== '' ? v : '';
+}
+
 function specialLabel(special) {
-  if (special === '工作模式') return I18n.t('tag.specialWork');
-  if (special === '语音') return I18n.t('tag.specialSpeak');
+  if (special === '工作模式' || special === 'Work Mode') return I18n.t('tag.specialWork');
+  if (special === '语音' || special === 'Voice') return I18n.t('tag.specialSpeak');
   return special;
 }
 
@@ -64,6 +78,7 @@ function updateActionsText() {
     emptyState.querySelector('p').textContent = I18n.t('empty.title');
     emptyState.querySelector('.sub').textContent = I18n.t('empty.sub');
   }
+  if (setCount) setCount.textContent = I18n.t('setCount', { count: setsCache.length });
   if (actionsCache.length > 0) renderActions(actionsCache);
   if (actionCount) actionCount.textContent = I18n.t('actionCount', { count: actionsCache.length });
   if (setsCache.length > 0) renderSetTabs();
@@ -113,6 +128,127 @@ function updateModalsText() {
   const rb = document.getElementById('btn-gen-ref-blue');
   if (rg && !rg.disabled) rg.textContent = I18n.t('genReference.green');
   if (rb && !rb.disabled) rb.textContent = I18n.t('genReference.blue');
+
+  // Create set form
+  const setNameLbl = document.querySelector('label[for="set-name"]');
+  if (setNameLbl) setNameLbl.textContent = I18n.t('createSet.nameLabel');
+  const setNameEnLbl = document.querySelector('label[for="set-name-en"]');
+  if (setNameEnLbl) setNameEnLbl.textContent = I18n.t('createSet.nameEnLabel');
+  const setDescLbl = document.querySelector('label[for="set-desc-input"]');
+  if (setDescLbl) setDescLbl.textContent = I18n.t('createSet.descLabel');
+  const setDescEnLbl = document.querySelector('label[for="set-desc-en-input"]');
+  if (setDescEnLbl) setDescEnLbl.textContent = I18n.t('createSet.descEnLabel');
+  const setChromakeyLbl = document.querySelector('label[for="set-chromakey"]');
+  if (setChromakeyLbl) setChromakeyLbl.textContent = I18n.t('createSet.chromakeyLabel');
+  const setRefLbl = document.getElementById('lbl-set-reference');
+  if (setRefLbl) setRefLbl.textContent = I18n.t('createSet.referenceLabel');
+  const setRefChoose = document.getElementById('lbl-set-reference-choose');
+  if (setRefChoose) setRefChoose.textContent = I18n.t('createSet.chooseReferenceFile');
+  const setNameIn = document.getElementById('set-name');
+  if (setNameIn) setNameIn.placeholder = I18n.t('createSet.namePlaceholder');
+  const setNameEnIn = document.getElementById('set-name-en');
+  if (setNameEnIn) setNameEnIn.placeholder = I18n.t('createSet.nameEnPlaceholder');
+  const setDescIn = document.getElementById('set-desc-input');
+  if (setDescIn) setDescIn.placeholder = I18n.t('createSet.descPlaceholder');
+  const setDescEnIn = document.getElementById('set-desc-en-input');
+  if (setDescEnIn) setDescEnIn.placeholder = I18n.t('createSet.descEnPlaceholder');
+  const chromakeySel = document.getElementById('set-chromakey');
+  if (chromakeySel) {
+    const oGreen = chromakeySel.querySelector('option[value="green"]');
+    const oBlue = chromakeySel.querySelector('option[value="blue"]');
+    if (oGreen) oGreen.textContent = I18n.t('createSet.chromakeyGreen');
+    if (oBlue) oBlue.textContent = I18n.t('createSet.chromakeyBlue');
+  }
+  const setRefRemove = document.getElementById('set-reference-remove');
+  if (setRefRemove) setRefRemove.title = I18n.t('common.removeTitle');
+
+  // Add action form
+  const actionNameLbl = document.querySelector('label[for="action-name"]');
+  if (actionNameLbl) actionNameLbl.textContent = I18n.t('addAction.actionNameLabel');
+  const actionNameIn = document.getElementById('action-name');
+  if (actionNameIn) actionNameIn.placeholder = I18n.t('addAction.actionNamePlaceholder');
+  const actionNameHint = document.getElementById('action-name-hint');
+  if (actionNameHint) actionNameHint.textContent = I18n.t('addAction.nameHint');
+  const gifLbl = document.getElementById('lbl-action-gif');
+  if (gifLbl) gifLbl.textContent = I18n.t('addAction.gifLabel');
+  const gifChoose = document.getElementById('lbl-action-gif-choose');
+  if (gifChoose) gifChoose.textContent = I18n.t('addAction.chooseGifFile');
+  const triggerLbl = document.querySelector('label[for="action-trigger"]');
+  if (triggerLbl) triggerLbl.textContent = I18n.t('addAction.triggerLabel');
+  const trigManual = document.querySelector('#action-trigger option[value="manual"]');
+  const trigIdle = document.querySelector('#action-trigger option[value="idle"]');
+  if (trigManual) trigManual.textContent = I18n.t('addAction.triggerManual');
+  if (trigIdle) trigIdle.textContent = I18n.t('addAction.triggerIdle');
+  const weightLbl = document.querySelector('label[for="action-weight"]');
+  if (weightLbl) weightLbl.textContent = I18n.t('addAction.weightLabel');
+  const weightHint = document.getElementById('action-weight-hint');
+  if (weightHint) weightHint.textContent = I18n.t('addAction.weightHint');
+  const gifRemove = document.getElementById('action-gif-remove');
+  if (gifRemove) gifRemove.title = I18n.t('common.removeTitle');
+
+  // Ambient modal titles when closed
+  const previewModal = document.getElementById('preview-modal');
+  const previewTitleEl = document.getElementById('preview-title');
+  if (previewModal && previewTitleEl) {
+    if (previewModal.classList.contains('hidden')) {
+      previewTitleEl.textContent = I18n.t('preview.title');
+      const playBtn = document.getElementById('btn-play-action');
+      if (playBtn) playBtn.textContent = '▶ ' + I18n.t('preview.play');
+    } else if (typeof currentPreviewAction === 'string' && currentPreviewAction) {
+      previewTitleEl.textContent = I18n.t('preview.titleWith', { name: currentPreviewAction });
+      const playBtn = document.getElementById('btn-play-action');
+      if (playBtn) playBtn.textContent = '▶ ' + I18n.t('preview.play');
+    }
+  }
+  const refModal = document.getElementById('reference-modal');
+  const refModalTitleEl = document.getElementById('reference-modal-title');
+  if (refModal && refModalTitleEl) {
+    if (refModal.classList.contains('hidden')) {
+      refModalTitleEl.textContent = I18n.t('reference.modalTitleFallback');
+    } else if (openReferenceSet) {
+      refModalTitleEl.textContent = I18n.t('reference.modalTitle', {
+        name: localizedField(openReferenceSet, 'name'),
+      });
+    }
+  }
+
+  // Confirm modal (defaults only when closed)
+  const confirmModal = document.getElementById('confirm-modal');
+  if (confirmModal && confirmModal.classList.contains('hidden')) {
+    const confirmTitleEl = document.getElementById('confirm-modal-title');
+    if (confirmTitleEl) confirmTitleEl.textContent = I18n.t('confirm.defaultTitle');
+    const confirmMsgEl = document.getElementById('confirm-modal-message');
+    if (confirmMsgEl) confirmMsgEl.textContent = I18n.t('confirm.defaultMessage');
+    const btnConfirmOk = document.getElementById('btn-confirm-ok');
+    if (btnConfirmOk) btnConfirmOk.textContent = I18n.t('delete.button');
+  }
+  const btnCancelConfirm = document.getElementById('btn-cancel-confirm');
+  if (btnCancelConfirm) btnCancelConfirm.textContent = I18n.t('common.cancel');
+
+  // Modal close buttons (a11y)
+  const closeModal = document.getElementById('btn-close-modal');
+  if (closeModal) closeModal.title = I18n.t('a11y.closeModal');
+  const closeRef = document.getElementById('btn-close-reference');
+  if (closeRef) closeRef.title = I18n.t('a11y.closeModal');
+  const closeCreate = document.getElementById('btn-close-create-set');
+  if (closeCreate) closeCreate.title = I18n.t('a11y.closeModal');
+  const closeAdd = document.getElementById('btn-close-add-action');
+  if (closeAdd) closeAdd.title = I18n.t('a11y.closeModal');
+  const closeConfirm = document.getElementById('btn-close-confirm');
+  if (closeConfirm) closeConfirm.title = I18n.t('a11y.closeModal');
+
+  // Image alts
+  const refThumbImg = document.getElementById('reference-thumb-img');
+  if (refThumbImg) refThumbImg.alt = I18n.t('a11y.referenceThumbnail');
+  const previewGif = document.getElementById('preview-gif');
+  if (previewGif) previewGif.alt = I18n.t('a11y.previewGif');
+  const refFullImg = document.getElementById('reference-full-img');
+  if (refFullImg) refFullImg.alt = I18n.t('a11y.referenceImage');
+  const setRefPrevImg = document.getElementById('set-reference-preview-img');
+  if (setRefPrevImg) setRefPrevImg.alt = I18n.t('a11y.formImagePreview');
+  const actionGifPrevImg = document.getElementById('action-gif-preview-img');
+  if (actionGifPrevImg) actionGifPrevImg.alt = I18n.t('a11y.formImagePreview');
+
   syncAddActionGenUi();
 }
 
@@ -159,7 +295,7 @@ function connectManagerWs() {
       if (pendingReferenceTaskId && msg.taskId === pendingReferenceTaskId) {
         pendingReferenceTaskId = null;
         resetReferenceGenButtons();
-        showStatus(`✗ ${msg.error || 'Error'}`, 'error');
+        showStatus(`✗ ${msg.error || I18n.t('error.generic')}`, 'error');
         return;
       }
       showStatus(I18n.t('genAction.error', { error: msg.error || '' }), 'error');
@@ -346,7 +482,7 @@ function renderSetTabs() {
       ? `<img src="${ASSET_BASE}${set.reference}" class="set-tab-thumb" alt="">` : '';
     const inUseBadge = set.active
       ? `<span class="set-tab-in-use-badge">${I18n.t('set.inUse')}</span>` : '';
-    btn.innerHTML = `${thumb}<span>${set.name}</span>${inUseBadge}`;
+    btn.innerHTML = `${thumb}<span>${localizedField(set, 'name')}</span>${inUseBadge}`;
     btn.addEventListener('click', (e) => {
       if (e.target.closest('.set-tab-delete') || e.target.closest('.set-tab-apply')) return;
       selectSet(set.id);
@@ -375,7 +511,7 @@ function renderSetTabs() {
       deleteBtn.innerHTML = '×';
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        handleDeleteSet(set.id, set.name);
+        handleDeleteSet(set.id, localizedField(set, 'name'));
       });
       wrapper.appendChild(deleteBtn);
     }
@@ -393,32 +529,41 @@ async function selectSet(setId) {
 // ==================== Set Info (reference) ====================
 function renderSetInfo(set) {
   if (!set || !set.reference) {
+    currentSetDetail = null;
     setInfoEl.classList.add('hidden');
     return;
   }
+  currentSetDetail = set;
   setInfoEl.classList.remove('hidden');
   referenceThumbImg.src = `${ASSET_BASE}${set.reference}`;
   referenceThumb.title = I18n.t('reference.viewTitle');
   referenceThumb.onclick = () => openReferenceModal(set);
-  setDescEl.textContent = set.description || '';
+  setDescEl.textContent = localizedField(set, 'description');
   setChromakeyEl.textContent = set.chromakey
     ? I18n.t('reference.chromakey', { color: set.chromakey }) : '';
 }
 
 function updateSetInfoText() {
   if (referenceThumb) referenceThumb.title = I18n.t('reference.viewTitle');
+  if (currentSetDetail && setDescEl && setChromakeyEl && !setInfoEl.classList.contains('hidden')) {
+    setDescEl.textContent = localizedField(currentSetDetail, 'description');
+    setChromakeyEl.textContent = currentSetDetail.chromakey
+      ? I18n.t('reference.chromakey', { color: currentSetDetail.chromakey }) : '';
+  }
 }
 
 // ==================== Reference Modal ====================
 function openReferenceModal(set) {
+  openReferenceSet = set;
   const modal = document.getElementById('reference-modal');
   document.getElementById('reference-modal-title').textContent =
-    I18n.t('reference.modalTitle', { name: set.name });
+    I18n.t('reference.modalTitle', { name: localizedField(set, 'name') });
   document.getElementById('reference-full-img').src = `${ASSET_BASE}${set.reference}`;
   modal.classList.remove('hidden');
 }
 
 function closeReferenceModal() {
+  openReferenceSet = null;
   document.getElementById('reference-modal').classList.add('hidden');
   document.getElementById('reference-full-img').src = '';
 }
@@ -522,7 +667,7 @@ function initCreateSetModal() {
 
     const submitBtn = document.getElementById('btn-submit-create-set');
     submitBtn.disabled = true;
-    submitBtn.textContent = I18n.t('common.creating') + '...';
+    submitBtn.textContent = I18n.t('common.creating') + I18n.t('common.ellipsis');
 
     try {
       const newSet = await createSet({
@@ -530,7 +675,7 @@ function initCreateSetModal() {
         referenceBase64: setReferenceBase64,
       });
       closeCreateSetModal();
-      showStatus(`✓ ${I18n.t('createSet.success', { name: newSet.name })}`, 'success');
+      showStatus(`✓ ${I18n.t('createSet.success', { name: localizedField(newSet, 'name') })}`, 'success');
       // Auto-select and activate the new set
       await handleActivateSet(newSet.id);
     } catch (err) {
@@ -631,7 +776,7 @@ function initAddActionModal() {
     const submitBtn = document.getElementById('btn-submit-add-action');
     submitBtn.disabled = true;
     submitBtn.textContent =
-      `${genMode === 'ai' ? I18n.t('genAction.button') : I18n.t('addAction.button')}…`;
+      `${genMode === 'ai' ? I18n.t('genAction.button') : I18n.t('addAction.button')}${I18n.t('common.ellipsis')}`;
 
     try {
       if (genMode === 'ai') {
@@ -881,6 +1026,7 @@ async function loadSets() {
   actionsGrid.innerHTML = '';
   emptyState.classList.add('hidden');
   setInfoEl.classList.add('hidden');
+  currentSetDetail = null;
   actionsToolbar.classList.add('hidden');
 
   try {

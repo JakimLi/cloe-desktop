@@ -379,6 +379,14 @@ function saveActionSets() {
   console.log(`[ActionSets] Saved to ${filePath}`);
 }
 
+/**
+ * Validate that a user-supplied name is safe to use as a filename component.
+ * Rejects path traversal (../), slashes, null bytes, etc.
+ */
+function isSafeFilename(name) {
+  return typeof name === 'string' && /^[a-zA-Z0-9_\-\u4e00-\u9fff]+$/.test(name);
+}
+
 function generateSetId(name) {
   // Lowercase + underscore + short timestamp
   const slug = name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
@@ -1261,6 +1269,11 @@ function createBridgeServers() {
             res.end(JSON.stringify({ error: 'name is required' }));
             return;
           }
+          if (!isSafeFilename(data.name)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'name contains invalid characters (only alphanumeric, underscore, hyphen, Chinese allowed)' }));
+            return;
+          }
           const id = generateSetId(data.name);
           // Save reference image if provided
           if (data.referenceBase64) {
@@ -1353,6 +1366,11 @@ function createBridgeServers() {
           if (!data.name || !data.gifBase64) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'name and gifBase64 are required' }));
+            return;
+          }
+          if (!isSafeFilename(data.name)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'name contains invalid characters (only alphanumeric, underscore, hyphen, Chinese allowed)' }));
             return;
           }
           // Save GIF file (namespace per set to avoid overwriting other sets)

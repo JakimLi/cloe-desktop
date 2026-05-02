@@ -1,5 +1,8 @@
 {
   "windowTitle": "Cloe Settings",
+  "sidebar": {
+    "title": "Settings"
+  },
   "title": "Actions",
   "tabs": {
     "actions": "Actions",
@@ -20,7 +23,8 @@
     "connectionSub": "Make sure Cloe Desktop is running ({{error}})",
     "connectionFailed": "Connection failed: {{error}}",
     "sendFailed": "Send failed: {{error}}",
-    "loadFailed": "Load failed: {{error}}"
+    "loadFailed": "Load failed: {{error}}",
+    "generic": "Error"
   },
   "success": {
     "sent": "\"{{name}}\" sent ({{count}} client(s))"
@@ -38,14 +42,44 @@
   "common": {
     "cancel": "Cancel",
     "creating": "Creating",
-    "adding": "Adding"
+    "adding": "Adding",
+    "ellipsis": "…",
+    "removeTitle": "Remove"
+  },
+  "confirm": {
+    "defaultTitle": "Confirm",
+    "defaultMessage": "Are you sure you want to continue?"
+  },
+  "a11y": {
+    "referenceThumbnail": "Reference thumbnail",
+    "previewGif": "Action preview",
+    "referenceImage": "Reference image",
+    "formImagePreview": "Preview",
+    "closeModal": "Close"
+  },
+  "i18n": {
+    "switchToEn": "EN",
+    "switchToZh": "中文"
   },
   "createSet": {
     "title": "New Action Set",
     "button": "Create",
     "success": "Action set \"{{name}}\" created",
     "error": "Create failed: {{error}}",
-    "errorNameRequired": "Please enter a name"
+    "errorNameRequired": "Please enter a name",
+    "nameLabel": "Name *",
+    "namePlaceholder": "e.g. School Uniform",
+    "nameEnLabel": "English Name",
+    "nameEnPlaceholder": "e.g. school_uniform",
+    "descLabel": "Description",
+    "descPlaceholder": "Optional description",
+    "descEnLabel": "English Description",
+    "descEnPlaceholder": "Optional English description",
+    "chromakeyLabel": "Chromakey",
+    "chromakeyGreen": "Green screen",
+    "chromakeyBlue": "Blue screen",
+    "referenceLabel": "Reference Image",
+    "chooseReferenceFile": "Choose image"
   },
   "addAction": {
     "title": "Add Action",
@@ -54,7 +88,17 @@
     "success": "Action \"{{name}}\" added",
     "error": "Add failed: {{error}}",
     "errorNameRequired": "Please enter an action name",
-    "errorGifRequired": "Please select a GIF file"
+    "errorGifRequired": "Please select a GIF file",
+    "actionNameLabel": "Action Name *",
+    "actionNamePlaceholder": "e.g. laugh",
+    "nameHint": "Use snake_case (letters, digits, underscores)",
+    "gifLabel": "GIF File *",
+    "chooseGifFile": "Choose GIF",
+    "triggerLabel": "Trigger Type",
+    "triggerManual": "Manual",
+    "triggerIdle": "Idle (auto-play)",
+    "weightLabel": "Idle Weight",
+    "weightHint": "How often this plays during idle (1 = normal)"
   },
   "set": {
     "apply": "Apply",
@@ -86,6 +130,7 @@
   "reference": {
     "viewTitle": "Click to view reference image",
     "modalTitle": "Reference — {{name}}",
+    "modalTitleFallback": "Reference",
     "chromakey": "Chromakey: {{color}}"
   },
   "genMode": {
@@ -115,6 +160,12 @@
     "appearance": "Appearance",
     "language": "Language",
     "languageDesc": "Choose the display language",
+    "langZh": "简体中文",
+    "langEn": "English",
+    "apiKeyToggle": "Toggle visibility",
+    "apiKeyPlaceholder": "sk-...",
+    "appName": "Cloe Desktop",
+    "windowPositionDash": "—",
     "general": "General",
     "autoStart": "Launch at Login",
     "autoStartDesc": "Automatically start Cloe Desktop on system boot",
