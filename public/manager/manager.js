@@ -30,6 +30,9 @@ function switchTab(tabId) {
 function updateAllText() {
   document.title = I18n.t('windowTitle');
 
+  const sidebarTitle = document.querySelector('.sidebar-title');
+  if (sidebarTitle) sidebarTitle.textContent = I18n.t('sidebar.title');
+
   // Sidebar items
   document.getElementById('sidebar-actions').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.actions');
   document.getElementById('sidebar-preferences').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.preferences');

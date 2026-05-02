@@ -21,8 +21,8 @@ function renderPreferences() {
           </div>
           <div class="pref-control">
             <div class="segmented-control" id="lang-segments">
-              <button class="segment ${currentLocale === 'zh-CN' ? 'active' : ''}" data-locale="zh-CN">中文</button>
-              <button class="segment ${currentLocale === 'en-US' ? 'active' : ''}" data-locale="en-US">English</button>
+              <button class="segment ${currentLocale === 'zh-CN' ? 'active' : ''}" data-locale="zh-CN">${I18n.t('prefs.langZh')}</button>
+              <button class="segment ${currentLocale === 'en-US' ? 'active' : ''}" data-locale="en-US">${I18n.t('prefs.langEn')}</button>
             </div>
           </div>
         </div>
@@ -85,8 +85,8 @@ function renderPreferences() {
           </div>
           <div class="pref-control">
             <div class="pref-api-key-wrap">
-              <input type="password" id="pref-dashscope-api-key" class="form-input" placeholder="sk-..." autocomplete="off" spellcheck="false">
-              <button type="button" class="btn-icon btn-icon-sm" id="pref-api-key-toggle" title="Toggle visibility">👁</button>
+              <input type="password" id="pref-dashscope-api-key" class="form-input" placeholder="${I18n.t('prefs.apiKeyPlaceholder')}" autocomplete="off" spellcheck="false">
+              <button type="button" class="btn-icon btn-icon-sm" id="pref-api-key-toggle" title="${I18n.t('prefs.apiKeyToggle')}">👁</button>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ function renderPreferences() {
       <div class="pref-group">
         <div class="pref-item">
           <div class="pref-info">
-            <div class="pref-label">Cloe Desktop</div>
+            <div class="pref-label">${I18n.t('prefs.appName')}</div>
             <div class="pref-desc">${I18n.t('prefs.aboutDesc')}</div>
           </div>
         </div>
@@ -223,7 +223,7 @@ function renderPreferences() {
         ? I18n.t('prefs.windowPositionSaved', { x: data.saved.x, y: data.saved.y })
         : I18n.t('prefs.windowPositionNotSet');
     } catch (_) {
-      winPosDisplay.textContent = '—';
+      winPosDisplay.textContent = I18n.t('prefs.windowPositionDash');
     }
   }
 

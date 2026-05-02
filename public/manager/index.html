@@ -155,8 +155,9 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label" for="set-reference">Reference Image</label>
-            <input id="set-reference" type="file" accept="image/*" class="form-file">
+            <label class="form-label" id="lbl-set-reference">Reference Image</label>
+            <input id="set-reference" type="file" accept="image/*" class="form-file" aria-label="Reference image file">
+            <label for="set-reference" class="btn btn-secondary btn-sm form-file-label" id="lbl-set-reference-choose">Choose image</label>
             <div id="set-reference-preview" class="form-preview hidden">
               <img id="set-reference-preview-img" src="" alt="Preview">
               <button type="button" id="set-reference-remove" class="btn-icon btn-icon-sm" title="Remove">✕</button>
@@ -188,7 +189,7 @@
           <div class="form-group">
             <label class="form-label" for="action-name">Action Name *</label>
             <input id="action-name" type="text" class="form-input" placeholder="e.g. laugh" required pattern="[a-z][a-z0-9_]*">
-            <div class="form-hint">Use snake_case (letters, digits, underscores)</div>
+            <div class="form-hint" id="action-name-hint">Use snake_case (letters, digits, underscores)</div>
           </div>
           <div class="form-group">
             <label class="form-label" for="action-gen-mode">Generation Mode</label>
@@ -212,8 +213,9 @@
           </div>
           <div id="add-action-manual-fields">
           <div class="form-group">
-            <label class="form-label" for="action-gif">GIF File *</label>
-            <input id="action-gif" type="file" accept=".gif,image/gif" class="form-file">
+            <label class="form-label" id="lbl-action-gif">GIF File *</label>
+            <input id="action-gif" type="file" accept=".gif,image/gif" class="form-file" aria-label="GIF file">
+            <label for="action-gif" class="btn btn-secondary btn-sm form-file-label" id="lbl-action-gif-choose">Choose GIF</label>
             <div id="action-gif-preview" class="form-preview hidden">
               <img id="action-gif-preview-img" src="" alt="Preview">
               <button type="button" id="action-gif-remove" class="btn-icon btn-icon-sm" title="Remove">✕</button>
@@ -230,7 +232,7 @@
           <div class="form-group" id="action-weight-group" style="display:none">
             <label class="form-label" for="action-weight">Idle Weight</label>
             <input id="action-weight" type="number" class="form-input" value="1" min="1" max="20">
-            <div class="form-hint">How often this plays during idle (1 = normal)</div>
+            <div class="form-hint" id="action-weight-hint">How often this plays during idle (1 = normal)</div>
           </div>
         </form>
       </div>

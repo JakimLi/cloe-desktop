@@ -1,5 +1,8 @@
 {
   "windowTitle": "Cloe 设置",
+  "sidebar": {
+    "title": "设置"
+  },
   "title": "动作管理",
   "tabs": {
     "actions": "动作管理",
@@ -20,7 +23,8 @@
     "connectionSub": "请确认 Cloe Desktop 正在运行 ({{error}})",
     "connectionFailed": "连接失败: {{error}}",
     "sendFailed": "发送失败: {{error}}",
-    "loadFailed": "加载失败: {{error}}"
+    "loadFailed": "加载失败: {{error}}",
+    "generic": "错误"
   },
   "success": {
     "sent": "\"{{name}}\" 已发送 ({{count}} 客户端)"
@@ -38,14 +42,44 @@
   "common": {
     "cancel": "取消",
     "creating": "创建中",
-    "adding": "添加中"
+    "adding": "添加中",
+    "ellipsis": "...",
+    "removeTitle": "移除"
+  },
+  "confirm": {
+    "defaultTitle": "确认",
+    "defaultMessage": "确定要继续吗？"
+  },
+  "a11y": {
+    "referenceThumbnail": "参考图缩略图",
+    "previewGif": "动作预览",
+    "referenceImage": "参考图",
+    "formImagePreview": "预览",
+    "closeModal": "关闭"
+  },
+  "i18n": {
+    "switchToEn": "EN",
+    "switchToZh": "中"
   },
   "createSet": {
     "title": "新建动作集",
     "button": "创建",
     "success": "动作集 \"{{name}}\" 创建成功",
     "error": "创建失败: {{error}}",
-    "errorNameRequired": "请输入动作集名称"
+    "errorNameRequired": "请输入动作集名称",
+    "nameLabel": "名称 *",
+    "namePlaceholder": "例如：校服",
+    "nameEnLabel": "英文名称",
+    "nameEnPlaceholder": "例如：school_uniform",
+    "descLabel": "描述",
+    "descPlaceholder": "选填描述",
+    "descEnLabel": "英文描述",
+    "descEnPlaceholder": "选填英文描述",
+    "chromakeyLabel": "色幕",
+    "chromakeyGreen": "绿色（绿幕）",
+    "chromakeyBlue": "蓝色（蓝幕）",
+    "referenceLabel": "参考图",
+    "chooseReferenceFile": "选择图片"
   },
   "addAction": {
     "title": "添加动作",
@@ -54,7 +88,17 @@
     "success": "动作 \"{{name}}\" 添加成功",
     "error": "添加失败: {{error}}",
     "errorNameRequired": "请输入动作名称",
-    "errorGifRequired": "请选择 GIF 文件"
+    "errorGifRequired": "请选择 GIF 文件",
+    "actionNameLabel": "动作名称 *",
+    "actionNamePlaceholder": "例如：laugh",
+    "nameHint": "使用 snake_case（小写字母、数字、下划线）",
+    "gifLabel": "GIF 文件 *",
+    "chooseGifFile": "选择 GIF",
+    "triggerLabel": "触发方式",
+    "triggerManual": "手动触发",
+    "triggerIdle": "待机（自动轮播）",
+    "weightLabel": "待机权重",
+    "weightHint": "待机时播放的相对频率（1 为普通）"
   },
   "set": {
     "apply": "应用",
@@ -86,6 +130,7 @@
   "reference": {
     "viewTitle": "点击查看参考图",
     "modalTitle": "参考图 — {{name}}",
+    "modalTitleFallback": "参考图",
     "chromakey": "色幕: {{color}}"
   },
   "genMode": {
@@ -115,6 +160,12 @@
     "appearance": "外观",
     "language": "语言",
     "languageDesc": "选择界面显示语言",
+    "langZh": "中文",
+    "langEn": "English",
+    "apiKeyToggle": "显示 / 隐藏密钥",
+    "apiKeyPlaceholder": "sk-...",
+    "appName": "Cloe Desktop",
+    "windowPositionDash": "—",
     "general": "通用",
     "autoStart": "开机自动启动",
     "autoStartDesc": "系统启动时自动运行 Cloe Desktop",
