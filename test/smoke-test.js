@@ -23,7 +23,7 @@ const path = require('path');
 const HTTP_PORT = 19851;
 const ACTIONS = ['blink', 'smile', 'kiss', 'nod', 'wave', 'think', 'tease', 'shake_head', 'speak'];
 const CROP = { x: 1040, y: 360, w: 380, h: 520 };
-const FEISHU_CHAT = 'oc_e8eba4ee240f506188d642f09ebae0b5';
+const FEISHU_CHAT = process.env.FEISHU_CHAT_ID || 'oc_placeholder';
 
 const useDev = process.argv.includes('--dev');
 const label = useDev ? 'Dev Server' : 'Installed App';
