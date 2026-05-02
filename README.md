@@ -5,7 +5,7 @@
 <h1 align="center">Cloe Desktop</h1>
 
 <p align="center">
-  <strong>A living character on your screen — she blinks, smiles, talks, and keeps you company.</strong>
+  <strong>A realistic AI character living on your desktop — with expressions, voice, and her own mind.</strong>
 </p>
 
 <p align="center">
@@ -25,11 +25,31 @@ https://github.com/user-attachments/assets/DEMO_VIDEO_PLACEHOLDER
 
 ## What is Cloe?
 
-Cloe is a **transparent desktop companion widget** — an always-on-top anime character that sits in the corner of your screen with lifelike expressions and voice. She's not a chatbot window; she's a *presence*.
+Cloe is a **realistic-style desktop AI companion** — a transparent, always-on-top character that lives in the corner of your screen. Unlike cartoon avatars or chatbot windows, she looks like a real person: a photorealistic Asian girl with lifelike facial expressions, natural gestures, and synthesized voice.
 
-She reacts to you in real time: smiles when you're happy, blows a kiss goodbye, thinks when she's working on something, and talks to you with a synthesized voice. When you're not interacting, she idles naturally — blinking, looking around, and occasionally flashing a smile.
+She's not just a static widget. Powered by an AI agent, she **chooses her own expressions** — smiling when things go well, thinking when she's processing, blowing a kiss when you say goodbye. She reacts to context, not just commands.
 
-Under the hood, she exposes a dead-simple **HTTP API**, so any AI agent, script, or automation can give her a face. One `curl` command is all it takes.
+### Why Cloe?
+
+- 🧑 **Realistic, not cartoonish** — AI-generated character art with photorealistic rendering, smooth expressions, and transparent background that blends into your desktop
+- 🧠 **Agent-driven autonomy** — the AI agent decides what expression to show based on conversation context, task state, and mood — not hardcoded rules
+- 🎨 **Fully customizable** — bring your own character. Switch between different skins, or create an entirely new persona with your own reference art
+- 📚 **Learnable via skills** — Cloe can learn new expressions, new actions, and new scenarios through a skill system. No code changes needed — just describe and generate
+- 🔄 **Agent state integration** — connects to [Hermes](https://github.com/JakimLi/hermes) agent lifecycle: automatically shows `working` when the agent is busy, returns to `idle` when done, `wave` on session start, `kiss` on session end
+
+---
+
+## Features
+
+- 🎭 **14 built-in expressions** — smile, kiss, nod, wave, think, tease, clap, laugh, yawn, shy, shake head, blink, speak, working
+- 🧠 **Autonomous expression selection** — the AI agent chooses expressions contextually based on conversation, task state, and emotional cues
+- 🔊 **Voice synthesis** — speaks with TTS audio synchronized to mouth animation (local CPU inference or cloud API)
+- 💤 **Natural idle behavior** — randomly cycles through animations every 8–15 seconds, never repeating the same one twice
+- 🎨 **Custom character skins** — switch appearances via Manager UI, or import your own character art and generate animations
+- 📚 **Skill-based learning** — generate new expressions and actions with AI (Wan2.7 image-to-video + chroma key), registered as reusable skills
+- 🔄 **Agent lifecycle hooks** — mirrors Hermes agent state: `agent:start` → working, `agent:end` → idle, `session:start` → wave, `session:end` → kiss
+- 🤖 **Simple HTTP API** — one endpoint, one JSON field, no SDK needed
+- 🌐 **Android companion** — same character on your phone, connected over LAN or Tailscale
 
 ### Quick Peek
 
@@ -44,18 +64,6 @@ curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 curl -s http://localhost:19851/status
 # → {"ws_port":19850,"http_port":19851,"clients":1}
 ```
-
----
-
-## Features
-
-- 🎭 **14 built-in expressions** — smile, kiss, nod, wave, think, tease, clap, laugh, yawn, shy, shake head, blink, speak, working
-- 🔊 **Voice synthesis** — speaks with TTS audio synchronized to mouth animation
-- 💤 **Natural idle behavior** — randomly cycles through animations every 8–15 seconds
-- 🎨 **Multiple character skins** — switch between different appearances via the built-in Manager UI
-- 🤖 **Simple HTTP API** — one endpoint, one JSON field, no SDK needed
-- 🌐 **Android companion** — same character on your phone, connected over LAN or Tailscale
-- 🧠 **Self-learning** — generate new expressions with AI (Wan2.7 image-to-video + chroma key)
 
 ---
 
@@ -112,24 +120,24 @@ Cloe Android is a floating widget that mirrors the desktop character on your pho
 
 ### Expressions
 
-| Action | What she does | Try it when... |
-|--------|--------------|----------------|
-| 😊 `smile` | Warm smile | Happy, praised, greeting |
-| 😘 `kiss` | Blow a kiss | Goodbye, expressing affection |
-| 😉 `tease` | Wink + smirk | Being playful |
-| 😌 `nod` | Gentle nod | Agreement, "yes" |
-| 👋 `wave` | Hand wave | Hello, welcome |
-| 🤔 `think` | Tilts head, looks away | Pondering, working |
-| 🙃 `shake_head` | Gentle head shake | Disagreement, stubborn |
-| 😳 `shy` | Looks away, embarrassed | Flustered, flattered |
-| 😂 `laugh` | Big laugh | Something's really funny |
-| 👏 `clap` | Applause | Celebrating, cheering |
-| 🥱 `yawn` | Sleepy yawn | Late night, tired |
-| ⌨️ `working` | Typing on keyboard | Executing a task |
-| 👄 `speak` | Mouth animation + voice | Speaking with audio |
+| Action | What she does | When the agent might use it |
+|--------|--------------|----------------------------|
+| 😊 `smile` | Warm smile | Happy, praised, greeting, task succeeded |
+| 😘 `kiss` | Blow a kiss | Goodbye, expressing affection, session end |
+| 😉 `tease` | Wink + smirk | Playful teasing, inside jokes |
+| 😌 `nod` | Gentle nod | Agreement, confirmation, "got it" |
+| 👋 `wave` | Hand wave | Hello, session start, welcome back |
+| 🤔 `think` | Tilts head, looks away | Pondering a question, processing |
+| 🙃 `shake_head` | Gentle head shake | Disagreement, playful stubbornness |
+| 😳 `shy` | Looks away, embarrassed | Flustered, flattered, caught off guard |
+| 😂 `laugh` | Big laugh | Something's genuinely funny |
+| 👏 `clap` | Applause | Celebrating user's achievement |
+| 🥱 `yawn` | Sleepy yawn | Late night, been working too long |
+| ⌨️ `working` | Typing on keyboard | Agent is executing a task |
+| 👄 `speak` | Mouth animation + voice | Speaking with TTS audio |
 | 👀 `blink` | Natural blink | Idle (automatic) |
 
-Plus semantic aliases: `approve`, `happy` → smile; `agree` → nod; etc.
+Plus semantic aliases: `approve` → smile, `happy` → smile, `agree` → nod; etc. The agent can use whichever word feels natural.
 
 ### Triggering Actions
 
@@ -145,6 +153,19 @@ curl -s http://localhost:19851/action -d '{"action":"speak","audio":"done"}'
 ```
 
 Add your own MP3 files to `~/.cloe/audio/` and trigger them by filename.
+
+### Agent State Integration
+
+Cloe automatically reflects the AI agent's state through lifecycle hooks:
+
+| Hermes Event | Cloe Action | What happens |
+|-------------|-------------|--------------|
+| `session:start` | `wave` | Waves hello when a new conversation starts |
+| `session:end` | `kiss` | Blows a kiss when the conversation ends |
+| `agent:start` | `working` | Starts typing when the agent begins processing |
+| `agent:end` | `idle` | Returns to idle animation when the agent finishes |
+
+The agent also autonomously picks expressions during conversation — smiling at good news, thinking through hard problems, laughing at jokes. This isn't scripted; the agent *decides*.
 
 ### Idle Behavior
 
@@ -177,28 +198,55 @@ Supports both Chinese and English (auto-detects system language).
 Cloe is designed to be the **visual layer** of any AI assistant. The HTTP API makes it trivial to give your AI a face:
 
 ```
-Your AI Agent (Hermes, LangChain, custom, anything)
+AI Agent (Hermes, LangChain, custom, anything)
     │
     ├── User says "thank you"
-    │   └── POST /action {"action":"smile"}
+    │   └── POST /action {"action":"smile"}     ← agent decides
     │
     ├── Agent starts working on a task
-    │   └── POST /action {"action":"working"}
+    │   └── POST /action {"action":"working"}    ← automatic via hook
     │
     ├── Agent finishes the task
     │   └── POST /action {"action":"speak","audio":"done"}
     │
     └── User says goodnight
-        └── POST /action {"action":"kiss"}
+        └── POST /action {"action":"kiss"}       ← agent decides
 ```
 
 No SDK, no dependencies. Just HTTP.
 
+### Hermes Integration
+
+Cloe has first-class support for [Hermes](https://github.com/JakimLi/hermes) agent lifecycle:
+
+```
+┌──────────────┐   hook events    ┌──────────────────┐   HTTP API   ┌──────────────┐
+│ Hermes Agent │ ───────────────▶ │ Gateway Hook     │ ───────────▶ │ Cloe Desktop │
+│              │ agent:start/end  │ handler.py       │  /action     │ (Electron)   │
+│              │ session:start/end│                  │              │              │
+└──────────────┘                  └──────────────────┘              └──────────────┘
+```
+
+The hook is at `~/.hermes/hooks/cloe-desktop/handler.py` and fires automatically — no manual triggering needed for state changes.
+
 ---
 
-## Generate New Expressions
+## Custom Character & Skins
 
-Cloe can **learn new expressions on the fly** using AI video generation (Alibaba Wan2.7). Describe an action, and she generates the animation herself:
+Cloe isn't locked to one face. You can create and switch between multiple character appearances:
+
+1. **Prepare a reference image** — a clear portrait of your character against a solid background (green screen preferred)
+2. **Create a new action set** in the Manager UI
+3. **Generate animations** — use the built-in AI pipeline to create all expressions from your reference image
+4. **Switch skins** anytime via the Manager UI
+
+Each skin has its own set of GIF animations, idle playlist, and action mapping — completely independent characters sharing the same framework.
+
+---
+
+## Learn New Expressions via Skills
+
+Cloe can **learn new expressions on the fly** through a skill-based generation pipeline. This isn't limited to the built-in 14 actions — any new expression can be described, generated, and registered:
 
 ```bash
 python3 scripts/generate_gif.py \
@@ -206,9 +254,14 @@ python3 scripts/generate_gif.py \
   --prompt "a cute Asian girl facing the camera, pouting with puckered lips, pure green background"
 ```
 
-The pipeline: text prompt → AI image-to-video → green screen chroma key → transparent GIF → registered automatically.
+The full pipeline:
+1. **Describe** — write a text prompt for the new action
+2. **Generate reference** — Wan2.7 image-pro creates a character-consistent reference frame
+3. **Generate video** — Wan2.7 image-to-video animates the expression
+4. **Process** — chroma key removal → transparent GIF with clean edges
+5. **Register** — drop the GIF into the animations folder, add to action map, done
 
-No Photoshop, no manual editing. Just describe what you want.
+New actions are immediately available to the agent — no code changes, no restart needed. The generation skill is reusable: describe once, generate forever.
 
 ---
 
