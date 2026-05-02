@@ -1,417 +1,268 @@
-# Cloe Desktop
+<p align="center">
+  <img src="public/references/default.png" alt="Cloe" width="200" />
+</p>
 
-A transparent desktop widget companion with AI-generated expressions and voice. Built with **Electron + Vite**, powered by **Alibaba Bailian (WanX/Wan2.7)** for GIF generation and **MOSS-TTS** for voice synthesis.
+<h1 align="center">Cloe Desktop</h1>
 
-![Architecture](docs/architecture.svg)
+<p align="center">
+  <strong>A living character on your screen — she blinks, smiles, talks, and keeps you company.</strong>
+</p>
 
-## ✨ Features
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-macOS%20·%20Android-blue" alt="Platform" />
+  <img src="https://img.shields.io/badge/status-active-brightgreen" alt="Status" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
+</p>
 
-- **Transparent overlay window** — always-on-top, draggable, no frame, blends into any desktop
-- **Smooth GIF transitions** — double-buffer crossfade (no flicker)
-- **9 built-in actions** — blink, smile, kiss, nod, wave, think, tease, speak, shake_head
-- **Idle animation loop** — weighted random cycling through animations every 8–15 seconds
-- **Voice with speak action** — pre-recorded TTS audio plays alongside mouth animation
-- **Self-learning system** — new actions can be generated via AI and added at runtime (see [Self-Learning](#-self-learning-new-actions))
-- **WebSocket bridge** — decoupled architecture: any HTTP client can trigger animations
+---
 
-## 🏗 Architecture
+<!-- DEMO VIDEO — replace the URL below with your actual recording -->
+https://github.com/user-attachments/assets/DEMO_VIDEO_PLACEHOLDER
 
-```
-┌─────────────┐     HTTP POST      ┌─────────────┐    WebSocket    ┌─────────────┐
-│   Any HTTP   │ ──────────────▶  │  ws_bridge  │ ──────────────▶ │   Electron   │
-│   Client     │  :19851/action   │  (Python)   │   :19850/ws     │  Renderer    │
-│              │                   │             │                 │  (Browser)   │
-│  curl / AI   │                   │  aiohttp    │                 │              │
-│  Agent       │                   │             │                 │  GIF Player  │
-└─────────────┘                   └─────────────┘                 │  Audio       │
-                                                                    └─────────────┘
-```
+> 🎬 *Video coming soon — a quick walkthrough of Cloe in action on macOS and Android.*
 
-### Components
+---
 
-| Component | Tech | Role |
-|-----------|------|------|
-| `electron.js` | Electron | Transparent frameless window, IPC for dragging |
-| `preload.js` | Electron | Exposes `electronAPI.moveWindow()` to renderer |
-| `src/renderer.js` | Vanilla JS | GIF double-buffer, idle loop, action handler, audio |
-| `src/style.css` | CSS | Transparent background, absolute positioning, crossfade |
-| `ws_bridge.py` | Python aiohttp | WebSocket server (19850) + HTTP API (19851) |
+## What is Cloe?
 
-### Data Flow
+Cloe is a **transparent desktop companion widget** — an always-on-top anime character that sits in the corner of your screen with lifelike expressions and voice. She's not a chatbot window; she's a *presence*.
 
-1. **HTTP trigger** → `POST /action` with JSON `{"action": "smile"}`
-2. **ws_bridge** → broadcasts to all connected WebSocket clients
-3. **Electron renderer** → receives via WebSocket, calls `handleAction()`
-4. **GIF switch** → preloads new GIF into hidden layer, crossfades opacity
-5. **Audio** (optional) → plays MP3 from `public/audio/` alongside speak GIF
-6. **Auto-return** → after 3 seconds, returns to idle loop
+She reacts to you in real time: smiles when you're happy, blows a kiss goodbye, thinks when she's working on something, and talks to you with a synthesized voice. When you're not interacting, she idles naturally — blinking, looking around, and occasionally flashing a smile.
 
-## 🚀 Quick Start
+Under the hood, she exposes a dead-simple **HTTP API**, so any AI agent, script, or automation can give her a face. One `curl` command is all it takes.
 
-### Prerequisites
-
-- **Node.js** ≥ 18
-- **Python** ≥ 3.10 (for `ws_bridge.py` and GIF generation scripts)
-- **FFmpeg** (for chroma key and audio conversion)
-- **Bailian API key** (for GIF generation, optional if using pre-built GIFs)
-- **MOSS-TTS API key** (for voice, optional if not using speak action)
-
-### Install & Run
+### Quick Peek
 
 ```bash
-# Clone
+# Make her smile
+curl -s http://localhost:19851/action -d '{"action":"smile"}'
+
+# Make her talk
+curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
+
+# Check she's alive
+curl -s http://localhost:19851/status
+# → {"ws_port":19850,"http_port":19851,"clients":1}
+```
+
+---
+
+## Features
+
+- 🎭 **14 built-in expressions** — smile, kiss, nod, wave, think, tease, clap, laugh, yawn, shy, shake head, blink, speak, working
+- 🔊 **Voice synthesis** — speaks with TTS audio synchronized to mouth animation
+- 💤 **Natural idle behavior** — randomly cycles through animations every 8–15 seconds
+- 🎨 **Multiple character skins** — switch between different appearances via the built-in Manager UI
+- 🤖 **Simple HTTP API** — one endpoint, one JSON field, no SDK needed
+- 🌐 **Android companion** — same character on your phone, connected over LAN or Tailscale
+- 🧠 **Self-learning** — generate new expressions with AI (Wan2.7 image-to-video + chroma key)
+
+---
+
+## Installation
+
+### macOS (Recommended)
+
+**Option 1: Download (easiest)**
+
+1. Grab the latest `Cloe.dmg` from [Releases](https://github.com/JakimLi/cloe-desktop/releases)
+2. Open the DMG, drag **Cloe** to Applications
+3. Launch — she appears in the corner of your screen
+4. If macOS blocks it: *System Settings → Privacy & Security → Open Anyway*
+
+> After first launch, add Cloe to the macOS Firewall whitelist when prompted.
+
+**Option 2: Build from source**
+
+```bash
 git clone https://github.com/JakimLi/cloe-desktop.git
 cd cloe-desktop
-
-# Install dependencies
 npm install
-pip install aiohttp requests numpy pillow scipy
 
-# Start WebSocket bridge (background)
-python3 ws_bridge.py &
-
-# Development mode (Vite + Electron)
+# Development (hot-reload)
 npm run dev
 
-# Production mode
-npm start
+# — or — package & install to /Applications
+./scripts/pack.sh --dir && ./scripts/install.sh
 ```
 
-### Verify Connection
+**Prerequisites:** Node.js ≥ 18
+
+### Android
+
+Cloe Android is a floating widget that mirrors the desktop character on your phone. It connects to the desktop bridge over your local network (or [Tailscale](https://tailscale.com/) for remote access).
+
+1. Build the APK from [cloe-android](https://github.com/JakimLi/cloe-android):
+   ```bash
+   git clone https://github.com/JakimLi/cloe-android.git
+   cd cloe-android
+   ./gradlew assembleDebug --no-daemon
+   # → app/build/outputs/apk/debug/app-debug.apk
+   ```
+2. Install the APK on your phone
+3. Grant **"Display over other apps"** permission
+4. Enter your PC's IP address (e.g., `100.91.131.48` for Tailscale)
+5. Cloe appears as a floating widget — tap to expand, drag to reposition
+
+> **Note:** The Android app is a pure client. The desktop bridge must be running for it to work.
+
+---
+
+## Usage
+
+### Expressions
+
+| Action | What she does | Try it when... |
+|--------|--------------|----------------|
+| 😊 `smile` | Warm smile | Happy, praised, greeting |
+| 😘 `kiss` | Blow a kiss | Goodbye, expressing affection |
+| 😉 `tease` | Wink + smirk | Being playful |
+| 😌 `nod` | Gentle nod | Agreement, "yes" |
+| 👋 `wave` | Hand wave | Hello, welcome |
+| 🤔 `think` | Tilts head, looks away | Pondering, working |
+| 🙃 `shake_head` | Gentle head shake | Disagreement, stubborn |
+| 😳 `shy` | Looks away, embarrassed | Flustered, flattered |
+| 😂 `laugh` | Big laugh | Something's really funny |
+| 👏 `clap` | Applause | Celebrating, cheering |
+| 🥱 `yawn` | Sleepy yawn | Late night, tired |
+| ⌨️ `working` | Typing on keyboard | Executing a task |
+| 👄 `speak` | Mouth animation + voice | Speaking with audio |
+| 👀 `blink` | Natural blink | Idle (automatic) |
+
+Plus semantic aliases: `approve`, `happy` → smile; `agree` → nod; etc.
+
+### Triggering Actions
 
 ```bash
-# Check status
-curl -s http://localhost:19851/status
-# Expected: {"ws_port":19850,"http_port":19851,"clients":1}
-```
-
-## 🎭 Actions
-
-### Trigger Actions via HTTP
-
-```bash
-# Basic actions
+# Any HTTP client works
 curl -s http://localhost:19851/action -d '{"action":"smile"}'
-curl -s http://localhost:19851/action -d '{"action":"nod"}'
-curl -s http://localhost:19851/action -d '{"action":"wave"}'
-curl -s http://localhost:19851/action -d '{"action":"think"}'
-curl -s http://localhost:19851/action -d '{"action":"tease"}'
 curl -s http://localhost:19851/action -d '{"action":"kiss"}'
-curl -s http://localhost:19851/action -d '{"action":"shake_head"}'
+curl -s http://localhost:19851/action -d '{"action":"think"}'
 
-# Speak with TTS audio
+# With voice
 curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 curl -s http://localhost:19851/action -d '{"action":"speak","audio":"done"}'
-
-# Expression (generic)
-curl -s http://localhost:19851/action -d '{"action":"expression","expression":"happy"}'
 ```
 
-### Available Actions
+Add your own MP3 files to `~/.cloe/audio/` and trigger them by filename.
 
-| Action | GIF | Description | Audio |
-|--------|-----|-------------|-------|
-| `blink` | blink.gif | Natural blinking | — |
-| `smile` | smile.gif | Warm smile | — |
-| `kiss` | kiss.gif | Flying kiss | — |
-| `nod` | nod.gif | Gentle nod (approval) | — |
-| `wave` | wave.gif | Hand wave greeting | — |
-| `think` | think.gif | Tilts head, looks up-right | — |
-| `tease` | tease.gif | One-eye wink + smirk | — |
-| `shake_head` | shake_head.gif | Gentle head shake | — |
-| `speak` | speak.gif | Mouth opens/closes | ✅ plays `/audio/{name}.mp3` |
+### Idle Behavior
 
-### Idle Loop
+When nobody's interacting, Cloe cycles through idle animations (blink, smile, kiss, think, nod, shake_head) every 8–15 seconds, never repeating the same one twice in a row. She feels alive even when you're not looking.
 
-When no action is triggered, the widget automatically cycles through idle animations:
+### Manager UI
+
+Right-click the system tray icon → **"Open Manager"** to:
+- Switch between character skins
+- Preview animations
+- Configure preferences
+
+Supports both Chinese and English (auto-detects system language).
+
+---
+
+## Platforms
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **macOS** | ✅ Supported | Native Electron app, system tray integration, DMG packaging |
+| **Android** | ✅ Supported | Kotlin floating widget, connects to desktop bridge via LAN/Tailscale |
+| **Windows** | 🔜 Planned | Electron supports it — needs testing & packaging |
+| **Linux** | 🔜 Planned | Same as Windows |
+
+---
+
+## AI Agent Integration
+
+Cloe is designed to be the **visual layer** of any AI assistant. The HTTP API makes it trivial to give your AI a face:
 
 ```
-Weights: blink×2, smile×2, kiss×1, think×1, nod×1, shake_head×1
-Interval: 8–15 seconds (random)
-Rule: never repeats the same animation twice in a row
+Your AI Agent (Hermes, LangChain, custom, anything)
+    │
+    ├── User says "thank you"
+    │   └── POST /action {"action":"smile"}
+    │
+    ├── Agent starts working on a task
+    │   └── POST /action {"action":"working"}
+    │
+    ├── Agent finishes the task
+    │   └── POST /action {"action":"speak","audio":"done"}
+    │
+    └── User says goodnight
+        └── POST /action {"action":"kiss"}
 ```
 
-## 🔊 Audio (Speak Action)
+No SDK, no dependencies. Just HTTP.
 
-The `speak` action can play pre-recorded TTS audio alongside the mouth animation.
+---
 
-### Pre-built Audio
+## Generate New Expressions
 
-| File | Text | Voice |
-|------|------|-------|
-| `public/audio/doing.mp3` | "小可爱，我这就去做" | MOSS-TTS (voice_id: 2036257587296473088) |
-| `public/audio/done.mp3` | "小可爱，做好了，你看看" | MOSS-TTS (voice_id: 2036257587296473088) |
-
-### Add New Audio
+Cloe can **learn new expressions on the fly** using AI video generation (Alibaba Wan2.7). Describe an action, and she generates the animation herself:
 
 ```bash
-# 1. Generate TTS (using MOSS cloud API or local MOSS-TTS)
-python3 scripts/generate_tts.py --text "新语音内容" --output /tmp/new_voice.wav
-
-# 2. Convert to MP3
-ffmpeg -i /tmp/new_voice.wav -c:a libmp3lame -q:a 4 public/audio/greeting.mp3
-
-# 3. Trigger
-curl -s http://localhost:19851/action -d '{"action":"speak","audio":"greeting"}'
-```
-
-### Audio Protocol
-
-```json
-{
-  "action": "speak",
-  "audio": "doing"    // loads /audio/doing.mp3 automatically
-}
-```
-
-Audio auto-stops when the reaction duration (3s) expires.
-
-## 🧠 Self-Learning: Adding New Actions
-
-Cloe Desktop is designed to **learn new actions on the fly**. The system uses AI image/video generation to create new GIF animations when needed — no manual editing required.
-
-### How It Works
-
-The self-learning pipeline turns any action description into a playable transparent GIF in 3 steps:
-
-```
-Text Description          AI Video Generation           Post-Processing
-─────────────   ───────▶   ──────────────────   ───────▶   ──────────────
-"tilt head and          wan2.7-i2v (image→video)         chroma key + dehalo
- pout"                  pure green background            → transparent GIF
-```
-
-### Generate a New GIF
-
-```bash
-# Single action
 python3 scripts/generate_gif.py \
   --action pout \
-  --prompt "一个美丽的亚洲女孩面对镜头，她微微嘟起嘴唇，表情可爱委屈。身体保持不动。纯绿色背景。电影质感，高清。"
-
-# Batch (parallel generation)
-python3 scripts/batch_generate_gifs.py
-# Edit the ACTIONS dict in the script to define what to generate
+  --prompt "a cute Asian girl facing the camera, pouting with puckered lips, pure green background"
 ```
 
-### Register a New Action (3 steps)
+The pipeline: text prompt → AI image-to-video → green screen chroma key → transparent GIF → registered automatically.
 
-After generating the GIF:
+No Photoshop, no manual editing. Just describe what you want.
 
-**1.** Copy to `public/gifs/`:
-```bash
-cp public/gifs/_work_idle/pout.gif public/gifs/pout.gif
-```
+---
 
-**2.** Add to `src/renderer.js`:
-```javascript
-// In GIF_ANIMATIONS
-const GIF_ANIMATIONS = {
-  // ... existing ...
-  pout: '/gifs/pout.gif',    // ← add this
-};
+## Roadmap
 
-// In handleAction switch
-case 'pout':
-  switchGif('pout');
-  break;
-```
+- 🔜 **Real-time voice calls** — have an actual conversation with Cloe using live speech-to-text → LLM → text-to-speech. She hears you, thinks, and talks back. This is the next major feature.
+- 🔜 **Windows & Linux** — package for additional platforms
+- 🔜 **Community animation packs** — share and import character expressions
+- 🔜 **Custom character import** — bring your own character art, generate animations for any persona
 
-**3.** (Optional) Add to idle playlist:
-```javascript
-const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'pout'];
-```
+---
 
-**4.** Test:
-```bash
-curl -s http://localhost:19851/action -d '{"action":"pout"}'
-```
-
-### GIF Generation Pipeline (Technical Details)
-
-The pipeline uses a **two-step method** to ensure clean transparent backgrounds:
-
-**Step 1: Green-background reference image** (one-time)
-
-Use `wan2.7-image-pro` with a character reference photo to generate a half-body portrait on pure green background:
-
-```python
-# See scripts/generate_gif.py for full implementation
-# Input: character reference photo (any full/partial body shot)
-# Output: upper-body portrait on #00FF00 green background
-# Prompt key: "纯绿色背景" (pure green background)
-```
-
-**Step 2: Image → Video → GIF**
-
-```python
-# 1. wan2.7-i2v: green-bg image + action prompt → MP4 video
-#    - API: video-generation/video-synthesis (async)
-#    - Header: X-DashScope-Async: enable (required!)
-#    - Resolution: 720P, Duration: 5s
-#    - Prompt must include "纯绿色背景" to maintain consistency
-
-# 2. FFmpeg chroma key: remove green → raw GIF
-#    ffmpeg -i video.mp4 -vf "chromakey=0x00FF00:0.15:0.05,fps=10,scale=400:-1:flags=lanczos"
-
-# 3. Python dehalo: remove green edge artifacts
-#    - Strong green pixels → fully transparent
-#    - Edge green tint → color correction blend
-#    - Larger radius residual → mild correction
-```
-
-### Key Insight: The Reference Image
-
-The **single reference image** (`reference_upperbody_greenbg.png`) is the foundation of all animations. As long as this image maintains:
-
-- ✅ Pure green (#00FF00) background
-- ✅ Upper body visible (shoulders, arms, hands)
-- ✅ Natural seated posture, hands in front
-- ✅ Consistent character appearance
-
-…any new action can be generated by simply describing it in the prompt. The AI preserves character consistency because the first frame is always the same reference.
-
-### Self-Learning in Action (AI Agent Integration)
-
-When integrated with an AI agent (like Cloe herself), the learning loop becomes fully autonomous:
+## Architecture
 
 ```
-User: "do a surprised face"
-  │
-  ├─ Agent checks: does "surprised" exist in GIF_ANIMATIONS?
-  │     └─ No → generate it:
-  │         1. Run generate_gif.py --action surprised --prompt "..."
-  │         2. Copy to public/gifs/
-  │         3. Patch renderer.js
-  │         4. Restart Electron
-  │         5. Trigger the new action
-  │
-  └─ Yes → trigger it directly
+┌─────────────┐    HTTP/WS      ┌─────────────────────────────────────┐
+│   Any Client │ ──────────────▶ │       Cloe Desktop (Electron)       │
+│              │  :19851/:19850  │                                      │
+│  AI Agent    │                 │  ┌─────────┐  ┌──────────┐  ┌────┐ │
+│  curl        │                 │  │ Bridge  │─▶│ Renderer │─▶│GIF │ │
+│  Android App │◀─── WebSocket ──│  │(embedded)│  │(crossfade)│  │Player│
+│  Scripts     │                 │  └─────────┘  └──────────┘  └────┘ │
+└─────────────┘                 └─────────────────────────────────────┘
 ```
 
-The agent can also:
-- **Batch generate** multiple actions at once (`batch_generate_gifs.py`)
-- **Add to idle** if the action suits ambient behavior
-- **Record new TTS** audio for speak action variations
-- **Commit changes** to git for persistence
+- **Bridge** is embedded in the Electron app — no separate process needed
+- **Android** connects via WebSocket, same protocol, same animations
+- **Zero external dependencies** — just launch the app and the API is ready
 
-## ⚙️ Configuration
+---
 
-### Environment Variables
+## Tech Stack
 
-Create `~/.hermes/.env` (or set directly):
+| Layer | Technology |
+|-------|-----------|
+| Desktop app | Electron (transparent frameless window) |
+| Android app | Kotlin, Android SDK 35, Glide, Java-WebSocket |
+| Rendering | Vanilla JS + CSS (double-buffer GIF crossfade) |
+| Animation | AI-generated transparent GIFs (Wan2.7 I2V + chroma key) |
+| Voice | MOSS-TTS-Nano (local CPU) / CosyVoice |
+| Bridge | Embedded HTTP + WebSocket server (Node.js) |
+| Networking | Tailscale mesh for Android ↔ Desktop |
 
-```bash
-# Required for GIF generation
-BAILIAN_API_KEY=sk-xxxxxxxxxxxxx    # Alibaba Bailian DashScope API key
+---
 
-# Optional: MOSS-TTS for voice generation
-MOSS_TTS_API_KEY=sk-xxxxxxxxxxxxx   # MOSI studio API key
-MOSS_TTS_VOICE_ID=2036257587296473088  # Cloe's voice ID
-```
+## Authors
 
-### Ports
+- **Cloe** (AI) — animation pipeline, self-learning system, architecture
+- **JakimLi** (Human) — product vision, Electron framework, Android app, emotional direction
 
-| Port | Protocol | Service |
-|------|----------|---------|
-| 5173 | HTTP | Vite dev server |
-| 19850 | WebSocket | Electron → ws_bridge |
-| 19851 | HTTP | External trigger → ws_bridge |
+Built together. 💖
 
-### Renderer Constants (`src/renderer.js`)
+---
 
-```javascript
-const IDLE_INTERVAL_MIN = 8000;   // min ms between idle switches
-const IDLE_INTERVAL_MAX = 15000;  // max ms between idle switches
-const REACTION_DURATION = 3000;   // ms to show reaction before idle return
-```
+## License
 
-### Window Configuration (`electron.js`)
-
-```javascript
-{
-  width: 380,
-  height: 520,
-  transparent: true,
-  frame: false,
-  alwaysOnTop: true,
-  skipTaskbar: true,
-  hasShadow: false,
-}
-```
-
-## 📁 Project Structure
-
-```
-cloe-desktop/
-├── electron.js              # Electron main process (window setup, IPC)
-├── preload.js               # Context bridge (window drag)
-├── vite.config.js           # Vite configuration
-├── ws_bridge.py             # WebSocket+HTTP bridge (Python)
-├── package.json
-├── index.html               # Entry HTML (double-buffer layers)
-├── src/
-│   ├── renderer.js          # GIF player, idle loop, action handler, audio
-│   └── style.css            # Transparent overlay styles
-├── scripts/
-│   ├── generate_gif.py      # Single GIF generation pipeline
-│   └── batch_generate_gifs.py  # Parallel batch GIF generation
-├── public/
-│   ├── gifs/                # Transparent GIF animations
-│   │   ├── blink.gif
-│   │   ├── smile.gif
-│   │   ├── kiss.gif
-│   │   ├── nod.gif
-│   │   ├── wave.gif
-│   │   ├── think.gif
-│   │   ├── tease.gif
-│   │   ├── shake_head.gif
-│   │   ├── speak.gif
-│   │   └── _work_*/         # Generation workspace (not in git)
-│   └── audio/               # Pre-recorded TTS audio (MP3)
-│       ├── doing.mp3
-│       └── done.mp3
-└── reference_upperbody_greenbg.png  # Green-bg character reference image
-```
-
-## 🛠 Development
-
-```bash
-# Dev mode (auto-reload via Vite HMR)
-npm run dev
-
-# Build for production
-npm run build
-
-# Production mode (built + Electron)
-npm start
-
-# Run bridge only
-python3 ws_bridge.py
-```
-
-### Adding a New Action (checklist)
-
-- [ ] Generate GIF: `python3 scripts/generate_gif.py --action <name> --prompt "..."`
-- [ ] Copy: `cp public/gifs/_work_idle/<name>.gif public/gifs/<name>.gif`
-- [ ] Register in `GIF_ANIMATIONS` (renderer.js)
-- [ ] Add case in `handleAction` switch
-- [ ] (Optional) Add to `IDLE_PLAYLIST`
-- [ ] Test: `curl -s http://localhost:19851/action -d '{"action":"<name>"}'`
-
-### Adding New TTS Audio
-
-- [ ] Generate: MOSS-TTS cloud API or local MOSS-TTS
-- [ ] Convert: `ffmpeg -i input.wav -c:a libmp3lame -q:a 4 public/audio/<name>.mp3`
-- [ ] Test: `curl -s http://localhost:19851/action -d '{"action":"speak","audio":"<name>"}'`
-
-## 👥 Authors
-
-- **Cloe** (AI Agent) — GIF generation pipeline, self-learning system, animation design, voice synthesis, architecture decisions
-- **JakimLi** (Human Being) — Project vision, product design, emotional direction, Electron framework, WebSocket bridge, code review
-
-Built together with love. 💖
-
-## 📄 License
-
-MIT
+[MIT](LICENSE)
