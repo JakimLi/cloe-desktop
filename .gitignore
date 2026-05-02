@@ -6,3 +6,9 @@ release/
 models/*.zip
 models/*.vrm
 public/gifs/_work_*/
+
+# Intermediate generation files
+public/gifs/_work_*/
+reference_*.png
+*.bak
+docs/demo*.gif
