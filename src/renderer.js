@@ -8,10 +8,13 @@ const REACTION_DURATION = 3000;
 
 // Resolve base path for assets (GIFs, audio)
 // Dev mode: Vite serves from http://localhost:5173/ → use /gifs/
-// Production: file:// protocol → use relative ./gifs/
-const BASE = (location.protocol === 'file:') ? './' : '/';
+// Packaged file:// → base URL from ~/.cloe dataDir via preload (no HTTP static route)
+const DATA_DIR_BASE = (typeof window !== 'undefined' && window.electronAPI?.getDataDir?.()) || '';
+const BASE = (location.protocol === 'file:' && DATA_DIR_BASE)
+  ? DATA_DIR_BASE
+  : '/';
 
-const GIF_ANIMATIONS = {
+let GIF_ANIMATIONS = {
   blink:       `${BASE}gifs/blink.gif`,
   smile:       `${BASE}gifs/smile.gif`,
   kiss:        `${BASE}gifs/kiss.gif`,
@@ -22,17 +25,19 @@ const GIF_ANIMATIONS = {
   speak:       `${BASE}gifs/speak.gif`,
   shake_head:  `${BASE}gifs/shake_head.gif`,
   working:     `${BASE}gifs/working.gif`,
+  clap:        `${BASE}gifs/clap.gif`,
+  shy:         `${BASE}gifs/shy.gif`,
+  yawn:        `${BASE}gifs/yawn.gif`,
+  laugh:       `${BASE}gifs/laugh.gif`,
 };
 
 // Weighted idle playlist (blink & smile most frequent)
-const IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
+let IDLE_PLAYLIST = ['blink', 'blink', 'smile', 'smile', 'kiss', 'think', 'nod', 'shake_head'];
 
-// Action name → GIF name mapping (1:1 pass-through)
-const ACTION_MAP = {
-  smile: 'smile', approve: 'smile', happy: 'smile',
-  nod: 'nod', wave: 'wave', think: 'think', tease: 'tease',
-  kiss: 'kiss', shake_head: 'shake_head', speak: 'speak',
-};
+// Fallback to default set when current set doesn't have the action
+let ACTION_MAP = {};
+let FALLBACK_GIF_ANIMATIONS = {};
+let FALLBACK_ACTION_MAP = {};
 
 // ==================== State ====================
 let currentGif = 'blink';
@@ -53,6 +58,15 @@ function getActive()  { return activeLayer === 'a' ? gifLayerA : gifLayerB; }
 function getHidden()  { return activeLayer === 'a' ? gifLayerB : gifLayerA; }
 function swapLayers() { activeLayer = activeLayer === 'a' ? 'b' : 'a'; }
 
+/** Resolved absolute href — compares full resource URL, not just filename (img.src getter is always absolute). */
+function resolvedGifHref(s) {
+  try {
+    return new URL(s, location.href).href;
+  } catch {
+    return s;
+  }
+}
+
 // ==================== GIF Switch (double-buffer crossfade) ====================
 function preloadGif(src) {
   return new Promise((resolve, reject) => {
@@ -69,8 +83,8 @@ function switchGif(name, autoReturn = true) {
 
   const active = getActive();
 
-  // Already showing — skip but keep scheduling
-  if (active.src.endsWith(src.split('/').pop())) {
+  // Already showing — skip but keep scheduling (full resolved URL, not filename-only endsWith)
+  if (resolvedGifHref(active.src) === resolvedGifHref(src)) {
     if (!autoReturn) scheduleNextIdle();
     return;
   }
@@ -159,153 +173,6 @@ function startIdleLoop() {
 }
 
 // ==================== Audio ====================
-// --- Streaming TTS Audio (AudioContext) ---
-const TTS_WS_PORT = 19853;
-let ttsWs = null;
-let ttsAudioCtx = null;
-let ttsGainNode = null;
-let ttsIsPlaying = false;
-
-// Buffer all chunks, play on done (CPU is too slow for real-time streaming)
-let ttsChunks = [];       // collected Float32Array chunks
-let ttsTotalSamples = 0;
-let ttsPrevWorking = false; // remember if we were in working mode before speak
-
-function ensureTtsAudioCtx() {
-  if (!ttsAudioCtx) {
-    ttsAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
-    ttsGainNode = ttsAudioCtx.createGain();
-    ttsGainNode.gain.value = 0.9;
-    ttsGainNode.connect(ttsAudioCtx.destination);
-  }
-  if (ttsAudioCtx.state === 'suspended') ttsAudioCtx.resume();
-}
-
-function connectTtsWebSocket() {
-  if (ttsWs && ttsWs.readyState <= 1) return;
-
-  ensureTtsAudioCtx();
-  ttsWs = new WebSocket(`ws://127.0.0.1:${TTS_WS_PORT}`);
-
-  ttsWs.onopen = () => {
-    console.log('[TTS WS] Connected');
-  };
-
-  ttsWs.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-
-      if (msg.type === 'meta') {
-        // New synthesis — reset buffer, snapshot previous state
-        ttsChunks = [];
-        ttsTotalSamples = 0;
-        ttsPrevWorking = isWorking;
-        ttsIsPlaying = true;
-        console.log(`[TTS WS] Meta: ${msg.sample_rate}Hz, ${msg.channels}ch — buffering...`);
-      }
-      else if (msg.type === 'audio') {
-        // Decode base64 PCM float32 (interleaved stereo) and buffer
-        const pcmBytes = atob(msg.data);
-        const buf = new ArrayBuffer(pcmBytes.length);
-        const uint8 = new Uint8Array(buf);
-        for (let i = 0; i < pcmBytes.length; i++) uint8[i] = pcmBytes.charCodeAt(i);
-        const pcmArray = new Float32Array(buf);
-        ttsChunks.push(pcmArray);
-        ttsTotalSamples += pcmArray.length / 2; // samples per channel
-        console.log(`[TTS WS] Buffered chunk, total: ${ttsTotalSamples} samples (${(ttsTotalSamples/48000).toFixed(2)}s)`);
-      }
-      else if (msg.type === 'done') {
-        // All chunks received — assemble and play
-        if (ttsTotalSamples > 0) {
-          const buffer = ttsAudioCtx.createBuffer(2, ttsTotalSamples, 48000);
-          const left = buffer.getChannelData(0);
-          const right = buffer.getChannelData(1);
-          let offset = 0;
-          for (const pcm of ttsChunks) {
-            const samplesPerChannel = pcm.length / 2;
-            for (let i = 0; i < samplesPerChannel; i++) {
-              left[offset + i] = pcm[i * 2];
-              right[offset + i] = pcm[i * 2 + 1];
-            }
-            offset += samplesPerChannel;
-          }
-
-          // Switch to speak.gif RIGHT when audio starts
-          switchGif('speak', false);
-
-          const source = ttsAudioCtx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ttsGainNode);
-          source.start(0);
-          source.onended = () => {
-            ttsIsPlaying = false;
-            isReacting = false;
-            clearTimeout(reactionTimer);
-            // Restore previous state
-            if (ttsPrevWorking) {
-              switchGif('working', false);
-            } else {
-              startIdleLoop();
-            }
-          };
-          console.log(`[TTS WS] Playing ${ttsTotalSamples} samples (${(ttsTotalSamples/48000).toFixed(2)}s)`);
-        } else {
-          ttsIsPlaying = false;
-          isReacting = false;
-          if (ttsPrevWorking) {
-            switchGif('working', false);
-          } else {
-            startIdleLoop();
-          }
-        }
-        ttsChunks = [];
-        console.log('[TTS WS] Synthesis complete');
-      }
-      else if (msg.type === 'error') {
-        console.error('[TTS WS] Error:', msg.message);
-        ttsIsPlaying = false;
-        ttsChunks = [];
-        isReacting = false;
-        // Restore previous state (same logic as done branch)
-        if (ttsPrevWorking) {
-          switchGif('working', false);
-        } else {
-          startIdleLoop();
-        }
-      }
-    } catch (e) {
-      console.error('[TTS WS] Parse error:', e);
-    }
-  };
-
-  ttsWs.onclose = () => {
-    console.log('[TTS WS] Disconnected');
-    ttsWs = null;
-    setTimeout(connectTtsWebSocket, 5000);
-  };
-
-  ttsWs.onerror = () => {
-    console.error('[TTS WS] Error');
-    ttsWs.close();
-  };
-}
-
-function ttsSpeak(text) {
-  if (!ttsWs || ttsWs.readyState !== 1) {
-    console.warn('[TTS] WebSocket not connected, falling back...');
-    switchGif('speak');
-    return;
-  }
-  stopAudio();
-  // Clear all timers to prevent previous idle/reaction from interrupting
-  clearTimeout(idleTimer);
-  clearTimeout(reactionTimer);
-  isReacting = true; // block idle during buffering + playback
-  // Don't switch GIF yet — wait until audio is ready to play
-  ttsPrevWorking = isWorking;
-  console.log('[TTS] Sending text to TTS server:', text);
-  ttsWs.send(JSON.stringify({ text }));
-}
 
 // --- Legacy Audio (non-streaming, for pre-recorded and HTTP audio) ---
 function playAudio(source, onEnded) {
@@ -383,22 +250,27 @@ function handleAction(data) {
   }
 
   // Direct mapping or fallback
-  const gifName = ACTION_MAP[action];
+  let gifName = ACTION_MAP[action];
+  let animSrc = GIF_ANIMATIONS;
+  if (!gifName && FALLBACK_ACTION_MAP[action]) {
+    // Fallback to default set
+    gifName = FALLBACK_ACTION_MAP[action];
+    animSrc = FALLBACK_GIF_ANIMATIONS;
+  }
   if (gifName) {
+    // Temporarily use the fallback animation source for switchGif
+    const savedAnims = GIF_ANIMATIONS;
+    if (animSrc !== GIF_ANIMATIONS) GIF_ANIMATIONS = animSrc;
     if (action === 'speak') {
-      // Priority 1: Streaming TTS via WebSocket (text field)
-      if (data.text) {
-        ttsSpeak(data.text);
-      }
-      // Priority 2: Dynamic TTS via HTTP (audio_url field, legacy)
-      else if (data.audio_url) {
+      // Priority 1: Dynamic TTS via HTTP (audio_url field)
+      if (data.audio_url) {
         switchGif(gifName, false);
         playAudio(data.audio_url, () => {
           isReacting = false;
           startIdleLoop();
         });
       }
-      // Priority 3: Pre-recorded audio (audio field)
+      // Priority 2: Pre-recorded audio (audio field)
       else {
         switchGif(gifName);
         if (data.audio) {
@@ -408,6 +280,8 @@ function handleAction(data) {
     } else {
       switchGif(gifName);
     }
+    // Restore animation source if we used fallback
+    if (animSrc !== savedAnims) GIF_ANIMATIONS = savedAnims;
   } else {
     resetGif();
   }
@@ -447,8 +321,44 @@ function connectWebSocket() {
     };
 
     ws.onmessage = (event) => {
-      try { handleAction(JSON.parse(event.data)); }
-      catch (e) { console.error('WS parse:', e); }
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'set-config') {
+          // Dynamic config update from action set switch
+          const newAnims = {};
+          for (const [key, val] of Object.entries(msg.animations || {})) {
+            // Values come as "gifs/xxx.gif" — prepend BASE
+            const relative = val.startsWith('/') ? val.slice(1) : val;
+            newAnims[key] = `${BASE}${relative}`;
+          }
+          GIF_ANIMATIONS = newAnims;
+          IDLE_PLAYLIST = msg.idlePlaylist || [];
+          ACTION_MAP = msg.actionMap || {};
+
+          // Store default set as fallback
+          if (msg.fallbackAnimations) {
+            const fbAnims = {};
+            for (const [key, val] of Object.entries(msg.fallbackAnimations)) {
+              const relative = val.startsWith('/') ? val.slice(1) : val;
+              fbAnims[key] = `${BASE}${relative}`;
+            }
+            FALLBACK_GIF_ANIMATIONS = fbAnims;
+            FALLBACK_ACTION_MAP = msg.fallbackActionMap || {};
+          } else {
+            FALLBACK_GIF_ANIMATIONS = {};
+            FALLBACK_ACTION_MAP = {};
+          }
+
+          // Always reset timers so the new action set applies immediately (same action name can map to a different file)
+          clearTimeout(idleTimer);
+          clearTimeout(reactionTimer);
+          isReacting = false;
+          startIdleLoop();
+          console.log(`[set-config] Updated: ${Object.keys(GIF_ANIMATIONS).length} animations, ${IDLE_PLAYLIST.length} idle entries`);
+        } else {
+          handleAction(msg);
+        }
+      } catch (e) { console.error('WS parse:', e); }
     };
 
     ws.onclose = () => {
@@ -467,4 +377,3 @@ function connectWebSocket() {
 // ==================== Init ====================
 startIdleLoop();
 connectWebSocket();
-connectTtsWebSocket();  // Connect to TTS streaming server

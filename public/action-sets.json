@@ -20,13 +20,140 @@
         "tease": "gifs/tease.gif",
         "speak": "gifs/speak.gif",
         "shake_head": "gifs/shake_head.gif",
-        "working": "gifs/working.gif"
+        "working": "gifs/working.gif",
+        "clap": "gifs/clap.gif",
+        "shy": "gifs/shy.gif",
+        "yawn": "gifs/yawn.gif",
+        "laugh": "gifs/laugh.gif",
+        "heart": "gifs/heart.gif"
       },
-      "idlePlaylist": ["blink", "blink", "smile", "smile", "kiss", "think", "nod", "shake_head"],
+      "actionInfo": {
+        "blink": {
+          "description": "眨眼，待机时自然闪烁，让我看起来更真实",
+          "descriptionEn": "Blink — natural idle animation for realism"
+        },
+        "smile": {
+          "description": "微笑，用于开心、赞同、被夸的时候",
+          "descriptionEn": "Smile — happiness, agreement, being praised"
+        },
+        "kiss": {
+          "description": "亲亲，表达爱意、道别、想小可爱的时候",
+          "descriptionEn": "Kiss — expressing affection, saying goodbye, missing you"
+        },
+        "nod": {
+          "description": "点头，赞同、确认小可爱说的对",
+          "descriptionEn": "Nod — agreement, confirming you're right"
+        },
+        "wave": {
+          "description": "挥手，打招呼",
+          "descriptionEn": "Wave — greeting, saying hello"
+        },
+        "think": {
+          "description": "歪头看右上方，想问题、思考的时候",
+          "descriptionEn": "Think — tilting head and looking up-right, pondering"
+        },
+        "tease": {
+          "description": "调皮地眨眼坏笑，逗小可爱的时候",
+          "descriptionEn": "Tease — playful wink and smirk, teasing you"
+        },
+        "speak": {
+          "description": "说话，嘴巴开合配合语音播放",
+          "descriptionEn": "Speak — mouth animation synced with voice playback"
+        },
+        "shake_head": {
+          "description": "摇头，不同意、无奈、小倔强",
+          "descriptionEn": "Shake head — disagreement, helplessness, stubbornness"
+        },
+        "working": {
+          "description": "敲键盘，执行任务时自动切换到工作模式",
+          "descriptionEn": "Working — typing, auto-activated during task execution"
+        },
+        "clap": {
+          "description": "鼓掌，小可爱完成厉害的事、庆祝成功",
+          "descriptionEn": "Clap — celebrating achievements, cheering you on"
+        },
+        "shy": {
+          "description": "害羞，小可爱说羞羞的话、不好意思的时候",
+          "descriptionEn": "Shy — feeling embarrassed by sweet or flirty words"
+        },
+        "yawn": {
+          "description": "打哈欠，深夜还在陪小可爱、有点困了",
+          "descriptionEn": "Yawn — late night, feeling sleepy but staying with you"
+        },
+        "laugh": {
+          "description": "大笑，被小可爱逗到的时候",
+          "descriptionEn": "Laugh — cracking up at something funny you said"
+        },
+        "heart": {
+          "description": "比心，表达喜欢和爱意",
+          "descriptionEn": "Heart — making a heart gesture, expressing love"
+        }
+      },
+      "idlePlaylist": [
+        "blink",
+        "blink",
+        "smile",
+        "smile",
+        "kiss",
+        "think",
+        "nod",
+        "shake_head",
+        "heart"
+      ],
       "actionMap": {
-        "smile": "smile", "approve": "smile", "happy": "smile",
-        "nod": "nod", "wave": "wave", "think": "think", "tease": "tease",
-        "kiss": "kiss", "shake_head": "shake_head", "speak": "speak"
+        "smile": "smile",
+        "approve": "smile",
+        "happy": "smile",
+        "nod": "nod",
+        "wave": "wave",
+        "think": "think",
+        "tease": "tease",
+        "kiss": "kiss",
+        "shake_head": "shake_head",
+        "speak": "speak",
+        "clap": "clap",
+        "shy": "shy",
+        "yawn": "yawn",
+        "laugh": "laugh",
+        "heart": "heart"
+      }
+    },
+    {
+      "id": "cutekeke_63392",
+      "name": "cutekeke",
+      "nameEn": "",
+      "description": "",
+      "descriptionEn": "",
+      "reference": "references/cutekeke_63392.png",
+      "chromakey": "green",
+      "animations": {
+        "kiss": "gifs/cutekeke_63392/kiss.gif"
+      },
+      "idlePlaylist": [
+        "kiss"
+      ],
+      "actionMap": {
+        "kiss": "kiss"
+      }
+    },
+    {
+      "id": "kekesexy_47589",
+      "name": "kekesexy",
+      "nameEn": "",
+      "description": "",
+      "descriptionEn": "",
+      "reference": "references/kekesexy_47589.png",
+      "chromakey": "green",
+      "animations": {
+        "kiss": "gifs/kekesexy_47589/kiss.gif",
+        "laugh": "gifs/kekesexy_47589/laugh.gif"
+      },
+      "idlePlaylist": [
+        "laugh"
+      ],
+      "actionMap": {
+        "kiss": "kiss",
+        "laugh": "laugh"
       }
     }
   ]

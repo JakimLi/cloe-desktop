@@ -1,5 +1,8 @@
 {
   "windowTitle": "Cloe Settings",
+  "sidebar": {
+    "title": "Settings"
+  },
   "title": "Actions",
   "tabs": {
     "actions": "Actions",
@@ -20,7 +23,8 @@
     "connectionSub": "Make sure Cloe Desktop is running ({{error}})",
     "connectionFailed": "Connection failed: {{error}}",
     "sendFailed": "Send failed: {{error}}",
-    "loadFailed": "Load failed: {{error}}"
+    "loadFailed": "Load failed: {{error}}",
+    "generic": "Error"
   },
   "success": {
     "sent": "\"{{name}}\" sent ({{count}} client(s))"
@@ -33,7 +37,87 @@
   },
   "delete": {
     "button": "Delete",
-    "title": "Delete (M2)"
+    "title": "Delete"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "creating": "Creating",
+    "adding": "Adding",
+    "ellipsis": "…",
+    "removeTitle": "Remove"
+  },
+  "confirm": {
+    "defaultTitle": "Confirm",
+    "defaultMessage": "Are you sure you want to continue?"
+  },
+  "a11y": {
+    "referenceThumbnail": "Reference thumbnail",
+    "previewGif": "Action preview",
+    "referenceImage": "Reference image",
+    "formImagePreview": "Preview",
+    "closeModal": "Close"
+  },
+  "i18n": {
+    "switchToEn": "EN",
+    "switchToZh": "中文"
+  },
+  "createSet": {
+    "title": "New Action Set",
+    "button": "Create",
+    "success": "Action set \"{{name}}\" created",
+    "error": "Create failed: {{error}}",
+    "errorNameRequired": "Please enter a name",
+    "nameLabel": "Name *",
+    "namePlaceholder": "e.g. School Uniform",
+    "nameEnLabel": "English Name",
+    "nameEnPlaceholder": "e.g. school_uniform",
+    "descLabel": "Description",
+    "descPlaceholder": "Optional description",
+    "descEnLabel": "English Description",
+    "descEnPlaceholder": "Optional English description",
+    "chromakeyLabel": "Chromakey",
+    "chromakeyGreen": "Green screen",
+    "chromakeyBlue": "Blue screen",
+    "referenceLabel": "Reference Image",
+    "chooseReferenceFile": "Choose image"
+  },
+  "addAction": {
+    "title": "Add Action",
+    "button": "Add",
+    "toolbar": "+ Add Action",
+    "success": "Action \"{{name}}\" added",
+    "error": "Add failed: {{error}}",
+    "errorNameRequired": "Please enter an action name",
+    "errorGifRequired": "Please select a GIF file",
+    "actionNameLabel": "Action Name *",
+    "actionNamePlaceholder": "e.g. laugh",
+    "nameHint": "Use snake_case (letters, digits, underscores)",
+    "gifLabel": "GIF File *",
+    "chooseGifFile": "Choose GIF",
+    "triggerLabel": "Trigger Type",
+    "triggerManual": "Manual",
+    "triggerIdle": "Idle (auto-play)",
+    "weightLabel": "Idle Weight",
+    "weightHint": "How often this plays during idle (1 = normal)"
+  },
+  "set": {
+    "apply": "Apply",
+    "inUse": "Active",
+    "activate": "Activate this set",
+    "activated": "Action set activated",
+    "activateError": "Activation failed: {{error}}",
+    "delete": "Delete set",
+    "deleted": "Action set \"{{name}}\" deleted",
+    "deleteError": "Delete failed: {{error}}",
+    "errorDeleteActive": "Cannot delete the active set",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirm": "Are you sure you want to delete action set \"{{name}}\"? This cannot be undone."
+  },
+  "action": {
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirm": "Are you sure you want to delete action \"{{name}}\"?",
+    "deleted": "Action \"{{name}}\" deleted",
+    "deleteError": "Delete failed: {{error}}"
   },
   "tag": {
     "idle": "Idle Auto",
@@ -46,17 +130,60 @@
   "reference": {
     "viewTitle": "Click to view reference image",
     "modalTitle": "Reference — {{name}}",
+    "modalTitleFallback": "Reference",
     "chromakey": "Chromakey: {{color}}"
+  },
+  "genMode": {
+    "label": "Generation Mode",
+    "ai": "AI Generate",
+    "manual": "Manual Upload"
+  },
+  "genAction": {
+    "promptLabel": "Action Prompt",
+    "promptPlaceholder": "Describe the action, e.g.: She laughs happily",
+    "promptMissing": "Please enter an action prompt",
+    "duration": "Duration",
+    "seconds": "sec",
+    "generating": "Generating action GIF...",
+    "button": "Generate",
+    "error": "GIF generation failed: {{error}}",
+    "complete": "Action \"{{name}}\" generated"
+  },
+  "genReference": {
+    "green": "Generate Green Screen Reference",
+    "blue": "Generate Blue Screen Reference",
+    "generating": "Generating reference...",
+    "complete": "Reference generated",
+    "noRefImage": "Please upload a reference image first"
   },
   "prefs": {
     "appearance": "Appearance",
     "language": "Language",
     "languageDesc": "Choose the display language",
+    "langZh": "简体中文",
+    "langEn": "English",
+    "apiKeyToggle": "Toggle visibility",
+    "apiKeyPlaceholder": "sk-...",
+    "appName": "Cloe Desktop",
+    "windowPositionDash": "—",
     "general": "General",
     "autoStart": "Launch at Login",
     "autoStartDesc": "Automatically start Cloe Desktop on system boot",
     "minimizeToTray": "Minimize to Tray",
     "minimizeToTrayDesc": "Minimize to system tray when window is closed",
+    "windowPosition": "Window Position",
+    "windowPositionDesc": "Save the desktop character position, restore on next launch",
+    "windowPositionNotSet": "Not set",
+    "windowPositionSaved": "X: {{x}}, Y: {{y}}",
+    "windowPositionSave": "Save Current Position",
+    "windowPositionClear": "Clear",
+    "windowPositionSaveSuccess": "Position saved",
+    "windowPositionClearSuccess": "Position cleared",
+    "apiConfig": "API Configuration",
+    "apiKey": "DashScope API Key",
+    "apiKeyDesc": "Used for video and image generation",
+    "videoModel": "Video Generation Model",
+    "videoModelDesc": "Default: wan2.7-i2v",
     "about": "About",
     "aboutDesc": "Desktop pet companion · Make your desktop more fun"
   }

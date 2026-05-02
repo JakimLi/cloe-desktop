@@ -51,6 +51,9 @@ from scipy import ndimage
 
 
 def get_env(key):
+    val = os.environ.get(key)
+    if val:
+        return val.strip()
     with open(os.path.expanduser("~/.hermes/.env")) as f:
         for line in f:
             if line.startswith(f"{key}="):

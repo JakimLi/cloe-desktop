@@ -39,7 +39,15 @@
         </div>
 
         <!-- Set Tabs (horizontal) -->
-        <div id="set-tabs" class="set-tabs"></div>
+        <div class="set-tabs-wrapper">
+          <div id="set-tabs" class="set-tabs"></div>
+          <button id="btn-create-set" class="btn-icon btn-icon-add" title="New Action Set">+</button>
+        </div>
+
+        <!-- Actions toolbar -->
+        <div id="actions-toolbar" class="actions-toolbar hidden">
+          <button id="btn-add-action" class="btn btn-primary btn-sm">+ Add Action</button>
+        </div>
 
         <!-- Set Info: reference thumbnail + description -->
         <div id="set-info" class="set-info hidden">
@@ -109,6 +117,146 @@
       </div>
       <div class="modal-body modal-body-reference">
         <img id="reference-full-img" src="" alt="Reference Image">
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Set Modal -->
+  <div id="create-set-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="create-set-modal-title">New Action Set</h2>
+        <button id="btn-close-create-set" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body modal-body-form">
+        <form id="create-set-form" class="form">
+          <div class="form-group">
+            <label class="form-label" for="set-name">Name *</label>
+            <input id="set-name" type="text" class="form-input" placeholder="e.g. School Uniform" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="set-name-en">English Name</label>
+            <input id="set-name-en" type="text" class="form-input" placeholder="e.g. school_uniform">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="set-desc-input">Description</label>
+            <input id="set-desc-input" type="text" class="form-input" placeholder="Optional description">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="set-desc-en-input">English Description</label>
+            <input id="set-desc-en-input" type="text" class="form-input" placeholder="Optional English description">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="set-chromakey">Chromakey</label>
+            <select id="set-chromakey" class="form-select">
+              <option value="green">Green</option>
+              <option value="blue">Blue</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="lbl-set-reference">Reference Image</label>
+            <input id="set-reference" type="file" accept="image/*" class="form-file" aria-label="Reference image file">
+            <label for="set-reference" class="btn btn-secondary btn-sm form-file-label" id="lbl-set-reference-choose">Choose image</label>
+            <div id="set-reference-preview" class="form-preview hidden">
+              <img id="set-reference-preview-img" src="" alt="Preview">
+              <button type="button" id="set-reference-remove" class="btn-icon btn-icon-sm" title="Remove">✕</button>
+            </div>
+            <div class="form-ref-gen-buttons">
+              <button type="button" id="btn-gen-ref-green" class="btn btn-secondary btn-sm btn-ref-gen"></button>
+              <button type="button" id="btn-gen-ref-blue" class="btn btn-secondary btn-sm btn-ref-gen"></button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-create-set" class="btn btn-secondary">Cancel</button>
+        <button id="btn-submit-create-set" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Action Modal -->
+  <div id="add-action-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="add-action-modal-title">Add Action</h2>
+        <button id="btn-close-add-action" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body modal-body-form">
+        <form id="add-action-form" class="form">
+          <div class="form-group">
+            <label class="form-label" for="action-name">Action Name *</label>
+            <input id="action-name" type="text" class="form-input" placeholder="e.g. laugh" required pattern="[a-z][a-z0-9_]*">
+            <div class="form-hint" id="action-name-hint">Use snake_case (letters, digits, underscores)</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="action-gen-mode">Generation Mode</label>
+            <select id="action-gen-mode" class="form-select">
+              <option value="manual"></option>
+              <option value="ai"></option>
+            </select>
+          </div>
+          <div id="add-action-ai-fields" class="hidden">
+            <div class="form-group">
+              <label class="form-label" for="action-prompt">Action Prompt</label>
+              <textarea id="action-prompt" class="form-textarea" rows="3" maxlength="1200"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="action-duration">Duration</label>
+              <select id="action-duration" class="form-select">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+              </select>
+            </div>
+          </div>
+          <div id="add-action-manual-fields">
+          <div class="form-group">
+            <label class="form-label" id="lbl-action-gif">GIF File *</label>
+            <input id="action-gif" type="file" accept=".gif,image/gif" class="form-file" aria-label="GIF file">
+            <label for="action-gif" class="btn btn-secondary btn-sm form-file-label" id="lbl-action-gif-choose">Choose GIF</label>
+            <div id="action-gif-preview" class="form-preview hidden">
+              <img id="action-gif-preview-img" src="" alt="Preview">
+              <button type="button" id="action-gif-remove" class="btn-icon btn-icon-sm" title="Remove">✕</button>
+            </div>
+          </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="action-trigger">Trigger Type</label>
+            <select id="action-trigger" class="form-select">
+              <option value="manual">Manual</option>
+              <option value="idle">Idle (Auto-play)</option>
+            </select>
+          </div>
+          <div class="form-group" id="action-weight-group" style="display:none">
+            <label class="form-label" for="action-weight">Idle Weight</label>
+            <input id="action-weight" type="number" class="form-input" value="1" min="1" max="20">
+            <div class="form-hint" id="action-weight-hint">How often this plays during idle (1 = normal)</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-add-action" class="btn btn-secondary">Cancel</button>
+        <button id="btn-submit-add-action" class="btn btn-primary">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-content-sm">
+      <div class="modal-header">
+        <h2 id="confirm-modal-title">Confirm</h2>
+        <button id="btn-close-confirm" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body modal-body-form">
+        <p id="confirm-modal-message">Are you sure?</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-confirm" class="btn btn-secondary">Cancel</button>
+        <button id="btn-confirm-ok" class="btn btn-danger">Delete</button>
       </div>
     </div>
   </div>

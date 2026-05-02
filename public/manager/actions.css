@@ -29,13 +29,21 @@
 }
 
 /* Set Tabs */
-.set-tabs {
+.set-tabs-wrapper {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
+}
+
+.set-tabs {
+  display: flex;
+  gap: 8px;
+  flex: 1;
   overflow-x: auto;
+  min-width: 0;
 }
 
 .set-tab {
@@ -249,3 +257,120 @@
 
 .card-actions { display: flex; gap: 8px; }
 .card-actions .btn { flex: 1; padding: 5px 0; font-size: 12px; }
+
+/* Set Tab Wrapper (tab + apply + delete) */
+.set-tab-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.set-tab-wrapper .set-tab {
+  flex: 1;
+}
+
+.set-tab-wrapper .set-tab-delete {
+  opacity: 0;
+  transition: opacity 0.2s;
+  width: 24px;
+  height: 24px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.set-tab-wrapper:hover .set-tab-delete {
+  opacity: 1;
+}
+
+.set-tab-delete {
+  color: var(--danger) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.set-tab-delete:hover {
+  background: rgba(252, 92, 124, 0.15) !important;
+  border-color: var(--danger) !important;
+}
+
+.set-tab-apply {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
+  background: color-mix(in srgb, var(--success) 18%, rgba(0, 0, 0, 0.35));
+  color: var(--success);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.set-tab-apply:hover {
+  background: color-mix(in srgb, var(--success) 28%, rgba(0, 0, 0, 0.25));
+  border-color: color-mix(in srgb, var(--success) 65%, transparent);
+}
+
+.set-tab-apply:active {
+  transform: translateY(0.5px);
+}
+
+.set-tab-in-use-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 16%, rgba(0, 0, 0, 0.35));
+  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+  flex-shrink: 0;
+}
+
+/* Add Set Button */
+.btn-icon-add {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-icon-add:hover {
+  background: var(--accent-dim);
+  border-style: solid;
+}
+
+/* Actions Toolbar */
+.actions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.btn-sm {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+/* Custom file picker (native button follows OS locale) */
+.form-file-label {
+  margin-top: 4px;
+  align-self: flex-start;
+  width: fit-content;
+}
