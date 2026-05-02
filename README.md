@@ -16,10 +16,17 @@
 
 ---
 
-<!-- DEMO VIDEO — replace the URL below with your actual recording -->
-https://github.com/user-attachments/assets/DEMO_VIDEO_PLACEHOLDER
+## Demo
 
-> 🎬 *Video coming soon — a quick walkthrough of Cloe in action on macOS and Android.*
+<p align="center">
+  <strong>macOS — Expressions & idle behavior</strong><br>
+  <img src="docs/demo1.gif" width="640" alt="Cloe Desktop Demo 1" />
+</p>
+
+<p align="center">
+  <strong>macOS — Voice & agent integration</strong><br>
+  <img src="docs/demo2.gif" width="640" alt="Cloe Desktop Demo 2" />
+</p>
 
 ---
 
