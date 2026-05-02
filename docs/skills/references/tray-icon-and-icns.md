@@ -1,21 +1,21 @@
-# Tray Icon 修复 & icns 图标替换（2026-05-01）
+# Tray Icon Fix & icns Icon Replacement (2026-05-01)
 
-## Tray Icon — base64 内嵌方案
+## Tray Icon — Base64 Inline Solution
 
-**问题**：打包后 asar 内文件路径读取失败，`nativeImage.createFromPath()` 返回空图标，托盘不显示。
+**Problem**: After packaging, file paths inside asar fail to read, `nativeImage.createFromPath()` returns an empty icon, tray doesn't display.
 
-**最终方案**：将 32x32 PNG 图标 base64 编码硬编码到 `launcher.js` 的 `createTray()` 函数中。
+**Final solution**: Base64-encode a 32x32 PNG icon and hardcode it into the `createTray()` function in `launcher.js`.
 
 ```js
 const TRAY_ICON_B64 = '...'; // base64 of 32x32 PNG
 let trayIcon = nativeImage.createFromBuffer(Buffer.from(TRAY_ICON_B64, 'base64'));
 trayIcon = trayIcon.resize({ width: 22, height: 22 });
-// ⚠️ 不要调用 trayIcon.setTemplateImage(true)！
-// macOS 会把 template image 变成黑白半透明，浅色菜单栏上彩色图标会消失
+// ⚠️ Do NOT call trayIcon.setTemplateImage(true)!
+// macOS turns template images into black-and-white semi-transparent, colored icons disappear on light menu bars
 tray = new Tray(trayIcon);
 ```
 
-**生成 base64**：
+**Generate base64**:
 ```bash
 python3 -c "
 from PIL import Image; import base64, io
@@ -26,14 +26,14 @@ print(base64.b64encode(buf.getvalue()).decode())
 "
 ```
 
-**踩坑**：
-- `nativeImage.createFromPath()` 在 asar 打包后可能返回空图像
-- `setTemplateImage(true)` 会把图标变黑白半透明，彩色图标在浅色菜单栏上完全消失
-- 图标太小（16x16）在菜单栏上不够清晰，建议 32x32 resize 到 22x22
+**Pitfalls encountered**:
+- `nativeImage.createFromPath()` may return empty image after asar packaging
+- `setTemplateImage(true)` turns the icon into black-and-white semi-transparent; colored icons completely disappear on light menu bars
+- Icons that are too small (16x16) are not clear enough on the menu bar; recommend 32x32 resized to 22x22
 
-## icns 图标替换流程
+## icns Icon Replacement Flow
 
-从 1024x1024 PNG 生成 macOS icns：
+Generate macOS icns from 1024x1024 PNG:
 
 ```bash
 mkdir -p build/Cloe.iconset
@@ -46,15 +46,15 @@ iconutil -c icns build/Cloe.iconset -o build/icon.icns
 cp icon_1024.png build/icon_1024.png
 ```
 
-**注意**：package.json `"icon": "build/icon.icns"` 指向此文件。
+**Note**: package.json `"icon": "build/icon.icns"` points to this file.
 
-## 用 Cursor + Gemini 3.1 Pro 生成图标
+## Generating Icons with Cursor + Gemini 3.1 Pro
 
-PIL 原生绘图太粗糙时，让 Cursor 的 Gemini 模型生成：
+When PIL native drawing is too rough, let Cursor's Gemini model generate:
 
 ```bash
-cursor agent -p '用 Python + PIL 生成一个 macOS 应用图标...' --model gemini-3.1-pro --yolo --workspace /tmp
+cursor agent -p 'Use Python + PIL to generate a macOS app icon...' --model gemini-3.1-pro --yolo --workspace /tmp
 ```
 
-**可用模型**：`gemini-3.1-pro`（图像生成能力强）、`gemini-3-flash`（更快但质量略低）
-查看全部：`cursor agent --list-models`（会 hang，用 timeout 8 限制）
+**Available models**: `gemini-3.1-pro` (strong image generation capability), `gemini-3-flash` (faster but slightly lower quality)
+View all: `cursor agent --list-models` (will hang, use timeout 8 to limit)

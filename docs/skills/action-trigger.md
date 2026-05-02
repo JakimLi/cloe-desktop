@@ -1,54 +1,54 @@
 ---
 name: cloe-desktop-action
-description: 通过 HTTP API 动态发现和触发 Cloe 桌面角色的表情动作动画
+description: Dynamically discover and trigger Cloe Desktop character expression animations via HTTP API
 ---
 
-# Cloe Desktop Action — 桌面动画触发
+# Cloe Desktop Action — Desktop Animation Trigger
 
-## 架构
+## Architecture
 
 ```
-Hermes / 任何 HTTP 客户端
+Hermes / any HTTP client
   → Bridge HTTP API (:19851)
     → WebSocket (:19850)
       → Electron renderer
-        → 双缓冲 GIF 交叉淡入淡出
+        → Double-buffered GIF crossfade
 ```
 
-Bridge 内嵌在 Electron main process 的 `launcher.js` 中，WS + HTTP 同进程运行，无外部依赖。
+The Bridge is embedded in the Electron main process's `launcher.js`, with WS + HTTP running in the same process — no external dependencies.
 
-## 前置条件
+## Prerequisites
 
-Cloe Desktop 必须在运行（dev 模式或 Cloe.app 均可）：
+Cloe Desktop must be running (either in dev mode or as Cloe.app):
 
 ```bash
 curl -s http://localhost:19851/status
-# 期望: {"ws_port":19850,"http_port":19851,"clients":1}
+# Expected: {"ws_port":19850,"http_port":19851,"clients":1}
 ```
 
-`clients=1` 表示 Electron 渲染进程已连接。`clients=0` 时触发动作不会报错但不会生效。
+`clients=1` means the Electron renderer process is connected. When `clients=0`, triggering an action will not produce an error but will have no effect.
 
-## 动态发现可用动作（重要）
+## Dynamically Discover Available Actions (Important)
 
-**不要硬编码动作列表。** 新动作可以通过管理界面随时生成，通过 API 实时获取：
+**Do not hardcode the action list.** New actions can be generated at any time through the management UI and retrieved in real time via the API:
 
 ```bash
-# 获取当前激活动作集的所有动作
+# Get all actions in the currently active action set
 curl -s http://localhost:19851/actions
 
-# 获取所有动作集（含名称、动作数量、是否激活）
+# Get all action sets (including name, action count, and whether active)
 curl -s http://localhost:19851/action-sets
 
-# 获取指定动作集的详情
+# Get details of a specific action set
 curl -s http://localhost:19851/action-sets/default
 
-# 获取指定动作集的动作列表
+# Get the action list for a specific action set
 curl -s http://localhost:19851/actions?set=default
 ```
 
-### API 响应格式
+### API Response Format
 
-`GET /actions` 返回：
+`GET /actions` returns:
 
 ```json
 {
@@ -69,139 +69,138 @@ curl -s http://localhost:19851/actions?set=default
 }
 ```
 
-**字段含义：**
+**Field meanings:**
 
-| 字段 | 说明 |
-|------|------|
-| `name` | 动作唯一标识，用于触发 |
-| `description` | 中文语义描述——动作的含义和适用场景，用于选择动作 |
-| `descriptionEn` | 英文语义描述 |
-| `trigger` | 触发方式：`idle`（自动轮播）/ `hook`（手动触发）/ `manual`（系统内部，如 working） |
-| `idleWeight` | idle 循环中的权重（0 表示不参与 idle） |
-| `hookNames` | **可用触发名列表**——这些都可以作为 action 参数传入 |
-| `special` | 特殊功能标记：`"语音"` 表示支持 TTS，`"工作模式"` 表示系统锁定状态 |
+| Field | Description |
+|-------|-------------|
+| `name` | Unique action identifier, used for triggering |
+| `description` | Chinese semantic description — the meaning and applicable scenarios of the action, used for selecting actions |
+| `descriptionEn` | English semantic description |
+| `trigger` | Trigger mode: `idle` (auto-rotation) / `hook` (manual trigger) / `manual` (system internal, e.g. working) |
+| `idleWeight` | Weight in the idle rotation (0 means excluded from idle) |
+| `hookNames` | **List of available trigger names** — any of these can be passed as the action parameter |
+| `special` | Special function marker: `"语音"` indicates TTS support, `"工作模式"` indicates system locked state |
 
-### 如何选择动作
+### How to Choose an Action
 
-1. **查询 API** `GET /actions` 获取动作列表和描述
-2. **根据 `description` 匹配语境**——每个动作都有语义描述说明含义和适用场景
-3. 用 `name` 或 `hookNames` 中的任意一个作为触发参数
-4. `hookNames` 是别名扩展：比如 smile 的 hookNames 是 `["smile", "approve", "happy"]`，传任何一个都能触发微笑
+1. **Query the API** `GET /actions` to get the action list and descriptions
+2. **Match context based on `description`** — each action has a semantic description explaining its meaning and applicable scenarios
+3. Use `name` or any value from `hookNames` as the trigger parameter
+4. `hookNames` are alias extensions: for example, smile's hookNames are `["smile", "approve", "happy"]` — passing any one of them will trigger the smile animation
 
-## 触发动作
+## Triggering an Action
 
 ```bash
 curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 ```
 
-`<ACTION_NAME>` 使用上一步查到的 `name` 或 `hookNames` 中的任意值。
+Use any `name` or value from `hookNames` discovered in the previous step as `<ACTION_NAME>`.
 
-**行为：** 动作播放约 3 秒后自动恢复 idle 循环。working 模式下 reaction 播完后回到 working。
+**Behavior:** The action plays for approximately 3 seconds then automatically returns to the idle loop. In working mode, after a reaction finishes playing, it returns to the working animation.
 
-## 语音动作（speak）
+## Voice Actions (speak)
 
-带 `special: "语音"` 标记的动作支持三种语音播放方式。
+Actions marked with `special: "语音"` support three voice playback modes.
 
-### 方式一：预录语音（`audio` 字段）
+### Mode 1: Pre-recorded Voice (`audio` field)
 
 ```bash
 curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 ```
 
-预录文件存放在 `public/audio/` 目录。添加新语音：
-1. 用 TTS 生成 wav
+Pre-recorded files are stored in the `public/audio/` directory. To add a new voice:
+1. Generate a WAV using TTS
 2. `ffmpeg -i input.wav -c:a libmp3lame -q:a 4 public/audio/xxx.mp3`
-3. 触发：`{"action":"speak","audio":"xxx"}`
+3. Trigger: `{"action":"speak","audio":"xxx"}`
 
-### 方式二：动态音频 URL（`audio_url` 字段）
+### Mode 2: Dynamic Audio URL (`audio_url` field)
 
-传一个音频 URL（data URL 或 HTTP URL），桌面角色边说话边播语音：
+Pass an audio URL (data URL or HTTP URL), and the desktop character will play the voice while speaking:
 
 ```bash
 curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://localhost:18999/cloe_tts.wav"}'
 ```
 
-- 支持格式：`data:audio/wav;base64,...`、`data:audio/mp3;base64,...`、`http(s)://...`
-- **Data URL 限制**：curl 命令行参数上限约 128KB，超过约 5 秒音频 base64 会超限。长文本用 HTTP URL。
-- **播放时长**：`audio_url` 模式等音频播完才回 idle（不受 3 秒 reaction 限制）。`audio` 预录模式仍走 3 秒固定 timer。
-- 优先级：`audio_url` > `audio`
+- Supported formats: `data:audio/wav;base64,...`, `data:audio/mp3;base64,...`, `http(s)://...`
+- **Data URL limitation:** The curl command-line argument limit is approximately 128KB; audio exceeding about 5 seconds will exceed this limit when base64-encoded. Use an HTTP URL for longer audio.
+- **Playback duration:** In `audio_url` mode, the animation waits for the audio to finish playing before returning to idle (not subject to the 3-second reaction limit). The `audio` pre-recorded mode still uses a fixed 3-second timer.
+- Priority: `audio_url` > `audio`
 
-### 方式三：本地流式 TTS（`text` 字段）
+### Mode 3: Local Streaming TTS (`text` field)
 
-需要本地 TTS server 运行（端口 19853）。renderer 直连 TTS WebSocket 接收 PCM 流播放：
+Requires a local TTS server running (port 19853). The renderer connects directly to the TTS WebSocket to receive and play the PCM stream:
 
 ```bash
-# 前置：启动 TTS server
+# Prerequisite: start the TTS server
 cd ~/work/MOSS-TTS-Nano && source venv/bin/activate && python tts_server.py --port 19852
 
-# 触发
+# Trigger
 curl -s http://localhost:19851/action -d '{"action":"speak","text":"你好呀，小可爱！"}'
 ```
 
-Intel Mac 生成比约 10:1（1 秒音频需约 10 秒生成），当前策略是缓冲完再播。M1 芯片后可改为边生成边播。
+On Intel Macs, the generation ratio is approximately 10:1 (1 second of audio requires about 10 seconds to generate). The current strategy is to buffer completely before playing. This can be changed to streaming playback once M1 chips are available.
 
-**TTS 文本格式**：用完整连贯句子，少用省略号/波浪号/感叹号。标点当停顿会导致断断续续。
+**TTS text formatting:** Use complete, coherent sentences. Avoid excessive ellipses/tildes/exclamation marks. Punctuation is treated as pauses, which can cause choppy playback.
 
-## 系统动作
+## System Actions
 
-部分动作由系统自动触发，不需要手动调用：
+Some actions are automatically triggered by the system and do not need to be called manually:
 
-| 动作 | 触发方式 | 说明 |
-|------|---------|------|
-| `working` | Gateway hook `agent:start` | 敲键盘 GIF，锁定工作模式 |
-| `idle` | Gateway hook `agent:end` | 恢复 idle 随机循环 |
-| `wave` | Gateway hook `session:start` | 新会话打招呼 |
-| `kiss` | Gateway hook `session:end` | 会话结束 |
+| Action | Trigger Method | Description |
+|--------|---------------|-------------|
+| `working` | Gateway hook `agent:start` | Typing keyboard GIF, locks working mode |
+| `idle` | Gateway hook `agent:end` | Returns to idle random rotation |
+| `wave` | Gateway hook `session:start` | Greets at new session start |
+| `kiss` | Gateway hook `session:end` | Session end |
 
-### Idle 待机循环
+### Idle Standby Loop
 
-无 action 触发时，Electron 自动按权重随机播放 `trigger: "idle"` 的动作。
-每 8~15 秒切换一次，不连续重复。可通过 `idleWeight` 控制频率。
+When no action is triggered, Electron automatically plays actions with `trigger: "idle"` in a weighted random sequence. It switches every 8–15 seconds without repeating consecutively. Frequency can be controlled via `idleWeight`.
 
-## 使用示例
+## Usage Examples
 
 ```bash
-# 先查可用动作
+# First, check available actions
 curl -s http://localhost:19851/actions
 
-# 开心 → 从 hookNames 中选
+# Happy → choose from hookNames
 curl -s http://localhost:19851/action -d '{"action":"happy"}'
 
-# 思考
+# Thinking
 curl -s http://localhost:19851/action -d '{"action":"think"}'
 
-# 说话 + TTS
+# Speaking + TTS
 curl -s http://localhost:19851/action -d '{"action":"speak","text":"想你了"}'
 ```
 
-## 多动作集
+## Multiple Action Sets
 
-支持多套角色形象（如默认、校服、家居等），通过管理界面切换。切换后 `GET /actions` 返回新动作集的内容，**无需任何代码变更**。
+Multiple character appearances are supported (e.g., default, school uniform, casual wear, etc.), switchable via the management UI. After switching, `GET /actions` returns the content of the new action set — **no code changes required**.
 
-- `GET /action-sets` — 列出所有动作集
-- `GET /action-sets/:id` — 查看指定集详情
-- 切换后桌面自动使用新 GIF，API 自动返回新动作列表
+- `GET /action-sets` — list all action sets
+- `GET /action-sets/:id` — view details of a specific set
+- After switching, the desktop automatically uses the new GIFs, and the API automatically returns the new action list
 
-## Hermes Plugin（自动触发）
+## Hermes Plugin (Auto-trigger)
 
-`~/.hermes/plugins/cloe-desktop/` 是一个 Hermes 生命周期插件，监听 tool 调用、LLM 调用、session 开始/结束等事件，自动触发对应的表情动画。
+`~/.hermes/plugins/cloe-desktop/` is a Hermes lifecycle plugin that listens for tool calls, LLM calls, session start/end, and other events, automatically triggering the corresponding expression animations.
 
-### 插件结构
+### Plugin Structure
 
 ```
 ~/.hermes/plugins/cloe-desktop/
-├── __init__.py      # 注册 hooks
-├── handler.py       # 核心逻辑：节流、规则匹配、HTTP 触发
-└── plugin.yaml      # 插件元数据 + 注册的 hooks
+├── __init__.py      # Register hooks
+├── handler.py       # Core logic: throttling, rule matching, HTTP triggering
+└── plugin.yaml      # Plugin metadata + registered hooks
 ```
 
-### 触发规则配置
+### Trigger Rule Configuration
 
-规则**不在代码里硬编码**，存在 `<dataDir>/plugin-rules.json`（默认 `~/.cloe/plugin-rules.json`），5 秒缓存自动刷新。Manager UI 可直接读写此文件来配置。
+Rules are **not hardcoded** — they are stored in `<dataDir>/plugin-rules.json` (default: `~/.cloe/plugin-rules.json`), with a 5-second cache that auto-refreshes. The Manager UI can read and write this file directly for configuration.
 
-**dataDir 解析顺序**：`CLOE_DATA_DIR` 环境变量 → `config.json` 的 `dataDir` 字段 → `~/.cloe` 默认。
+**dataDir resolution order:** `CLOE_DATA_DIR` environment variable → `dataDir` field in `config.json` → `~/.cloe` default.
 
-### plugin-rules.json 格式
+### plugin-rules.json Format
 
 ```json
 {
@@ -228,32 +227,32 @@ curl -s http://localhost:19851/action -d '{"action":"speak","text":"想你了"}'
 }
 ```
 
-**字段说明：**
-- `min_interval`：两个动作之间最小间隔（秒），防止快速连击
-- `tool_expressions`：工具开始执行时触发的表情（`null` = 不触发，适合高频工具如 read_file）
-- `tool_completions`：工具完成后触发的表情
-- `keyword_map`：用户消息关键词 → 表情映射（从上到下匹配，命中即停）
-- `context_thresholds`：context window 用量阈值，超限自动触发对应表情
+**Field descriptions:**
+- `min_interval`: Minimum interval between two actions (seconds), prevents rapid consecutive triggers
+- `tool_expressions`: Expression triggered when a tool starts executing (`null` = no trigger, suitable for high-frequency tools like read_file)
+- `tool_completions`: Expression triggered when a tool completes
+- `keyword_map`: User message keyword → expression mapping (matched top to bottom; stops on first hit)
+- `context_thresholds`: Context window usage thresholds — automatically triggers corresponding expression when exceeded
 
-### Plugin 监听的 Hooks
+### Plugin Hook Listeners
 
-| Hook | 触发时机 | 默认动作 |
-|------|---------|---------|
-| `on_session_start` | 新 session | wave |
-| `on_session_end` | session 结束（正常） | kiss |
-| `on_session_end` | session 被中断 | shake_head |
-| `on_session_reset` | /new 重置 | wave |
-| `pre_tool_call` | 工具执行前 | 按 tool_expressions 配置 |
-| `post_tool_call` | 工具完成后 | 按 tool_completions 配置 / 错误→shake_head / 超30s→yawn |
-| `pre_llm_call` | LLM 调用前 | 用户消息关键词匹配 |
-| `post_llm_call` | LLM 调用后 | turn >120s → yawn |
-| `post_api_request` | API 请求后 | context 用量超阈值 → think/shake_head |
-| `subagent_stop` | 子 agent 完成 | 成功→clap / 失败→shake_head |
+| Hook | Trigger Timing | Default Action |
+|------|---------------|----------------|
+| `on_session_start` | New session | wave |
+| `on_session_end` | Session ends (normally) | kiss |
+| `on_session_end` | Session interrupted | shake_head |
+| `on_session_reset` | /new reset | wave |
+| `pre_tool_call` | Before tool execution | Per tool_expressions config |
+| `post_tool_call` | After tool completes | Per tool_completions config / error→shake_head / >30s→yawn |
+| `pre_llm_call` | Before LLM call | User message keyword matching |
+| `post_llm_call` | After LLM call | turn >120s → yawn |
+| `post_api_request` | After API request | Context usage exceeds threshold → think/shake_head |
+| `subagent_stop` | Sub-agent completes | success→clap / failure→shake_head |
 
-## 注意事项
+## Notes
 
-- 动作之间间隔至少 3-5 秒，太快会被下一个打断（3 秒 reaction duration）
-- `clients=0` 时 curl 不报错但动作不生效
-- 非默认动作集的 GIF 存放在 `gifs/{setId}/` 子目录，API 返回的 `gifPath` 已包含正确路径
-- `action-sets.json` 支持热重载（fs.watch + 防抖），外部写入后桌面自动更新
-- Plugin 的 `plugin-rules.json` 也支持热加载（5 秒 TTL 缓存），改了不用重启 Hermes
+- Allow at least 3–5 seconds between actions; triggering too quickly will cause the previous one to be interrupted (3-second reaction duration)
+- When `clients=0`, curl won't error but actions will have no effect
+- GIFs for non-default action sets are stored in `gifs/{setId}/` subdirectories; the `gifPath` returned by the API already includes the correct path
+- `action-sets.json` supports hot reloading (fs.watch + debounce); the desktop updates automatically after external writes
+- The plugin's `plugin-rules.json` also supports hot loading (5-second TTL cache); changes take effect without restarting Hermes

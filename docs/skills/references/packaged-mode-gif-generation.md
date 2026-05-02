@@ -1,34 +1,34 @@
-# 打包模式（Packaged Cloe.app）GIF 生成修复
+# Packaged Mode (Packaged Cloe.app) GIF Generation Fix
 
-## 问题
+## Problem
 
-打包版 Cloe.app 中 AI 生成动作 GIF 永远卡在 "starting"。根因：asar 是只读归档。
+In the packaged Cloe.app, AI-generated action GIFs are forever stuck at "starting". Root cause: asar is a read-only archive.
 
-## 9 个 asar 陷阱
+## 9 asar Traps
 
-1. Python 脚本不在 asar → package.json 加 extraResources
-2. Python 读不了 asar 内参考图 → resolveReferenceForPython() 复制到 temp
-3. Python 写不了 asar 输出目录 → getGifsDataDir() 返回 userData/gifs/
-4. spawn cwd 不能是 asar 路径 → 改用 getGifsDataDir()
-5. renderer file:// 加载不到 userData GIF → BASE 改为 bridge HTTP
-6. 管理界面 ASSET_BASE 也要改 → 用 bridge HTTP
-7. action-sets.json 写入 asar 丢失 → 返回 userData/action-sets.json
-8. WS 连接时不广播 set-config → connection 时立即发
-9. 静态文件路由分三路：GIFs (userData→asar), refs (userData/assets→asar), audio (asar only)
+1. Python scripts not in asar → add extraResources in package.json
+2. Python can't read reference images inside asar → resolveReferenceForPython() copies to temp
+3. Python can't write to asar output directory → getGifsDataDir() returns userData/gifs/
+4. spawn cwd can't be asar path → use getGifsDataDir() instead
+5. renderer file:// can't load userData GIF → change BASE to bridge HTTP
+6. Admin UI ASSET_BASE also needs changing → use bridge HTTP
+7. action-sets.json writes to asar are lost → return userData/action-sets.json
+8. WS connection doesn't broadcast set-config → send immediately on connection
+9. Static file routes split three ways: GIFs (userData→asar), refs (userData/assets→asar), audio (asar only)
 
-## 路径体系
+## Path System
 
-| 函数 | 打包模式 | 开发模式 |
+| Function | Packaged Mode | Development Mode |
 |------|---------|---------|
 | getScriptsDir() | Resources/scripts/ | __dirname/scripts/ |
 | getGifsDataDir() | userData/gifs/ | public/gifs/ |
 | getActionSetsPath() | userData/action-sets.json | public/action-sets.json |
-| getPublicAssetsRoot() | __dirname/dist (只读) | __dirname/public |
+| getPublicAssetsRoot() | __dirname/dist (read-only) | __dirname/public |
 | getWritableAssetsRoot() | userData/assets/ | __dirname/public |
 
-## 教训
+## Lessons Learned
 
-- 绝对不要删 userData 里的数据来调试
-- dev 正常 ≠ 打包后正常
-- asar 对子进程不透明，Electron fs patch 只在 Node.js 层面工作
-- renderer 硬编码 + WS set-config 双轨要同步
+- Never delete data in userData for debugging
+- Works in dev ≠ works after packaging
+- asar is not transparent to child processes; Electron fs patch only works at the Node.js level
+- Renderer hardcoded + WS set-config dual-track must be kept in sync
