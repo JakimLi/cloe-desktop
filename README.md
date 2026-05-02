@@ -18,15 +18,13 @@
 
 ## Demo
 
-<p align="center">
-  <strong>macOS — Expressions & idle behavior</strong><br>
-  <img src="docs/demo1.gif" width="640" alt="Cloe Desktop Demo 1" />
-</p>
+**Responding to actions in Hermes TUI**
 
-<p align="center">
-  <strong>macOS — Voice & agent integration</strong><br>
-  <img src="docs/demo2.gif" width="640" alt="Cloe Desktop Demo 2" />
-</p>
+![Cloe Desktop Demo 1](docs/demo1.gif)
+
+**Reacting to messages from chat channels — working/idle states**
+
+![Cloe Desktop Demo 2](docs/demo2.gif)
 
 ---
 
