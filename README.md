@@ -25,7 +25,7 @@ https://github.com/user-attachments/assets/DEMO_VIDEO_PLACEHOLDER
 
 ## What is Cloe?
 
-Cloe is a **realistic-style desktop AI companion** — a transparent, always-on-top character that lives in the corner of your screen. Unlike cartoon avatars or chatbot windows, she looks like a real person: a photorealistic Asian girl with lifelike facial expressions, natural gestures, and synthesized voice.
+Cloe is a **realistic-style desktop AI companion** — a transparent, always-on-top character that lives in the corner of your screen. Unlike cartoon avatars or chatbot windows, she looks like a real person: a photorealistic Asian girl (you can customize the character with your own reference images) with lifelike facial expressions, natural gestures, and synthesized voice.
 
 She's not just a static widget. Powered by an AI agent, she **chooses her own expressions** — smiling when things go well, thinking when she's processing, blowing a kiss when you say goodbye. She reacts to context, not just commands.
 
