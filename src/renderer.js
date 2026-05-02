@@ -173,153 +173,6 @@ function startIdleLoop() {
 }
 
 // ==================== Audio ====================
-// --- Streaming TTS Audio (AudioContext) ---
-const TTS_WS_PORT = 19853;
-let ttsWs = null;
-let ttsAudioCtx = null;
-let ttsGainNode = null;
-let ttsIsPlaying = false;
-
-// Buffer all chunks, play on done (CPU is too slow for real-time streaming)
-let ttsChunks = [];       // collected Float32Array chunks
-let ttsTotalSamples = 0;
-let ttsPrevWorking = false; // remember if we were in working mode before speak
-
-function ensureTtsAudioCtx() {
-  if (!ttsAudioCtx) {
-    ttsAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
-    ttsGainNode = ttsAudioCtx.createGain();
-    ttsGainNode.gain.value = 0.9;
-    ttsGainNode.connect(ttsAudioCtx.destination);
-  }
-  if (ttsAudioCtx.state === 'suspended') ttsAudioCtx.resume();
-}
-
-function connectTtsWebSocket() {
-  if (ttsWs && ttsWs.readyState <= 1) return;
-
-  ensureTtsAudioCtx();
-  ttsWs = new WebSocket(`ws://127.0.0.1:${TTS_WS_PORT}`);
-
-  ttsWs.onopen = () => {
-    console.log('[TTS WS] Connected');
-  };
-
-  ttsWs.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-
-      if (msg.type === 'meta') {
-        // New synthesis — reset buffer, snapshot previous state
-        ttsChunks = [];
-        ttsTotalSamples = 0;
-        ttsPrevWorking = isWorking;
-        ttsIsPlaying = true;
-        console.log(`[TTS WS] Meta: ${msg.sample_rate}Hz, ${msg.channels}ch — buffering...`);
-      }
-      else if (msg.type === 'audio') {
-        // Decode base64 PCM float32 (interleaved stereo) and buffer
-        const pcmBytes = atob(msg.data);
-        const buf = new ArrayBuffer(pcmBytes.length);
-        const uint8 = new Uint8Array(buf);
-        for (let i = 0; i < pcmBytes.length; i++) uint8[i] = pcmBytes.charCodeAt(i);
-        const pcmArray = new Float32Array(buf);
-        ttsChunks.push(pcmArray);
-        ttsTotalSamples += pcmArray.length / 2; // samples per channel
-        console.log(`[TTS WS] Buffered chunk, total: ${ttsTotalSamples} samples (${(ttsTotalSamples/48000).toFixed(2)}s)`);
-      }
-      else if (msg.type === 'done') {
-        // All chunks received — assemble and play
-        if (ttsTotalSamples > 0) {
-          const buffer = ttsAudioCtx.createBuffer(2, ttsTotalSamples, 48000);
-          const left = buffer.getChannelData(0);
-          const right = buffer.getChannelData(1);
-          let offset = 0;
-          for (const pcm of ttsChunks) {
-            const samplesPerChannel = pcm.length / 2;
-            for (let i = 0; i < samplesPerChannel; i++) {
-              left[offset + i] = pcm[i * 2];
-              right[offset + i] = pcm[i * 2 + 1];
-            }
-            offset += samplesPerChannel;
-          }
-
-          // Switch to speak.gif RIGHT when audio starts
-          switchGif('speak', false);
-
-          const source = ttsAudioCtx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ttsGainNode);
-          source.start(0);
-          source.onended = () => {
-            ttsIsPlaying = false;
-            isReacting = false;
-            clearTimeout(reactionTimer);
-            // Restore previous state
-            if (ttsPrevWorking) {
-              switchGif('working', false);
-            } else {
-              startIdleLoop();
-            }
-          };
-          console.log(`[TTS WS] Playing ${ttsTotalSamples} samples (${(ttsTotalSamples/48000).toFixed(2)}s)`);
-        } else {
-          ttsIsPlaying = false;
-          isReacting = false;
-          if (ttsPrevWorking) {
-            switchGif('working', false);
-          } else {
-            startIdleLoop();
-          }
-        }
-        ttsChunks = [];
-        console.log('[TTS WS] Synthesis complete');
-      }
-      else if (msg.type === 'error') {
-        console.error('[TTS WS] Error:', msg.message);
-        ttsIsPlaying = false;
-        ttsChunks = [];
-        isReacting = false;
-        // Restore previous state (same logic as done branch)
-        if (ttsPrevWorking) {
-          switchGif('working', false);
-        } else {
-          startIdleLoop();
-        }
-      }
-    } catch (e) {
-      console.error('[TTS WS] Parse error:', e);
-    }
-  };
-
-  ttsWs.onclose = () => {
-    console.log('[TTS WS] Disconnected');
-    ttsWs = null;
-    setTimeout(connectTtsWebSocket, 5000);
-  };
-
-  ttsWs.onerror = () => {
-    console.error('[TTS WS] Error');
-    ttsWs.close();
-  };
-}
-
-function ttsSpeak(text) {
-  if (!ttsWs || ttsWs.readyState !== 1) {
-    console.warn('[TTS] WebSocket not connected, falling back...');
-    switchGif('speak');
-    return;
-  }
-  stopAudio();
-  // Clear all timers to prevent previous idle/reaction from interrupting
-  clearTimeout(idleTimer);
-  clearTimeout(reactionTimer);
-  isReacting = true; // block idle during buffering + playback
-  // Don't switch GIF yet — wait until audio is ready to play
-  ttsPrevWorking = isWorking;
-  console.log('[TTS] Sending text to TTS server:', text);
-  ttsWs.send(JSON.stringify({ text }));
-}
 
 // --- Legacy Audio (non-streaming, for pre-recorded and HTTP audio) ---
 function playAudio(source, onEnded) {
@@ -409,19 +262,15 @@ function handleAction(data) {
     const savedAnims = GIF_ANIMATIONS;
     if (animSrc !== GIF_ANIMATIONS) GIF_ANIMATIONS = animSrc;
     if (action === 'speak') {
-      // Priority 1: Streaming TTS via WebSocket (text field)
-      if (data.text) {
-        ttsSpeak(data.text);
-      }
-      // Priority 2: Dynamic TTS via HTTP (audio_url field, legacy)
-      else if (data.audio_url) {
+      // Priority 1: Dynamic TTS via HTTP (audio_url field)
+      if (data.audio_url) {
         switchGif(gifName, false);
         playAudio(data.audio_url, () => {
           isReacting = false;
           startIdleLoop();
         });
       }
-      // Priority 3: Pre-recorded audio (audio field)
+      // Priority 2: Pre-recorded audio (audio field)
       else {
         switchGif(gifName);
         if (data.audio) {
@@ -528,4 +377,3 @@ function connectWebSocket() {
 // ==================== Init ====================
 startIdleLoop();
 connectWebSocket();
-connectTtsWebSocket();  // Connect to TTS streaming server
