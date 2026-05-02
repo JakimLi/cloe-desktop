@@ -6,7 +6,8 @@
   "title": "Actions",
   "tabs": {
     "actions": "Actions",
-    "preferences": "Preferences"
+    "preferences": "Preferences",
+    "pluginRules": "Plugin Rules"
   },
   "setCount": "{{count}} set(s)",
   "actionCount": "{{count}} actions",
@@ -186,5 +187,30 @@
     "videoModelDesc": "Default: wan2.7-i2v",
     "about": "About",
     "aboutDesc": "Desktop pet companion · Make your desktop more fun"
+  },
+  "pluginRules": {
+    "throttle": "Throttle",
+    "minInterval": "Min Interval",
+    "minIntervalDesc": "Minimum seconds between action triggers",
+    "toolExpressions": "Tool Expression Triggers",
+    "toolExpressionsDesc": "Expression triggered when Hermes executes a tool call",
+    "toolCompletions": "Tool Completion Reactions",
+    "toolCompletionsDesc": "Expression triggered after a tool finishes executing",
+    "tool": "Tool",
+    "expression": "Expression",
+    "keywordMap": "Keyword Triggers",
+    "keywordMapDesc": "Expression triggered when user message contains keywords",
+    "keywordPlaceholder": "Keywords, comma separated",
+    "addRule": "Add Rule",
+    "contextThresholds": "Context Window Thresholds",
+    "warningThreshold": "Warning Threshold",
+    "warningThresholdDesc": "Show thinking expression when context usage exceeds this",
+    "criticalThreshold": "Critical Threshold",
+    "criticalThresholdDesc": "Show stressed expression when context usage exceeds this",
+    "save": "Save Rules",
+    "resetDefaults": "Reset Defaults",
+    "saving": "Saving...",
+    "saveSuccess": "✓ Rules saved",
+    "saveError": "Save failed: {{error}}"
   }
 }

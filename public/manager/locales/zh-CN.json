@@ -6,7 +6,8 @@
   "title": "动作管理",
   "tabs": {
     "actions": "动作管理",
-    "preferences": "偏好设置"
+    "preferences": "偏好设置",
+    "pluginRules": "插件规则"
   },
   "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
@@ -186,5 +187,30 @@
     "videoModelDesc": "默认 wan2.7-i2v",
     "about": "关于",
     "aboutDesc": "桌面宠物伴侣 · 让你的桌面更有趣"
+  },
+  "pluginRules": {
+    "throttle": "触发节流",
+    "minInterval": "最小触发间隔",
+    "minIntervalDesc": "两次表情触发之间的最短时间（秒）",
+    "toolExpressions": "工具触发表情",
+    "toolExpressionsDesc": "当 Hermes 执行工具调用时触发的表情动画",
+    "toolCompletions": "工具完成反应",
+    "toolCompletionsDesc": "工具执行完成后触发的表情动画",
+    "tool": "工具",
+    "expression": "表情",
+    "keywordMap": "关键词触发",
+    "keywordMapDesc": "用户消息中包含关键词时触发的表情",
+    "keywordPlaceholder": "关键词，逗号分隔",
+    "addRule": "添加规则",
+    "contextThresholds": "上下文窗口阈值",
+    "warningThreshold": "警告阈值",
+    "warningThresholdDesc": "上下文使用率超过此值时显示思考表情",
+    "criticalThreshold": "危险阈值",
+    "criticalThresholdDesc": "上下文使用率超过此值时显示紧张表情",
+    "save": "保存规则",
+    "resetDefaults": "恢复默认",
+    "saving": "保存中...",
+    "saveSuccess": "✓ 规则已保存",
+    "saveError": "保存失败: {{error}}"
   }
 }

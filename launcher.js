@@ -1067,6 +1067,39 @@ function createBridgeServers() {
       return;
     }
 
+    // GET /plugin-rules — read plugin-rules.json from dataDir
+    if (req.method === 'GET' && urlPath === '/plugin-rules') {
+      try {
+        const rulesPath = path.join(getDataDir(), 'plugin-rules.json');
+        const raw = fs.readFileSync(rulesPath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(raw);
+      } catch (_) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      }
+      return;
+    }
+
+    // POST /plugin-rules — write plugin-rules.json to dataDir
+    if (req.method === 'POST' && urlPath === '/plugin-rules') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const rules = JSON.parse(body || '{}');
+          const rulesPath = path.join(getDataDir(), 'plugin-rules.json');
+          fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2), 'utf-8');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid JSON: ' + e.message }));
+        }
+      });
+      return;
+    }
+
     // --- Management API ---
     // GET /action-sets — list all sets
     if (req.method === 'GET' && req.url === '/action-sets') {

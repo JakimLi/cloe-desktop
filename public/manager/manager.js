@@ -36,6 +36,7 @@ function updateAllText() {
   // Sidebar items
   document.getElementById('sidebar-actions').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.actions');
   document.getElementById('sidebar-preferences').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.preferences');
+  document.getElementById('sidebar-plugin-rules').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.pluginRules');
 
   // Update actions tab text
   const actionsTitle = document.getElementById('actions-title');
@@ -44,6 +45,9 @@ function updateAllText() {
 
   // Update preferences tab text
   updatePreferencesText();
+
+  // Update plugin rules tab text
+  updatePluginRulesText();
 }
 
 // Locale change callback (called from preferences.js)
@@ -60,5 +64,7 @@ window.onLocaleChange = function () {
   initReferenceModal();
   initActionsTab();
   initPreferencesTab();
+  await loadPluginRules();
+  initPluginRulesTab();
   updateAllText();
 })();

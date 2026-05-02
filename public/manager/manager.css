@@ -626,6 +626,71 @@ html, body {
   to { opacity: 1; }
 }
 
+/* ==================== Plugin Rules Styles ==================== */
+.pr-tool-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.pr-grid-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.1);
+}
+
+.pr-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pr-row:last-child {
+  border-bottom: none;
+}
+
+.pr-tool-name {
+  font-size: 13px;
+  color: var(--text);
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+
+.form-select-sm,
+.form-input-sm {
+  padding: 5px 8px;
+  font-size: 12px;
+  min-width: 120px;
+}
+
+.pr-kw-list .pr-kw-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pr-kw-list .pr-kw-row:last-child {
+  border-bottom: none;
+}
+
+.pr-kw-input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.pr-kw-del {
+  flex-shrink: 0;
+}
+
 /* ==================== Scrollbar ==================== */
 ::-webkit-scrollbar {
   width: 8px;
