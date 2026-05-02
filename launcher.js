@@ -324,6 +324,7 @@ function buildActionsList(setId) {
     hookTriggers[gifName].push(trigger);
   }
 
+  const actionInfo = set.actionInfo || {};
   const actions = [];
   for (const [name, gifPath] of Object.entries(set.animations || {})) {
     const gifFile = gifPath.split('/').pop();
@@ -345,7 +346,11 @@ function buildActionsList(setId) {
       if (trigger !== 'idle') trigger = 'hook';
     }
 
-    actions.push({ name, gifFile, gifPath, trigger, idleWeight, hookNames, special });
+    const info = actionInfo[name];
+    const description = (info && info.description) || '';
+    const descriptionEn = (info && info.descriptionEn) || '';
+
+    actions.push({ name, gifFile, gifPath, trigger, idleWeight, hookNames, special, description, descriptionEn });
   }
   return actions;
 }
