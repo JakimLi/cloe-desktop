@@ -1,0 +1,13 @@
+{
+  "provider": "mosi",
+  "mosi": {
+    "api_key": "YOUR_MOSI_API_KEY",
+    "voice_id": "2036257587296473088",
+    "url": "https://studio.mosi.cn/v1/audio/tts"
+  },
+  "cosyvoice": {
+    "api_key_env": "BAILIAN_API_KEY",
+    "model": "cosyvoice-v1",
+    "voice": "longmiao"
+  }
+}
