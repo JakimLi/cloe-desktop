@@ -45,6 +45,7 @@ let activeLayer = 'a';
 let isTransitioning = false;
 let isReacting = false;
 let isWorking = false;      // True = locked in working mode (no idle)
+let isSpeaking = false;     // True = TTS audio playing (highest priority, nothing can interrupt)
 let pendingGif = null;
 let idleTimer = null;
 let reactionTimer = null;
@@ -213,6 +214,14 @@ function handleAction(data) {
   const action = data.action;
   console.log('[Action]', action, data);
 
+  // ── Highest priority: speaking (TTS audio playing) ──
+  // Nothing can interrupt a speak in progress — drop all other actions.
+  // The only exception is another 'speak' (re-trigger / override).
+  if (isSpeaking && action !== 'speak') {
+    console.log('[Action] Dropped — speak in progress:', action);
+    return;
+  }
+
   // ── Working mode: lock into working GIF until "idle" action ──
   if (action === 'working') {
     clearTimeout(idleTimer);
@@ -230,6 +239,22 @@ function handleAction(data) {
     isWorking = false;
     isReacting = false;
     clearTimeout(reactionTimer);
+    // If audio is playing (e.g. TTS speak), don't kill it — wait for it to
+    // finish naturally, then return to idle.  This prevents plugin hooks
+    // (post_llm_call → idle) from cutting off a speak animation mid-playback.
+    if (window._currentAudio) {
+      console.log('[idle] Audio playing — deferring idle until audio ends');
+      const audio = window._currentAudio;
+      const onEnd = () => {
+        audio.removeEventListener('ended', onEnd);
+        audio.removeEventListener('error', onEnd);
+        stopAudio();
+        startIdleLoop();
+      };
+      audio.addEventListener('ended', onEnd);
+      audio.addEventListener('error', onEnd);
+      return;
+    }
     stopAudio();
     startIdleLoop();
     return;
@@ -264,8 +289,10 @@ function handleAction(data) {
     if (action === 'speak') {
       // Priority 1: Dynamic TTS via HTTP (audio_url field)
       if (data.audio_url) {
+        isSpeaking = true;
         switchGif(gifName, false);
         playAudio(data.audio_url, () => {
+          isSpeaking = false;
           isReacting = false;
           startIdleLoop();
         });
