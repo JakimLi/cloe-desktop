@@ -6,6 +6,7 @@ Fires GIF animations on the Cloe Desktop widget via its HTTP API (localhost:1985
 Only handles gateway-level (process) events:
   - agent:start   → working mode (lock on working.gif)
   - agent:end     → idle mode (resume normal idle loop)
+  - agent:error   → idle mode (recovery on crash/interrupt)
 
 Session-level events (wave, kiss, tool reactions, keyword matching, etc.)
 are handled by the cloe-desktop plugin (~/.hermes/plugins/cloe-desktop/).
@@ -45,3 +46,9 @@ def handle(event_type: str, context: dict):
     elif event_type == "agent:end":
         _trigger({"action": "idle"})
         logger.debug("[cloe-desktop] agent:end → idle")
+
+    elif event_type == "agent:error":
+        # Emitted when the agent crashes or the turn is interrupted.
+        # Guarantees the character returns to idle even on failure.
+        _trigger({"action": "idle"})
+        logger.debug("[cloe-desktop] agent:error → idle (recovery)")

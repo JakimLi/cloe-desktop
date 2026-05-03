@@ -3,3 +3,4 @@ description: "Cloe Desktop GIF triggers on Hermes agent lifecycle events"
 events:
   - agent:start
   - agent:end
+  - agent:error

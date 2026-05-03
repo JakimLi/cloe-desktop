@@ -318,13 +318,21 @@ class CloeDesktopBridge:
     def on_post_llm_call(self, session_id: str, user_message: str,
                          assistant_response: str, conversation_history: list,
                          model: str, platform: str) -> None:
-        """After the LLM loop completes — react to the turn outcome."""
+        """After the LLM loop completes — exit working mode, react to turn."""
         turn_duration = time.monotonic() - self._turn_start_time if self._turn_start_time else 0
 
-        # Very long turn → yawn
+        # Exit working mode — resume idle loop on desktop.
+        # pre_tool_call sets isWorking=true; this is the matching release.
+        # MUST use force=True to bypass throttle: post_tool_call reactions
+        # (e.g. "nod" for execute_code) may have fired just milliseconds
+        # ago, and without force the throttle would silently drop this
+        # critical "idle" transition, leaving the character stuck in
+        # working mode indefinitely.
+        self._trigger_action("idle", force=True)
+
+        # Very long turn → yawn (after idle, so it plays as a reaction)
         if turn_duration > 120:
             self._trigger_action("yawn")
-            return
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -336,7 +344,11 @@ class CloeDesktopBridge:
 
     def on_session_end(self, session_id: str, completed: bool, interrupted: bool,
                        model: str, platform: str) -> None:
-        """Session end → kiss if completed normally."""
+        """Session end → ensure idle + kiss if completed normally."""
+        # Always force idle on session end as a safety net — if the turn
+        # failed or was interrupted, post_llm_call may not have fired.
+        self._trigger_action("idle", force=True)
+
         if completed and not interrupted:
             self._trigger_action("kiss", force=True)
         elif interrupted:
