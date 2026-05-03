@@ -485,6 +485,19 @@ function getSetAnimationPath(setId, actionName) {
 }
 
 /**
+ * Get the TTS audio cache directory.
+ * Always uses ~/.cloe/audio_cache (or CLOE_DATA_DIR/audio_cache),
+ * regardless of dev/packaged mode — this is shared with Hermes TTS pipeline.
+ * Creates the directory if it doesn't exist.
+ */
+function getTtsAudioDir() {
+  const root = expandDataDir(loadConfig().dataDir);
+  const dir = path.join(root, 'audio_cache');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/**
  * Get the absolute GIF output directory for a specific set.
  * Creates the directory if it doesn't exist.
  */
@@ -1533,6 +1546,34 @@ function createBridgeServers() {
           res.end(JSON.stringify({ error: e.message }));
         }
       });
+      return;
+    }
+
+    // GET /tts/:filename — serve audio files from audio_cache directory
+    // Used by Hermes TTS pipeline: generate mp3 → save to ~/.cloe/audio_cache/ →
+    // trigger speak with audio_url=http://localhost:19851/tts/filename.mp3
+    if (req.method === 'GET' && req.url.startsWith('/tts/')) {
+      const filename = decodeURIComponent(req.url.slice(5));
+      if (!filename || filename.includes('/') || filename.includes('..') || filename.includes('\0')) {
+        res.writeHead(400);
+        res.end('Invalid filename');
+        return;
+      }
+      const ttsDir = getTtsAudioDir();
+      const filePath = path.join(ttsDir, filename);
+      if (!fs.existsSync(filePath)) {
+        res.writeHead(404);
+        res.end('Not found');
+        return;
+      }
+      const ext = path.extname(filename).toLowerCase();
+      const mimeTypes = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.opus': 'audio/opus', '.ogg': 'audio/ogg' };
+      res.writeHead(200, {
+        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+        'Content-Length': fs.statSync(filePath).size,
+        'Cache-Control': 'no-cache',
+      });
+      fs.createReadStream(filePath).pipe(res);
       return;
     }
 
