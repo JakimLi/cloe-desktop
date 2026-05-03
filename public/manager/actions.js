@@ -47,6 +47,7 @@ function initActionsTab() {
   initCreateSetModal();
   initAddActionModal();
   initConfirmModal();
+  initIdlePlaylistPanel();
   connectManagerWs();
   loadSets();
 }
@@ -438,6 +439,19 @@ async function addAction(setId, data) {
 
 async function deleteAction(setId, actionName) {
   const res = await fetch(`${API_BASE}/action-sets/${setId}/actions/${actionName}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error);
+  }
+  return res.json();
+}
+
+async function updateIdlePlaylist(setId, name, enabled, weight) {
+  const res = await fetch(`${API_BASE}/action-sets/${setId}/idle-playlist`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, enabled, weight }),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     throw new Error(err.error);
@@ -936,6 +950,8 @@ function renderActions(actions) {
   if (actions.length === 0) { emptyState.classList.remove('hidden'); return; }
   emptyState.classList.add('hidden');
 
+  renderIdlePlaylist(actions);
+
   actions.forEach(action => {
     const card = document.createElement('div');
     card.className = 'action-card';
@@ -985,6 +1001,127 @@ function renderActions(actions) {
 // ==================== Preview Modal ====================
 let currentPreviewAction = null;
 
+// ==================== Idle Playlist Panel ====================
+let idlePlaylistExpanded = false;
+
+function initIdlePlaylistPanel() {
+  document.getElementById('idle-playlist-header').addEventListener('click', () => {
+    idlePlaylistExpanded = !idlePlaylistExpanded;
+    const body = document.getElementById('idle-playlist-body');
+    const toggle = document.getElementById('idle-playlist-toggle');
+    body.classList.toggle('hidden', !idlePlaylistExpanded);
+    toggle.textContent = idlePlaylistExpanded ? '▼' : '▶';
+  });
+}
+
+function renderIdlePlaylist(actions) {
+  const panel = document.getElementById('idle-playlist-panel');
+  const list = document.getElementById('idle-playlist-list');
+  const titleEl = document.getElementById('idle-playlist-title-text');
+  if (!panel || !currentSetId) { if (panel) panel.classList.add('hidden'); return; }
+
+  panel.classList.remove('hidden');
+  const idleActions = actions.filter(a => a.trigger === 'idle' || a.idleWeight > 0);
+  const enabledCount = idleActions.filter(a => a.idleWeight > 0).length;
+  const totalSlots = idleActions.reduce((sum, a) => sum + (a.idleWeight || 0), 0);
+
+  titleEl.textContent = I18n.t('idlePlaylist.title', { enabled: enabledCount, total: totalSlots });
+  list.innerHTML = '';
+
+  // Render all actions, not just idle ones
+  actions.forEach(action => {
+    const row = document.createElement('div');
+    row.className = 'idle-row';
+
+    const enabled = action.idleWeight > 0;
+    const weight = action.idleWeight || 1;
+
+    row.innerHTML = `
+      <div class="idle-row-left">
+        <label class="idle-toggle">
+          <input type="checkbox" data-action="${action.name}" ${enabled ? 'checked' : ''}>
+          <span class="idle-toggle-slider"></span>
+        </label>
+        <span class="idle-row-name">${action.name}</span>
+        ${action.special ? `<span class="tag tag-special tag-sm">${specialLabel(action.special)}</span>` : ''}
+      </div>
+      <div class="idle-row-right ${enabled ? '' : 'disabled'}">
+        <span class="idle-row-gif-thumb">
+          <img src="${ASSET_BASE}${action.gifPath}" alt="" loading="lazy">
+        </span>
+        <input type="range" class="idle-weight-slider" data-action="${action.name}"
+               min="1" max="10" value="${weight}" ${enabled ? '' : 'disabled'}>
+        <span class="idle-weight-value" data-action="${action.name}">${enabled ? weight : '—'}</span>
+      </div>`;
+    list.appendChild(row);
+  });
+
+  // Bind toggle events
+  list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', async (e) => {
+      const name = cb.dataset.action;
+      const isChecked = cb.checked;
+      const slider = list.querySelector(`.idle-weight-slider[data-action="${name}"]`);
+      const valueEl = list.querySelector(`.idle-weight-value[data-action="${name}"]`);
+      const rightEl = cb.closest('.idle-row').querySelector('.idle-row-right');
+      const w = parseInt(slider.value, 10) || 1;
+
+      slider.disabled = !isChecked;
+      rightEl.classList.toggle('disabled', !isChecked);
+      valueEl.textContent = isChecked ? w : '—';
+
+      try {
+        const result = await updateIdlePlaylist(currentSetId, name, isChecked, w);
+        actionsCache = result.actions || [];
+        renderActions(actionsCache);
+        refreshIdlePlaylistTitle(actionsCache);
+      } catch (err) {
+        showStatus(`✗ ${I18n.t('idlePlaylist.updateError', { error: err.message })}`, 'error');
+        cb.checked = !isChecked;
+        slider.disabled = isChecked;
+        rightEl.classList.toggle('disabled', isChecked);
+        valueEl.textContent = isChecked ? w : '—';
+      }
+    });
+  });
+
+  // Bind slider events
+  list.querySelectorAll('.idle-weight-slider').forEach(slider => {
+    slider.addEventListener('change', async (e) => {
+      const name = slider.dataset.action;
+      const w = parseInt(slider.value, 10) || 1;
+      const valueEl = list.querySelector(`.idle-weight-value[data-action="${name}"]`);
+      const cb = list.querySelector(`input[type="checkbox"][data-action="${name}"]`);
+      if (!cb || !cb.checked) return;
+
+      valueEl.textContent = w;
+      try {
+        const result = await updateIdlePlaylist(currentSetId, name, true, w);
+        actionsCache = result.actions || [];
+        renderActions(actionsCache);
+        refreshIdlePlaylistTitle(actionsCache);
+      } catch (err) {
+        showStatus(`✗ ${I18n.t('idlePlaylist.updateError', { error: err.message })}`, 'error');
+      }
+    });
+    // Live value update (no API call until change)
+    slider.addEventListener('input', () => {
+      const name = slider.dataset.action;
+      const valueEl = list.querySelector(`.idle-weight-value[data-action="${name}"]`);
+      if (valueEl) valueEl.textContent = slider.value;
+    });
+  });
+}
+
+function refreshIdlePlaylistTitle(actions) {
+  const titleEl = document.getElementById('idle-playlist-title-text');
+  if (!titleEl) return;
+  const idleActions = actions.filter(a => a.trigger === 'idle' || a.idleWeight > 0);
+  const enabledCount = idleActions.filter(a => a.idleWeight > 0).length;
+  const totalSlots = idleActions.reduce((sum, a) => sum + (a.idleWeight || 0), 0);
+  titleEl.textContent = I18n.t('idlePlaylist.title', { enabled: enabledCount, total: totalSlots });
+}
+
 function openPreview(name) {
   currentPreviewAction = name;
   const modal = document.getElementById('preview-modal');
@@ -1028,6 +1165,7 @@ async function loadSets() {
   setInfoEl.classList.add('hidden');
   currentSetDetail = null;
   actionsToolbar.classList.add('hidden');
+  document.getElementById('idle-playlist-panel').classList.add('hidden');
 
   try {
     const data = await fetchSets();
@@ -1059,11 +1197,13 @@ async function loadSetDetail(setId) {
   actionsGrid.innerHTML = '';
   emptyState.classList.add('hidden');
   actionsToolbar.classList.add('hidden');
+  document.getElementById('idle-playlist-panel').classList.add('hidden');
 
   try {
     const data = await fetchSetDetail(setId);
     renderSetInfo(data);
     renderActions(data.actions || []);
+    renderIdlePlaylist(data.actions || []);
     actionsToolbar.classList.remove('hidden');
   } catch (err) {
     showStatus(`✗ ${I18n.t('error.loadFailed', { error: err.message })}`, 'error');

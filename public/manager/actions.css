@@ -368,6 +368,198 @@
   font-size: 12px;
 }
 
+/* ==================== Idle Playlist Panel ==================== */
+.idle-playlist-panel {
+  margin-top: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.idle-playlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.idle-playlist-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.idle-playlist-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.idle-playlist-toggle {
+  font-size: 11px;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+}
+
+.idle-playlist-body {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px 14px;
+}
+
+.idle-playlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.idle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.idle-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.idle-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.idle-row-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.idle-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+
+.idle-row-right.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.idle-row-gif-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.idle-row-gif-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Toggle switch */
+.idle-toggle {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.idle-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.idle-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  transition: background 0.2s;
+}
+
+.idle-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  bottom: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.idle-toggle input:checked + .idle-toggle-slider {
+  background: var(--success);
+}
+
+.idle-toggle input:checked + .idle-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* Weight slider */
+.idle-weight-slider {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  outline: none;
+}
+
+.idle-weight-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.idle-weight-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.idle-weight-slider:disabled::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  cursor: not-allowed;
+}
+
+.idle-weight-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  min-width: 16px;
+  text-align: center;
+}
+
+.tag-sm {
+  font-size: 10px;
+  padding: 1px 5px;
+}
+
 /* Custom file picker (native button follows OS locale) */
 .form-file-label {
   margin-top: 4px;

@@ -1425,7 +1425,8 @@ function createBridgeServers() {
 
           if (data.trigger === 'idle') {
             if (!set.idlePlaylist) set.idlePlaylist = [];
-            set.idlePlaylist.push(data.name);
+            const weight = Math.max(1, Math.min(10, parseInt(data.idleWeight, 10) || 1));
+            for (let i = 0; i < weight; i++) set.idlePlaylist.push(data.name);
           }
 
           saveActionSets();
@@ -1481,6 +1482,57 @@ function createBridgeServers() {
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ actions: buildActionsList(setId) }));
+      return;
+    }
+
+    // PATCH /action-sets/:id/idle-playlist — update idle config for an action
+    // Body: { name: string, enabled: boolean, weight?: number (1-10) }
+    if (req.method === 'PATCH' && req.url.match(/^\/action-sets\/[^/]+\/idle-playlist$/)) {
+      const setId = decodeURIComponent(req.url.split('/')[2]);
+      const set = getSetById(setId);
+      if (!set) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (!data.name || typeof data.enabled !== 'boolean') {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'name and enabled (boolean) are required' }));
+            return;
+          }
+          // Verify action exists in this set
+          if (!set.animations || !(data.name in set.animations)) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: `action "${data.name}" not found in set` }));
+            return;
+          }
+
+          const weight = Math.max(1, Math.min(10, parseInt(data.weight, 10) || 1));
+          if (!set.idlePlaylist) set.idlePlaylist = [];
+
+          // Remove all existing entries of this action
+          set.idlePlaylist = set.idlePlaylist.filter(n => n !== data.name);
+
+          // If enabling, add back with the specified weight
+          if (data.enabled) {
+            for (let i = 0; i < weight; i++) set.idlePlaylist.push(data.name);
+          }
+
+          saveActionSets();
+          if (setId === activeSetId) broadcastSetConfig(setId);
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ actions: buildActionsList(setId) }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
       return;
     }
 
