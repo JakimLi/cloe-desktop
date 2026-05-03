@@ -1121,9 +1121,41 @@ function createBridgeServers() {
       return;
     }
 
+    // GET /action-sets/:id/actions/:name/gif — serve GIF binary for Android full-sync
+    if (req.method === 'GET' && urlPath.match(/^\/action-sets\/[^/]+\/actions\/[^/]+\/gif$/)) {
+      const parts = urlPath.split('/');
+      const setId = decodeURIComponent(parts[2]);
+      const actionName = decodeURIComponent(parts[4]);
+      const set = getSetById(setId);
+      if (!set) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'set not found' }));
+        return;
+      }
+      const rel = set.animations?.[actionName];
+      if (!rel) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'action not found' }));
+        return;
+      }
+      const absPath = path.join(getDataDir(), rel);
+      if (!fs.existsSync(absPath) || !fs.statSync(absPath).isFile()) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'gif file not found' }));
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': 'image/gif',
+        'Content-Length': fs.statSync(absPath).size,
+        'Cache-Control': 'no-cache',
+      });
+      fs.createReadStream(absPath).pipe(res);
+      return;
+    }
+
     // GET /action-sets/:id — get one set with its actions
-    if (req.method === 'GET' && req.url.startsWith('/action-sets/')) {
-      const setId = decodeURIComponent(req.url.split('/action-sets/')[1]?.split('?')[0]);
+    if (req.method === 'GET' && urlPath.match(/^\/action-sets\/[^/]+$/)) {
+      const setId = decodeURIComponent(urlPath.split('/action-sets/')[1]);
       const set = getSetById(setId);
       if (!set) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
