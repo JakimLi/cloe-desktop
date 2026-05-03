@@ -25,6 +25,10 @@
           <span class="sidebar-item-icon">🎮</span>
           <span class="sidebar-item-label">Plugin Rules</span>
         </button>
+        <button id="sidebar-idle-playlist" class="sidebar-item" data-tab="idle-playlist">
+          <span class="sidebar-item-icon">💤</span>
+          <span class="sidebar-item-label">Idle Playlist</span>
+        </button>
       </div>
     </nav>
 
@@ -76,17 +80,6 @@
 
         <div id="actions-grid" class="actions-grid"></div>
 
-        <!-- Idle Playlist Panel -->
-        <div id="idle-playlist-panel" class="idle-playlist-panel hidden">
-          <div id="idle-playlist-header" class="idle-playlist-header">
-            <span class="idle-playlist-title" id="idle-playlist-title-text"></span>
-            <span class="idle-playlist-toggle" id="idle-playlist-toggle">▶</span>
-          </div>
-          <div id="idle-playlist-body" class="idle-playlist-body hidden">
-            <div id="idle-playlist-list" class="idle-playlist-list"></div>
-          </div>
-        </div>
-
         <div id="empty-state" class="empty-state hidden">
           <p>No actions found</p>
           <p class="sub">Make sure Cloe Desktop is running</p>
@@ -106,6 +99,36 @@
       <!-- Plugin Rules Tab -->
       <div id="tab-plugin-rules" class="tab-panel">
         <div id="plugin-rules-content"></div>
+      </div>
+
+      <!-- Idle Playlist Tab -->
+      <div id="tab-idle-playlist" class="tab-panel">
+        <div class="idle-pl-header">
+          <div class="idle-pl-header-left">
+            <h2 id="idle-pl-title">Idle Playlist</h2>
+          </div>
+          <div class="idle-pl-header-right">
+            <span id="idle-pl-summary" class="idle-pl-summary"></span>
+          </div>
+        </div>
+
+        <div id="idle-pl-set-tabs" class="set-tabs-wrapper">
+          <div id="idle-pl-set-tabs-inner" class="set-tabs"></div>
+        </div>
+
+        <div class="idle-pl-desc" id="idle-pl-desc"></div>
+
+        <div id="idle-pl-grid" class="idle-pl-grid"></div>
+
+        <div id="idle-pl-empty" class="empty-state hidden">
+          <p>No actions found</p>
+          <p class="sub">Select an action set above</p>
+        </div>
+
+        <div id="idle-pl-loading" class="loading">
+          <div class="spinner"></div>
+          <p>Loading...</p>
+        </div>
       </div>
     </div>
   </div>

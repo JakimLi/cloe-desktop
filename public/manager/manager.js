@@ -24,6 +24,11 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach((panel) => {
     panel.classList.toggle('active', panel.id === `tab-${tabId}`);
   });
+
+  // Lazy-load idle playlist tab
+  if (tabId === 'idle-playlist' && typeof loadIdlePlaylistTab === 'function') {
+    loadIdlePlaylistTab();
+  }
 }
 
 // ==================== i18n Update ====================
@@ -37,11 +42,16 @@ function updateAllText() {
   document.getElementById('sidebar-actions').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.actions');
   document.getElementById('sidebar-preferences').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.preferences');
   document.getElementById('sidebar-plugin-rules').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.pluginRules');
+  document.getElementById('sidebar-idle-playlist').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.idlePlaylist');
 
   // Update actions tab text
   const actionsTitle = document.getElementById('actions-title');
   if (actionsTitle) actionsTitle.textContent = I18n.t('title');
   updateActionsText();
+
+  // Update idle playlist tab text
+  const idlePlTitle = document.getElementById('idle-pl-title');
+  if (idlePlTitle) idlePlTitle.textContent = I18n.t('tabs.idlePlaylist');
 
   // Update preferences tab text
   updatePreferencesText();

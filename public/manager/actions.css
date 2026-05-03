@@ -368,107 +368,135 @@
   font-size: 12px;
 }
 
-/* ==================== Idle Playlist Panel ==================== */
-.idle-playlist-panel {
-  margin-top: 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.idle-playlist-header {
+/* ==================== Idle Playlist Tab Page ==================== */
+.idle-pl-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.15s;
+  margin-bottom: 14px;
 }
 
-.idle-playlist-header:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.idle-playlist-title {
-  font-size: 13px;
+.idle-pl-header h2 {
+  margin: 0;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text);
 }
 
-.idle-playlist-toggle {
-  font-size: 11px;
+.idle-pl-summary {
+  font-size: 12px;
   color: var(--text-dim);
-  transition: transform 0.2s;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4px 10px;
+  border-radius: 12px;
 }
 
-.idle-playlist-body {
-  border-top: 1px solid var(--border);
-  padding: 8px 14px 14px;
+.idle-pl-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  line-height: 1.5;
 }
 
-.idle-playlist-list {
+.idle-pl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.idle-pl-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.2s, opacity 0.2s;
+}
+
+.idle-pl-card.idle-pl-enabled {
+  border-color: rgba(92, 252, 154, 0.25);
+}
+
+.idle-pl-card.idle-pl-disabled {
+  opacity: 0.55;
+}
+
+.idle-pl-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.idle-pl-card-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.idle-pl-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.idle-pl-card-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.idle-row {
+.idle-pl-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  gap: 8px;
 }
 
-.idle-row:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.idle-row-left {
+.idle-pl-card-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
+  gap: 6px;
   min-width: 0;
 }
 
-.idle-row-name {
-  font-size: 12px;
-  font-weight: 500;
+.idle-pl-card-name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.idle-row-right {
+.idle-pl-card-weight {
   display: flex;
   align-items: center;
   gap: 8px;
   transition: opacity 0.2s;
 }
 
-.idle-row-right.disabled {
-  opacity: 0.35;
+.idle-pl-card-weight.disabled {
+  opacity: 0.3;
   pointer-events: none;
 }
 
-.idle-row-gif-thumb {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: var(--border);
+.idle-pl-weight-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 
-.idle-row-gif-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.idle-pl-card-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Toggle switch */

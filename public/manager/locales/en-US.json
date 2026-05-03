@@ -7,7 +7,8 @@
   "tabs": {
     "actions": "Actions",
     "preferences": "Preferences",
-    "pluginRules": "Plugin Rules"
+    "pluginRules": "Plugin Rules",
+    "idlePlaylist": "Idle Playlist"
   },
   "setCount": "{{count}} set(s)",
   "actionCount": "{{count}} actions",
@@ -130,6 +131,9 @@
   },
   "idlePlaylist": {
     "title": "Idle Playlist ({{enabled}} enabled, {{total}} total slots)",
+    "summary": "{{enabled}} enabled · {{total}} total slots",
+    "desc": "Configure which actions play during idle. Toggle on to enable, adjust the weight to control frequency.",
+    "weight": "Weight",
     "updateError": "Update failed: {{error}}"
   },
   "reference": {

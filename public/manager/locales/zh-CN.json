@@ -7,7 +7,8 @@
   "tabs": {
     "actions": "动作管理",
     "preferences": "偏好设置",
-    "pluginRules": "插件规则"
+    "pluginRules": "插件规则",
+    "idlePlaylist": "待机播放"
   },
   "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
@@ -130,6 +131,9 @@
   },
   "idlePlaylist": {
     "title": "待机播放列表 ({{enabled}} 个启用, 共 {{total}} 个槽位)",
+    "summary": "{{enabled}} 个启用 · 共 {{total}} 个槽位",
+    "desc": "配置待机时自动播放的动作。打开开关启用，调节权重控制播放频率。",
+    "weight": "权重",
     "updateError": "更新失败: {{error}}"
   },
   "reference": {
