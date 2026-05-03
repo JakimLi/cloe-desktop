@@ -154,7 +154,12 @@
   display: inline-block;
 }
 
-.set-info-right { flex-shrink: 0; }
+.set-info-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 /* Actions Grid */
 .actions-grid {
@@ -258,49 +263,10 @@
 .card-actions { display: flex; gap: 8px; }
 .card-actions .btn { flex: 1; padding: 5px 0; font-size: 12px; }
 
-/* Set Tab Wrapper (tab + apply + delete) */
-.set-tab-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.set-tab-wrapper .set-tab {
-  flex: 1;
-}
-
-.set-tab-wrapper .set-tab-delete {
-  opacity: 0;
-  transition: opacity 0.2s;
-  width: 24px;
-  height: 24px;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.set-tab-wrapper:hover .set-tab-delete {
-  opacity: 1;
-}
-
-.set-tab-delete {
-  color: var(--danger) !important;
-  border-color: transparent !important;
-  background: transparent !important;
-}
-
-.set-tab-delete:hover {
-  background: rgba(252, 92, 124, 0.15) !important;
-  border-color: var(--danger) !important;
-}
-
-.set-tab-apply {
-  flex-shrink: 0;
+/* Set Info action buttons (apply / delete) */
+.set-info-btn {
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
-  background: color-mix(in srgb, var(--success) 18%, rgba(0, 0, 0, 0.35));
-  color: var(--success);
   font-size: 11px;
   font-weight: 600;
   font-family: inherit;
@@ -309,13 +275,26 @@
   white-space: nowrap;
 }
 
-.set-tab-apply:hover {
+.set-info-btn-apply {
+  border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
+  background: color-mix(in srgb, var(--success) 18%, rgba(0, 0, 0, 0.35));
+  color: var(--success);
+}
+
+.set-info-btn-apply:hover {
   background: color-mix(in srgb, var(--success) 28%, rgba(0, 0, 0, 0.25));
   border-color: color-mix(in srgb, var(--success) 65%, transparent);
 }
 
-.set-tab-apply:active {
-  transform: translateY(0.5px);
+.set-info-btn-delete {
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, rgba(0, 0, 0, 0.35));
+  color: var(--danger);
+}
+
+.set-info-btn-delete:hover {
+  background: color-mix(in srgb, var(--danger) 22%, rgba(0, 0, 0, 0.25));
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
 }
 
 .set-tab-in-use-badge {

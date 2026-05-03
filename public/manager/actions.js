@@ -486,9 +486,6 @@ function readFileAsDataURL(file) {
 function renderSetTabs() {
   setTabsEl.innerHTML = '';
   setsCache.forEach(set => {
-    const wrapper = document.createElement('div');
-    wrapper.className = `set-tab-wrapper ${set.id === currentSetId ? 'active' : ''}`;
-
     const btn = document.createElement('button');
     btn.className = `set-tab ${set.id === currentSetId ? 'active' : ''}`;
     btn.dataset.setId = set.id;
@@ -497,40 +494,8 @@ function renderSetTabs() {
     const inUseBadge = set.active
       ? `<span class="set-tab-in-use-badge">${I18n.t('set.inUse')}</span>` : '';
     btn.innerHTML = `${thumb}<span>${localizedField(set, 'name')}</span>${inUseBadge}`;
-    btn.addEventListener('click', (e) => {
-      if (e.target.closest('.set-tab-delete') || e.target.closest('.set-tab-apply')) return;
-      selectSet(set.id);
-    });
-    wrapper.appendChild(btn);
-
-    // Apply button (only for non-active sets)
-    if (!set.active) {
-      const applyBtn = document.createElement('button');
-      applyBtn.type = 'button';
-      applyBtn.className = 'set-tab-apply';
-      applyBtn.title = I18n.t('set.apply');
-      applyBtn.textContent = I18n.t('set.apply');
-      applyBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleActivateSet(set.id);
-      });
-      wrapper.appendChild(applyBtn);
-    }
-
-    // Delete button (only for non-active sets)
-    if (!set.active) {
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'set-tab-delete btn-icon';
-      deleteBtn.title = I18n.t('set.delete');
-      deleteBtn.innerHTML = '×';
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleDeleteSet(set.id, localizedField(set, 'name'));
-      });
-      wrapper.appendChild(deleteBtn);
-    }
-
-    setTabsEl.appendChild(wrapper);
+    btn.addEventListener('click', () => selectSet(set.id));
+    setTabsEl.appendChild(btn);
   });
 }
 
@@ -555,6 +520,24 @@ function renderSetInfo(set) {
   setDescEl.textContent = localizedField(set, 'description');
   setChromakeyEl.textContent = set.chromakey
     ? I18n.t('reference.chromakey', { color: set.chromakey }) : '';
+
+  // Apply / Delete buttons for non-active sets
+  const applyBtn = document.getElementById('btn-set-apply');
+  const deleteBtn = document.getElementById('btn-set-delete');
+  if (set.active) {
+    applyBtn.classList.add('hidden');
+    deleteBtn.classList.add('hidden');
+  } else {
+    applyBtn.classList.remove('hidden');
+    applyBtn.textContent = I18n.t('set.apply');
+    applyBtn.title = I18n.t('set.apply');
+    applyBtn.onclick = () => handleActivateSet(set.id);
+
+    deleteBtn.classList.remove('hidden');
+    deleteBtn.textContent = I18n.t('set.delete');
+    deleteBtn.title = I18n.t('set.delete');
+    deleteBtn.onclick = () => handleDeleteSet(set.id, localizedField(set, 'name'));
+  }
 }
 
 function updateSetInfoText() {
