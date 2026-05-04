@@ -293,6 +293,7 @@ function handleAction(data) {
         switchGif(gifName, false);
         playAudio(data.audio_url, () => {
           isSpeaking = false;
+          isWorking = false;   // speak 结束后解锁 working 状态，避免死锁
           isReacting = false;
           startIdleLoop();
         });
