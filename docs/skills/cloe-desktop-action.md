@@ -152,7 +152,12 @@ curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://
 curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 ```
 
-走 3 秒固定 timer。添加新语音：TTS 生成 → `ffmpeg` 转 mp3 → 放 `public/audio/`
+走 bridge `GET /audio/:filename` 路由（serve `~/.cloe/audio/` 目录）。
+现有预录文件：`doing.mp3`（"小可爱，我这就去做"）、`done.mp3`（"小可爱，做好了，你看看"）。
+
+添加新语音：TTS 生成 → `ffmpeg` 转 mp3 → 放 `~/.cloe/audio/`。
+
+> ⚠️ **Android 端**：不会立即播 speak.gif（避免光张嘴没声音）。先播微笑过渡，音频下载准备好后才切到 speak.gif + 同时播放声音。见 cloe-android skill 的"Speak 动画 + 音频同步"章节。
 
 ### 方式三：data URL（短音频，<5s）
 

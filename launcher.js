@@ -1581,32 +1581,6 @@ function createBridgeServers() {
       return;
     }
 
-    // GET /audio/:filename — serve pre-recorded audio files from ~/.cloe/audio/
-    if (req.method === 'GET' && req.url.startsWith('/audio/')) {
-      const filename = decodeURIComponent(req.url.slice(7));
-      if (!filename || filename.includes('/') || filename.includes('..') || filename.includes('\\0')) {
-        res.writeHead(400);
-        res.end('Invalid filename');
-        return;
-      }
-      const audioDir = path.join(getDataDir(), 'audio');
-      const filePath = path.join(audioDir, filename);
-      if (!fs.existsSync(filePath)) {
-        res.writeHead(404);
-        res.end('Not found');
-        return;
-      }
-      const ext = path.extname(filename).toLowerCase();
-      const mimeTypes = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.opus': 'audio/opus', '.ogg': 'audio/ogg' };
-      res.writeHead(200, {
-        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-        'Content-Length': fs.statSync(filePath).size,
-        'Cache-Control': 'no-cache',
-      });
-      fs.createReadStream(filePath).pipe(res);
-      return;
-    }
-
     // GET /tts/:filename — serve audio files from audio_cache directory
     // Used by Hermes TTS pipeline: generate mp3 → save to ~/.cloe/audio_cache/ →
     // trigger speak with audio_url=http://localhost:19851/tts/filename.mp3
