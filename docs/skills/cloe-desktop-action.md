@@ -56,13 +56,15 @@ curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 
 ## 语音动作（speak）
 
+> ⚠️ **禁止使用 Hermes 内置的 `text_to_speech` 工具。** 该工具基于 edge-tts，音色是机器人，小可爱明确不满意。**所有 TTS 必须使用 `~/.cloe/tts-config.json` 配置的 provider（默认 mosi）。**
+
 ### 方式一：TTS 动态语音（推荐）
 
 链路：TTS 生成音频 → 保存到 `~/.cloe/audio_cache/` → bridge `/tts/` 路由 serve → speak 播放。
 
 #### 配置 TTS Provider
 
-配置文件：`~/.cloe/tts-config.json`
+配置文件：`~/.cloe/tts-config.json`（**唯一的 TTS 配置来源**）
 
 ```json
 {
@@ -152,10 +154,10 @@ curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://
 curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 ```
 
-走 bridge `GET /audio/:filename` 路由（serve `~/.cloe/audio/` 目录）。
+预录文件存放在 `~/.cloe/audio_cache/`，和 TTS 共用 `GET /tts/` 路由。Android 端会拼接为 `http://<host>:19851/tts/<audioName>.mp3`。
 现有预录文件：`doing.mp3`（"小可爱，我这就去做"）、`done.mp3`（"小可爱，做好了，你看看"）。
 
-添加新语音：TTS 生成 → `ffmpeg` 转 mp3 → 放 `~/.cloe/audio/`。
+添加新语音：TTS 生成 → `ffmpeg` 转 mp3 → 放 `~/.cloe/audio_cache/`。
 
 > ⚠️ **Android 端**：不会立即播 speak.gif（避免光张嘴没声音）。先播微笑过渡，音频下载准备好后才切到 speak.gif + 同时播放声音。见 cloe-android skill 的"Speak 动画 + 音频同步"章节。
 
