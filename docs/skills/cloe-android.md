@@ -188,52 +188,64 @@ cloe-android/
 |--------|-----|---------|
 | smile/kiss/nod/wave/think/tease/speak/shake_head/working/blink/clap/shy/yawn/laugh/pout/sigh | 同名.gif | WS action 消息 |
 
-### Speak 动画 + 音频同步
+### Speak 动画 + 音频同步（Android）
 
-`speak` 动作同时播放 GIF（嘴巴动）和音频（预录/TTS）。
+安卓端 speak 必须音画同步——**不能光张嘴没声音**。
 
 **消息格式**：
 ```json
-{"action":"speak","audio":"doing"}           // 预录语音（bridge本地音频文件）
-{"action":"speak","audio_url":"http://..."}   // TTS 语音（完整URL）
+{"action":"speak","audio":"doing"}           // 预录语音
+{"action":"speak","audio_url":"http://..."}   // TTS 语音
 ```
 
 **音频源 URL 规则**：
-- 预录：`http://<host>:19851/audio/<name>.mp3`
-- TTS：消息中的 `audio_url` 原始值（bridge 生成的，可能是 `localhost`）
+- 预录和 TTS 统一走 `/tts/` 路由：`http://<host>:19851/tts/<name>.mp3`
+- Bridge serve `~/.cloe/audio_cache/`，预录文件（doing.mp3、done.mp3）需提前拷入该目录
+- **不要新建 `/audio/` 路由，复用 `/tts/` 即可**
 
-**⚠️ 跨设备 URL 替换**：安卓通过 Tailscale 连接 PC，`audio_url` 中的 `localhost`/`127.0.0.1` 必须替换为 `host`（安卓连接时配置的 PC IP）。`audioName` 模式直接拼接 `host`，无需替换。
+**⚠️ 跨设备 URL 替换**：`audio_url` 中的 `localhost`/`127.0.0.1` 必须替换为 `host`（安卓连接时配置的 PC IP）。`audioName` 模式直接拼接 `host`。
 
-**同步方案**：
-1. 收到 speak → 立即加载 speak.gif（不等待音频）
-2. 异步下载音频到 `cacheDir/audio/` 缓存（命中缓存跳过下载）
-3. 下载完成 → `MediaPlayer.prepareAsync()`，准备好即播放
-4. 音频播放期间 → `isSpeaking=true` 锁生效
-5. 播放完成 → 解锁，恢复 idle 循环
+**同步方案（v2 — 自然体验）**：
+1. 收到 speak → 播微笑 GIF 作为过渡（**不是 speak.gif！**），后台下载音频
+2. 音频下载+准备完成（`onPrepared`）→ **同时**切换到 speak.gif + 开始播放声音
+3. 音频播放期间 → `isSpeaking=true` 锁生效
+4. 播放完成 → 解锁，恢复 idle 循环
+
+> ⚠️ **v1 方案（已废弃）**：立即播 speak.gif 等音频下载。问题：网络慢时光张嘴没声音，很尴尬。
+
+**音频缓存（⚠️ 必须校验文件完整性）**：
+- 下载到 `cacheDir/audio/`，文件存在且 `length() > 0` 才跳过下载
+- **0 字节文件必须删除后重新下载**（之前 404 响应会留下空缓存，导致 MediaPlayer setDataSource 崩溃）
+- 下载前必须检查 HTTP responseCode == 200，非 200 直接抛异常
+
+**预录音频部署**：
+- 预录文件原始位置 `~/.cloe/audio/`，但 bridge 只 serve `~/.cloe/audio_cache/`
+- **必须手动拷贝**：`cp ~/.cloe/audio/*.mp3 ~/.cloe/audio_cache/`
+- 否则 404 → 安卓缓存 0 字节空文件 → 后续即使修复仍播不了
 
 **状态保护**：
-- `isSpeaking` 锁：说话时 idle/wave/working 不打断，只有新的主动动作会 `stopSpeaking()` 后再播
-- 下载失败/播放错误 → 3秒后自动恢复 idle，不卡死
+- `isSpeaking` 锁：说话时 idle/wave/working 不打断，新主动动作会 `stopSpeaking()` 后再播
+- 下载失败/播放错误 → 自动恢复 idle，不卡死
 - `onDestroy` → `releaseMediaPlayer()`
 
-```kotlin
-// 核心字段
-private var isSpeaking = false
-private var mediaPlayer: MediaPlayer? = null
+**调试**：
+```bash
+# 检查 bridge 是否 serve 预录音频（统一走 /tts/）
+curl -s -o /dev/null -w "%{http_code}" http://localhost:19851/tts/doing.mp3
+# 期望 200，如果是 404 说明预录文件没拷到 audio_cache
 
-// dispatchAction 中的 speak 分支
-"speak" -> {
-    val audioName = full?.optString("audio", "") ?: ""
-    val audioUrl = full?.optString("audio_url", "") ?: ""
-    if (audioName.isNotEmpty() || audioUrl.isNotEmpty()) {
-        playSpeakWithAudio(audioName, audioUrl)
-    } else {
-        playAction("speak")
-    }
-}
+# 查看安卓端缓存（排查空文件问题）
+adb shell run-as com.cloe.android ls -la cache/audio/
+
+# 清除错误缓存
+adb shell run-as com.cloe.android rm cache/audio/doing.mp3
+
+# 查看安卓端日志
+adb logcat -d | grep CloeService
+# 关注：Downloading audio / Audio downloaded / Audio playing / Audio error
 ```
 
-**⚠️ 忘记声明类字段会导致编译错误**：`private var mediaPlayer: MediaPlayer? = null` 必须加在类顶部字段区，否则方法里引用会报 `Unresolved reference`。
+**⚠️ MediaPlayer 在 IO 线程下载、切 Main 线程播放**。`setDataSource` 必须用本地文件路径（`File.absolutePath`），不能直接用 URL。0字节文件会导致 setDataSource 崩溃（error message 为 null）。
 
 ## 悬浮窗交互
 
