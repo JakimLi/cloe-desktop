@@ -151,23 +151,33 @@ base64 编码后传 `data:audio/mpeg;base64,...`，curl 上限约 128KB。
 
 Cloe 可以自己生成新动作！完整链路：参考图 → AI 视频 → chromakey → 透明 GIF。
 
-### 通过管理界面 API（全自动）
+脚本在 `scripts/` 目录下，数据目录统一为 `~/.cloe`。
+
+### 单个动作生成
 
 ```bash
-# 异步生成，立即返回 202 + taskId
-curl -s -X POST http://localhost:19851/action-sets/default/generate-action \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "pout",
-    "prompt": "她微微嘟起嘴唇，表情可爱委屈，身体保持不动。纯绿色背景。电影质感，高清。",
-    "duration": 5
-  }'
+# 默认绿幕
+python3 scripts/generate_gif_v2.py \
+  --action <动作名> \
+  --prompt "她微微嘟起嘴唇，表情可爱委屈，身体保持不动。纯绿色背景。电影质感，高清。" \
+  --duration 5
 
-# 查询任务状态
-curl -s http://localhost:19851/generation-tasks/<taskId>
+# 蓝幕模式（对黑发更友好）
+python3 scripts/generate_gif_v2.py \
+  --action <动作名> \
+  --prompt "..." \
+  --chromakey blue
 ```
 
-**自动完成**：生成 GIF → 更新 action-sets.json → 广播到 renderer。无需手动改代码。
+输出自动到 `~/.cloe/gifs/<动作名>.gif`。
+
+### 批量生成（4路并行）
+
+编辑 `scripts/batch_generate_gifs.py` 的 `ACTIONS` 字典后：
+
+```bash
+python3 scripts/batch_generate_gifs.py
+```
 
 ### Prompt 写法要点
 
@@ -175,12 +185,12 @@ curl -s http://localhost:19851/generation-tasks/<taskId>
 - **纯色背景**：末尾必须加"纯绿色背景"或"纯蓝色背景"
 - **电影质感，高清**：提高生成质量
 - **时长**：一般 3-5 秒（idle 3 秒，表情 5 秒）
-- 参考示例：`"她微微嘟起嘴唇，表情可爱委屈。身体保持不动。纯绿色背景。电影质感，高清。"`
 
 ### 已知限制
 
 - 每次生成耗时 ~3-5 分钟（百炼 API 异步轮询）
 - 绿幕对黑发有轻微残留，蓝幕效果更好
+- **必须用 terminal 执行**（PIL/numpy/scipy 依赖系统 Python），不要用 execute_code
 
 ## 注意事项
 
