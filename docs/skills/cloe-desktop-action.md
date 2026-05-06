@@ -25,27 +25,6 @@ curl -s http://localhost:19851/action-sets
 
 `GET /actions` 返回含 `name`、`description`、`hookNames`、`special` 等字段的动作列表。用 `description` 匹配语境，用 `name` 或 `hookNames` 触发。
 
-## Android 全量拉取 GIF 相关接口（关键）
-
-Android 的“从 PC 拉取动作（GIF）”依赖下面这组接口：
-
-```bash
-GET /action-sets
-GET /action-sets/:id
-GET /action-sets/:id/actions/:name/gif
-```
-
-如果最后这个 GIF 下载接口不存在，安卓端会在逐个动作下载时报 `404`，提示“下载失败”。
-
-### 路由顺序坑（Node HTTP 手写路由常见）
-
-如果先匹配宽泛路由（例如 `GET /action-sets/:id` 用 `startsWith('/action-sets/')`），会把 `.../actions/.../gif` 误吞，导致本应命中的 GIF 路由永远到不了。
-
-正确做法：
-1. 先匹配更具体的 `GET /action-sets/:id/actions/:name/gif`
-2. 再匹配 `GET /action-sets/:id`
-3. `:id` 路由用精确正则（如 `^/action-sets/[^/]+$`），避免子路径误命中
-
 ## 触发动作
 
 ```bash
@@ -56,7 +35,7 @@ curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 
 ## 语音动作（speak）
 
-> ⚠️ **禁止使用 Hermes 内置的 `text_to_speech` 工具。** 该工具基于 edge-tts，音色是机器人，小可爱明确不满意。**所有 TTS 必须使用 `~/.cloe/tts-config.json` 配置的 provider（默认 mosi）。**
+> ⚠️ **禁止使用 Hermes 内置的 `text_to_speech` 工具。** 所有 TTS 必须使用 `~/.cloe/tts-config.json` 配置的 provider（默认 mosi）。
 
 ### 方式一：TTS 动态语音（推荐）
 
@@ -70,7 +49,7 @@ curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 {
   "provider": "mosi",
   "mosi": {
-    "api_key": "...",
+    "api_key": "***",
     "voice_id": "2036257587296473088",
     "url": "https://studio.mosi.cn/v1/audio/tts"
   },
@@ -83,109 +62,27 @@ curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 ```
 
 **provider 字段**选择 TTS 引擎：
-- `"mosi"` — MOSI 云端 TTS（可可音色，快 ~3s，有审核）**← 默认**
+- `"mosi"` — MOSI 云端 TTS（可可音色，快 ~3s）**← 默认**
 - `"cosyvoice"` — 阿里云 CosyVoice（多音色可选）
 
-**MOSI 音色**（改 `voice_id`）：
-- `2036257587296473088` — 陈可可（默认）
-- `2042261353581776896` — 陈可可（备用）
+**MOSI 音色**（改 `voice_id`）：`2036257587296473088` — 陈可可（默认）
 
-**CosyVoice 音色**（改 `voice`）：
-- `longmiao`（可爱）、`loongstella`（年轻）、`loongbella`（甜美）、`longyue`（温柔）、`longjing`（清亮）
+**CosyVoice 音色**（改 `voice`）：`longmiao`（可爱）、`loongstella`（年轻）、`loongbella`（甜美）、`longyue`（温柔）
 
-#### 生成 + 播放
+#### 生成 + 播放步骤
 
-**步骤 1：生成音频**（必须用 terminal，SDK 只在系统 Python）
-
-根据 `~/.cloe/tts-config.json` 的 `provider` 字段自动选择 TTS 引擎生成音频，保存到 `~/.cloe/audio_cache/tts_<timestamp>.wav`（mosi）或 `.mp3`（cosyvoice）。输出文件名到 stdout。
-
-**MOSI TTS 调用方式**：POST `https://studio.mosi.cn/v1/audio/tts`，body: `{"model":"moss-tts","text":"...","voice_id":"2036257587296473088","sampling_params":{"temperature":1.7,"top_p":0.8,"top_k":25}}`，header: `Authorization: Bearer <api_key>`，返回 wav 二进制。
-
-**CosyVoice TTS 调用方式**：dashscope SDK `SpeechSynthesizer(model="cosyvoice-v1", voice="longmiao")`，API key 从 `BAILIAN_API_KEY` 读取。
-
-**步骤 2：触发 speak**
+1. **生成音频**（用 terminal，SDK 依赖系统 Python）— 根据 `tts-config.json` 的 `provider` 自动选择引擎，输出到 `~/.cloe/audio_cache/tts_<timestamp>.wav`（mosi）或 `.mp3`（cosyvoice）
+2. **WAV 转 MP3**（Electron 的 `new Audio()` 对 WAV 播放不完整，必须转）：`ffmpeg -y -i input.wav -c:a libmp3lame -q:a 4 output.mp3`
+3. **触发 speak**：
 
 ```bash
-curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://localhost:19851/tts/<FILENAME>"}'
+curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://localhost:19851/tts/<FILENAME>.mp3"}'
 ```
 
-- Bridge `GET /tts/:filename` serve `~/.cloe/audio_cache/`
-- Renderer 等音频播完才回 idle（不受 3 秒限制）
-- **TTS 文本格式**：完整连贯句子，少用省略号/波浪号/感叹号
-- **打包后首次测试 /tts/ 路由必须 404 先排查**：如果刚 `./scripts/install.sh` 完，bridge 可能还没完全就绪（status 返回 clients=1 但 HTTP handler 还没注册完）。等 3-4 秒再测。如果持续 404，说明 Cloe.app 是旧版本没包含 `/tts/` 路由——必须重新 `./scripts/pack.sh --dir && ./scripts/install.sh`
-- **WAV 音频在 Electron new Audio() 会提前结束/不完整播放**：必须用 ffmpeg 转 MP3 后再触发 speak。`ffmpeg -y -i input.wav -c:a libmp3lame -q:a 4 output.mp3`
-- **⚠️ speak 只能一次发一条**：isSpeaking 锁允许被另一个 speak 覆盖（设计如此），不是完全阻塞。如果间隔不够连续发多条，后面的会截断前面的。**正确做法：长内容合并成一句 TTS 一次发完，不要拆成多条分开发。**
-- **MOSI TTS 返回 JSON 不是纯 WAV**：格式为 `{"audio_data": "<base64>"}`，需要 `resp.json()` → `base64.b64decode()` → 写文件，不能直接 `resp.content` 写文件
-
-### speak 优先级（isSpeaking 锁）
-
-renderer.js 有 `isSpeaking` 最高优先级锁——TTS 音频播放期间：
-- **所有其他 action 被 drop**（working、idle、nod 等全部忽略）
-- 唯一例外是另一个 `speak`（可覆盖）
-- 音频播完（`ended` 事件）自动解锁，恢复 idle 循环
-
-> ⚠️ **已知 bug（2026-05-04 桌面端 / 2026-05-05 安卓端 v0.2.3）：isSpeaking ↔ isWorking 死锁导致 speak 被打断**
-> **Android 端同步修复（2026-05-05 v0.2.3）**：onCompletion 回调加 `isWorking=false` + 改用 `startIdleLoop()`（立刻切 GIF）替代 `scheduleNextIdle()`（8-15s 延迟）。根因相同：plugin 先发 working → isWorking=true → speak 结束后 scheduleNextIdle 检查 isWorking 为 true → return → speak.gif 卡住。
->
-> **现象**：speak 播放后 GIF 切成 working，音频可能被中断或 GIF 状态错误。
->
-> **根因分析**（通过 DevTools Console 日志确认）：
-> 1. plugin `pre_tool_call` 先发 `working` → `isWorking = true`
-> 2. speak 到达 → `isSpeaking = true`，开始播放（锁逻辑正确，此时锁开始生效）
-> 3. plugin `post_llm_call` 发 `idle` → 被 isSpeaking 锁 **成功 Dropped**（日志可见 `Dropped — speak in progress: idle`）
-> 4. **死锁形成**：`idle` 是唯一能重置 `isWorking` 的 action，但 idle 被 isSpeaking 锁全部 drop → `isWorking` 永远为 true
-> 5. speak 音频播完 → 回调调 `startIdleLoop()` → `scheduleNextIdle()` 检查 `isWorking` 为 true → **直接 return，不恢复 idle**
->
-> **已应用的修复**（renderer.js speak 音频回调）：
-> ```javascript
-> playAudio(data.audio_url, () => {
->   isSpeaking = false;
->   isWorking = false;   // ← 新增：speak 结束后解锁 working，避免死锁
->   isReacting = false;
->   startIdleLoop();
-> });
-> ```
->
-> **调试状态**：已修复并验证。根因确认是 isSpeaking ↔ isWorking 死锁。修复后连续 5 次 speak 测试全部通过，Console 日志确认所有非 speak action 被 Dropped。commit: `e465142`。
->
-> **验证打包内容的技巧**：
-> - minify 后变量名改变，`grep "isSpeaking"` 找不到，用 `grep "speak in progress"` 或 `grep "Dropped"` 验证
-> - asar 提取：`cd /Applications/Cloe.app/Contents/Resources && npx asar extract app.asar /tmp/check && grep "speak in progress" /tmp/check/dist/assets/index-*.js`
-> - 注意：asar 内可能残留旧 hash 的 JS 文件（electron-builder 未清理），但 index.html 只引用新 hash
-
-### Plugin 生命周期（重要）
-
-- **Plugin 只在 Hermes 进程启动时加载一次**（`_discovered` 标记，加载过就不再加载）
-- `/new` 新建 session **不会**重新加载 plugin
-- 每个 message turn **不会**重新加载 plugin
-- 修改 `~/.hermes/plugins/cloe-desktop/plugin.yaml` 或 `handler.py` 后，必须**重启 Hermes gateway** 才能生效
-- plugin 文件不在 cloe-desktop git 仓库里，在 `~/.hermes/plugins/` 下（仓库 `docs/hermes-plugin/` 是参考副本，需手动同步）
-- 重启 gateway：kill 旧进程，`source ~/.hermes/hermes-agent/venv/bin/activate && python -m hermes_cli.main gateway run --replace`
-- `--replace` 会自动接管并杀掉旧 gateway 进程
-
-### 生成 + 触发完整脚本（MOSI）
-
-```python
-import json, base64, requests, os, time
-config = json.load(open(os.path.expanduser('~/.cloe/tts-config.json')))
-mosi = config['mosi']
-resp = requests.post(mosi['url'], json={
-    'model': 'moss-tts', 'text': '要说的话',
-    'voice_id': mosi['voice_id'],
-    'sampling_params': {'temperature': 1.7, 'top_p': 0.8, 'top_k': 25}
-}, headers={'Authorization': f'Bearer {mosi["api_key"]}'}, timeout=30)
-audio_bytes = base64.b64decode(resp.json()['audio_data'])
-ts = int(time.time())
-wav_path = os.path.expanduser(f'~/.cloe/audio_cache/tts_{ts}.wav')
-with open(wav_path, 'wb') as f: f.write(audio_bytes)
-print(wav_path)  # 下一步 ffmpeg 转 mp3
-```
-
-然后：
-```bash
-ffmpeg -y -i ~/.cloe/audio_cache/tts_<TS>.wav -c:a libmp3lame -q:a 4 ~/.cloe/audio_cache/tts_<TS>.mp3
-curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://localhost:19851/tts/tts_<TS>.mp3"}'
-```
+**要点**：
+- TTS 文本用完整连贯句子，少用省略号/波浪号
+- MOSI 返回 JSON `{"audio_data":"<base64>"}`，需 `base64.b64decode()` 后写文件
+- **speak 播放期间其他 action 被 drop，另一个 speak 可覆盖**——长内容合并成一句 TTS 一次发完
 
 ### 方式二：预录语音（`audio` 字段）
 
@@ -193,12 +90,10 @@ curl -s http://localhost:19851/action -d '{"action":"speak","audio_url":"http://
 curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 ```
 
-预录文件存放在 `~/.cloe/audio_cache/`，和 TTS 共用 `GET /tts/` 路由。Android 端会拼接为 `http://<host>:19851/tts/<audioName>.mp3`。
+预录文件存放在 `~/.cloe/audio_cache/`，和 TTS 共用 `GET /tts/` 路由。
 现有预录文件：`doing.mp3`（"小可爱，我这就去做"）、`done.mp3`（"小可爱，做好了，你看看"）。
 
 添加新语音：TTS 生成 → `ffmpeg` 转 mp3 → 放 `~/.cloe/audio_cache/`。
-
-> ⚠️ **Android 端**：不会立即播 speak.gif（避免光张嘴没声音）。先播微笑过渡，音频下载准备好后才切到 speak.gif + 同时播放声音。见 cloe-android skill 的"Speak 动画 + 音频同步"章节。
 
 ### 方式三：data URL（短音频，<5s）
 
@@ -250,11 +145,13 @@ base64 编码后传 `data:audio/mpeg;base64,...`，curl 上限约 128KB。
 | post_api_request | API 请求后 | context 阈值 |
 | subagent_stop | 子 agent 完成 | 成功→clap / 失败→shake_head |
 
+> 修改 plugin 文件后需重启 Hermes gateway 才能生效。
+
 ## 生成新动作（GIF Pipeline）
 
 Cloe 可以自己生成新动作！完整链路：参考图 → AI 视频 → chromakey → 透明 GIF。
 
-### 方式一：通过管理界面 API（推荐，全自动）
+### 通过管理界面 API（全自动）
 
 ```bash
 # 异步生成，立即返回 202 + taskId
@@ -268,106 +165,26 @@ curl -s -X POST http://localhost:19851/action-sets/default/generate-action \
 
 # 查询任务状态
 curl -s http://localhost:19851/generation-tasks/<taskId>
-
-# 查看所有任务
-curl -s http://localhost:19851/generation-tasks
 ```
 
-**自动完成的事情**：生成 GIF → 更新 action-sets.json（animations + actionMap） → 广播到 renderer。
-**不需要手动改代码**，但 renderer.js 的硬编码 GIF_ANIMATIONS 可能需要同步（双轨机制）。
-
-### 方式二：手动跑脚本
-
-```bash
-cd ~/work/cloe-desktop
-
-# 单个动作生成（绿幕默认）
-python3 scripts/generate_gif_v2.py \
-  --action <动作名> \
-  --prompt "<中文描述女孩的动作，末尾加'纯绿色背景。电影质感，高清。'>" \
-  --duration 5
-
-# 蓝幕模式（对黑发+白衣服更友好）
-python3 scripts/generate_gif_v2.py \
-  --action <动作名> \
-  --prompt "..." \
-  --chromakey blue \
-  --reference reference_upperbody_bluebg.png
-
-# 批量生成（4路并行）：编辑 scripts/batch_generate_gifs.py 的 ACTIONS 字典后
-python3 scripts/batch_generate_gifs.py
-```
-
-- 输出自动到 `public/gifs/<动作名>.gif`
-- 参考图已有：绿幕 `reference_upperbody_greenbg.png`、蓝幕 `reference_upperbody_bluebg.png`
-- **不要用文生图重新生成参考图**（人物一致性会崩）
-
-### 生成后需要更新的地方
-
-**通过 API 生成（方式一）无需手动更新**——`mergeGenerateActionIntoSet()` 自动更新 action-sets.json 并 broadcast 到 renderer。
-
-**通过脚本生成（方式二）需要手动更新 action-sets.json**：
-```json
-// animations 加一条
-"<action>": "gifs/<action>.gif"
-
-// actionInfo 加一条
-"<action>": {
-  "description": "中文描述",
-  "descriptionEn": "English description"
-}
-
-// actionMap 加一条（如果需要外部触发名映射）
-"<trigger>": "<action>"
-```
-
-**不需要改 renderer.js**。renderer 启动时用硬编码初始化，但 launcher 启动时会 broadcast `set-config` 消息，renderer 收到后直接覆盖 GIF_ANIMATIONS/ACTION_MAP/IDLE_PLAYLIST。运行时完全由 action-sets.json 驱动。这就是文件系统设计：写入 action-sets.json → app 自动读到。
-
-**idlePlaylist**（可选，只有 idle 动作才加）：
-```json
-// 在 idlePlaylist 数组中添加动作名，重复出现增加权重
-```
-
-### 测试
-
-```bash
-# API 测试
-curl -s http://localhost:19851/action -d '{"action":"<action>"}'
-
-# 检查是否被识别（含 description）
-curl -s http://localhost:19851/actions
-# 在返回的 JSON 中查找动作名和 description 字段确认注册成功
-```
-
-### 生产模式生效
-
-如果用的是 Cloe.app（打包版），必须重新打包：
-```bash
-cd ~/work/cloe-desktop
-./scripts/pack.sh --dir && ./scripts/install.sh
-```
+**自动完成**：生成 GIF → 更新 action-sets.json → 广播到 renderer。无需手动改代码。
 
 ### Prompt 写法要点
 
-- **身体保持不动**：只描述头部/上半身的微动作，避免大幅身体移动（chromakey 会出错）
+- **身体保持不动**：只描述头部/上半身微动作，避免大幅移动
 - **纯色背景**：末尾必须加"纯绿色背景"或"纯蓝色背景"
 - **电影质感，高清**：提高生成质量
-- **时长**：一般 3-5 秒（idle 动作 3 秒，表情动作 5 秒）
-- **参考示例**：
-  - `"她微微嘟起嘴唇，表情可爱委屈。身体保持不动。纯绿色背景。电影质感，高清。"` → pout
-  - `"她轻轻叹了口气，表情无奈。身体保持不动。纯绿色背景。电影质感，高清。"` → sigh
+- **时长**：一般 3-5 秒（idle 3 秒，表情 5 秒）
+- 参考示例：`"她微微嘟起嘴唇，表情可爱委屈。身体保持不动。纯绿色背景。电影质感，高清。"`
 
 ### 已知限制
 
 - 每次生成耗时 ~3-5 分钟（百炼 API 异步轮询）
 - 绿幕对黑发有轻微残留，蓝幕效果更好
-- `generate_gif.py`（v1）和 `generate_gif_v2.py` 功能类似，v2 支持蓝幕和自动压缩参考图
-- 必须在 terminal 里跑 Python 脚本（PIL/numpy/scipy 依赖系统 Python），不要用 execute_code
 
 ## 注意事项
 
 - 动作间隔至少 3-5 秒，太快会被打断
 - `clients=0` 时动作不生效
-- `action-sets.json` 和 `plugin-rules.json` 都支持热加载（rules 有 5 秒 TTL 缓存）
-- **⚠️ plugin.yaml 的 hooks 列表不支持热加载**：Hermes 进程启动时一次性加载（`plugins.py` 第459行 `_discovered` 标记），整个进程生命周期内不再重读。修改 hooks 后必须**重启 Hermes gateway 进程**才能生效。`/new` 新建 session、每个消息 turn 都不会重新加载。重启方式：kill 旧 gateway 进程 + `source ~/.hermes/hermes-agent/venv/bin/activate && python -m hermes_cli.main gateway run --replace`
-- **打包后首次测试 /tts/ 路由必须 404 先排查**：刚 `./scripts/install.sh` 完 bridge 可能还没完全就绪（clients=1 但 HTTP handler 没注册完）。等 3-4 秒再测。持续 404 说明 Cloe.app 是旧版本，需重新 `./scripts/pack.sh --dir && ./scripts/install.sh`
+- `action-sets.json` 和 `plugin-rules.json` 支持热加载（rules 有 5 秒 TTL 缓存）
+- **plugin.yaml 的 hooks 不支持热加载**：修改后必须重启 Hermes gateway 进程
