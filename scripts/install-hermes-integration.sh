@@ -83,30 +83,24 @@ install_skills() {
     echo "Target: ${dst_base}/creative/"
     echo ""
 
-    # Each .md file with YAML frontmatter is a skill
-    for skill_file in "${src_dir}"/*.md; do
-        [[ -f "$skill_file" ]] || continue
+    # Each subdirectory containing SKILL.md is a skill
+    for skill_dir in "${src_dir}"/*/; do
+        [[ -d "$skill_dir" ]] || continue
 
-        # Extract skill name from frontmatter
         local skill_name
-        skill_name=$(grep -m1 '^name:' "$skill_file" | sed 's/^name:[[:space:]]*//' | tr -d '"' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+        skill_name=$(basename "$skill_dir")
 
-        if [[ -z "$skill_name" ]]; then
-            warn "Skipping $(basename "$skill_file"): no 'name:' in frontmatter"
+        if [[ ! -f "${skill_dir}SKILL.md" ]]; then
+            warn "Skipping ${skill_name}: no SKILL.md found"
             continue
         fi
 
         local dst="${dst_base}/creative/${skill_name}"
         backup_if_exists "$dst"
-        mkdir -p "$dst"
-        cp "$skill_file" "${dst}/SKILL.md"
+        cp -r "$skill_dir" "$dst"
+        rm -rf "${dst}/__pycache__"
 
-        # Copy references/ subdirectory if it exists
-        if [[ -d "${src_dir}/references" ]]; then
-            cp -r "${src_dir}/references" "${dst}/" 2>/dev/null || true
-        fi
-
-        ok "Skill '${skill_name}' → ${dst}/SKILL.md"
+        ok "Skill '${skill_name}' → ${dst}/"
     done
 }
 
