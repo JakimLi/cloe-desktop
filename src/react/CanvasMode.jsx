@@ -83,11 +83,12 @@ export default function CanvasMode() {
             UIOptions={{
               canvasActions: {
                 loadScene: true,
-                export: true,
+                export: {
+                  saveFileToDisk: true,
+                },
               },
             }}
             theme="dark"
-            validateEmbeddable={false}
           />
         ) : (
           <div style={{
