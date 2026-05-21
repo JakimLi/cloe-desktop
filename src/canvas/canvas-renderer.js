@@ -6,13 +6,30 @@
  * Mouse drag to move elements.
  */
 
-import { SAMPLE_ELEMENTS, validateElement } from './element-model.js';
+import { SAMPLE_ELEMENTS, validateElement, createElement, generateId } from './element-model.js';
+
+// ==================== Constants ====================
+const CANVAS_API_BASE = 'http://localhost:19851';
+const PASTE_MARGIN = 20;     // gap between pasted elements (px)
+const PASTE_START_X = 60;    // initial X for first pasted element
+const PASTE_START_Y = 60;    // initial Y for first pasted element
+const MAX_IMAGE_WIDTH = 480;  // max width for pasted images
+const MAX_IMAGE_HEIGHT = 360; // max height for pasted images
+const CODE_LINE_PATTERNS = [
+  /^\s{2,}\S/,          // indented code
+  /^\s*(function|const|let|var|return|import|export|class|if|else|for|while|switch|try|catch|async|await)\b/,
+  /^\s*[{}\[\]();]/,
+  /^[^a-zA-Z]*[=+\-*/<>!&|].*[=+\-*/<>!&|]/,  // contains operators
+  /^\s*(def |self\.|print\(|from |import )/,       // Python
+  /^\s*\/\//,                                         // JS comment
+];
 
 // ==================== State ====================
 const state = {
   elements: new Map(),   // id → element object
   domRefs: new Map(),    // id → DOM node
   dragging: null,        // { id, startX, startY, elStartX, elStartY }
+  pasteCursor: { x: PASTE_START_X, y: PASTE_START_Y },  // flow layout cursor
 };
 
 // ==================== DOM References ====================
@@ -382,6 +399,275 @@ function onTouchDragEnd() {
   document.removeEventListener('touchend', onTouchDragEnd);
 }
 
+// ==================== Paste Interaction ====================
+
+/**
+ * Detect if pasted text looks like code.
+ * @param {string} text
+ * @returns {boolean}
+ */
+function looksLikeCode(text) {
+  const lines = text.split('\n');
+  if (lines.length < 2) {
+    // Single line: check for code-like patterns
+    return CODE_LINE_PATTERNS.some(p => p.test(text));
+  }
+  // Multi-line: if most lines look like code, treat as code
+  let codeLineCount = 0;
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    if (CODE_LINE_PATTERNS.some(p => p.test(line))) {
+      codeLineCount++;
+    }
+  }
+  return codeLineCount >= lines.filter(l => l.trim()).length * 0.4;
+}
+
+/**
+ * Calculate the next paste position using flow layout.
+ * Elements are placed vertically, advancing the cursor after each placement.
+ * @param {number} elWidth - Width of element being placed
+ * @param {number} elHeight - Height of element being placed
+ * @returns {{ x: number, y: number }}
+ */
+function getNextPastePosition(elWidth, elHeight) {
+  const pos = { x: state.pasteCursor.x, y: state.pasteCursor.y };
+  // Advance cursor for next element
+  state.pasteCursor.y += elHeight + PASTE_MARGIN;
+  return pos;
+}
+
+/**
+ * Create an image element from base64 data URL and mount it.
+ * @param {string} dataUrl - data:image/png;base64,...
+ */
+async function pasteImage(dataUrl) {
+  // Get image dimensions to determine element size
+  const dims = await getImageDimensions(dataUrl);
+  let w = dims.width;
+  let h = dims.height;
+
+  // Scale down if too large
+  if (w > MAX_IMAGE_WIDTH) {
+    const scale = MAX_IMAGE_WIDTH / w;
+    w = MAX_IMAGE_WIDTH;
+    h = Math.round(h * scale);
+  }
+  if (h > MAX_IMAGE_HEIGHT) {
+    const scale = MAX_IMAGE_HEIGHT / h;
+    h = MAX_IMAGE_HEIGHT;
+    w = Math.round(w * scale);
+  }
+
+  w = Math.max(w, 80);
+  h = Math.max(h, 60);
+
+  const pos = getNextPastePosition(w, h);
+  const el = createElement({
+    type: 'image',
+    x: pos.x,
+    y: pos.y,
+    w,
+    h,
+    content: dataUrl,
+    author: 'paste',
+  });
+
+  mountElement(el);
+  syncElementToServer(el);
+  console.log('[Canvas] Pasted image element:', el.id, `${w}×${h}`);
+}
+
+/**
+ * Create a text element (or code element) from text and mount it.
+ * @param {string} text
+ */
+function pasteText(text) {
+  if (!text.trim()) return;
+
+  const isCode = looksLikeCode(text);
+
+  // Estimate dimensions
+  const fontSize = isCode ? 13 : 16;
+  const lines = text.split('\n');
+  const maxLineLength = Math.max(...lines.map(l => l.length));
+  let w = Math.min(Math.max(maxLineLength * (fontSize * 0.6) + 24, 120), 600);
+  let h = Math.min(lines.length * (fontSize * 1.6) + 16, 500);
+
+  const pos = getNextPastePosition(w, h);
+
+  const el = createElement({
+    type: 'text',
+    x: pos.x,
+    y: pos.y,
+    w,
+    h,
+    content: text,
+    style: isCode ? {
+      fontSize,
+      fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
+      color: '#e0e0e0',
+      backgroundColor: '#1e1e2e',
+      borderRadius: 8,
+      borderColor: '#313244',
+      borderWidth: 1,
+      textAlign: 'left',
+    } : {
+      fontSize,
+      color: '#333',
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderRadius: 8,
+      borderColor: '#e0e0e0',
+      borderWidth: 1,
+      textAlign: 'left',
+    },
+    author: 'paste',
+  });
+
+  // Add a 'code' data attribute for styling
+  mountElement(el);
+  if (isCode) {
+    const node = state.domRefs.get(el.id);
+    if (node) {
+      node.classList.add('code-block');
+    }
+  }
+
+  // Recalculate actual size after mount (for auto-fit)
+  requestAnimationFrame(() => {
+    const node = state.domRefs.get(el.id);
+    if (node && !isCode) {
+      // For non-code text, auto-resize to fit content
+      const scrollW = node.scrollWidth;
+      const scrollH = node.scrollHeight;
+      if (scrollW > 0 && scrollH > 0) {
+        el.w = Math.min(Math.max(scrollW + 4, 100), 600);
+        el.h = Math.min(Math.max(scrollH + 4, 30), 500);
+        node.style.width = `${el.w}px`;
+        node.style.height = `${el.h}px`;
+        // Adjust cursor position
+        state.pasteCursor.y = pos.y + el.h + PASTE_MARGIN;
+      }
+    }
+    if (isCode && node) {
+      const scrollH = node.scrollHeight;
+      if (scrollH > 0) {
+        el.h = Math.min(scrollH + 4, 500);
+        node.style.height = `${el.h}px`;
+        state.pasteCursor.y = pos.y + el.h + PASTE_MARGIN;
+      }
+    }
+  });
+
+  syncElementToServer(el);
+  console.log(`[Canvas] Pasted ${isCode ? 'code' : 'text'} element:`, el.id);
+}
+
+/**
+ * Get image dimensions from a data URL.
+ * @param {string} dataUrl
+ * @returns {Promise<{ width: number, height: number }>}
+ */
+function getImageDimensions(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve({ width: 400, height: 300 }); // fallback
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Handle paste events from keyboard (Cmd+V / Ctrl+V).
+ * @param {ClipboardEvent} e
+ */
+async function handlePaste(e) {
+  // Only handle paste on the workspace/board, not on input fields
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  e.preventDefault();
+  console.log('[Canvas] Paste event detected');
+
+  // Try reading clipboard via preload API (Electron clipboard)
+  const api = window.canvasAPI;
+  if (api) {
+    // Check for image first
+    const imageDataUrl = api.readClipboardImage();
+    if (imageDataUrl) {
+      await pasteImage(imageDataUrl);
+      return;
+    }
+
+    // Check for text
+    const text = api.readClipboardText();
+    if (text) {
+      pasteText(text);
+      return;
+    }
+  }
+
+  // Fallback: use browser clipboard API
+  const clipboardItems = e.clipboardData?.items;
+  if (!clipboardItems) return;
+
+  for (const item of clipboardItems) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const blob = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        await pasteImage(reader.result);
+      };
+      reader.readAsDataURL(blob);
+      return;
+    }
+
+    if (item.type === 'text/plain') {
+      e.preventDefault();
+      item.getAsString((text) => {
+        pasteText(text);
+      });
+      return;
+    }
+  }
+
+  console.log('[Canvas] No pasteable content found');
+}
+
+/**
+ * Sync a newly created element to the Canvas API server.
+ * @param {object} el
+ */
+async function syncElementToServer(el) {
+  try {
+    const resp = await fetch(`${CANVAS_API_BASE}/canvas/elements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(el),
+    });
+    if (resp.ok) {
+      console.log('[Canvas] Element synced to server:', el.id);
+    }
+  } catch (err) {
+    // Silently fail — server might not be running
+    console.warn('[Canvas] Failed to sync element to server:', err.message);
+  }
+}
+
+/**
+ * Listen for canvas-update events from the main process (via IPC).
+ * Used when elements are modified from the HTTP API.
+ */
+function setupIPCListener() {
+  // Listen via ipcRenderer if available
+  const api = window.canvasAPI;
+  if (api && api.onCanvasUpdate) {
+    api.onCanvasUpdate((elements) => {
+      mountAll(elements);
+    });
+  }
+}
+
 // ==================== Info Bar ====================
 
 function updateInfoBar() {
@@ -408,14 +694,30 @@ function init() {
   // Mount sample elements
   mountAll(SAMPLE_ELEMENTS);
 
+  // Set paste cursor below existing sample elements
+  let maxY = 0;
+  for (const el of state.elements.values()) {
+    if (el.y + el.h > maxY) maxY = el.y + el.h;
+  }
+  state.pasteCursor.y = maxY + PASTE_MARGIN;
+
   console.log(`[Canvas] Mounted ${state.elements.size} elements`);
   console.log('[Canvas] Element types:', [...new Set(SAMPLE_ELEMENTS.map(e => e.type))].join(', '));
+
+  // Register paste event listener
+  document.addEventListener('paste', handlePaste);
+  console.log('[Canvas] Paste handler registered (Cmd+V / Ctrl+V)');
+
+  // Setup IPC listener for server-side canvas updates
+  setupIPCListener();
 
   // Expose for debugging
   window.__canvasState = state;
   window.__canvasMount = mountElement;
   window.__canvasUnmount = unmountElement;
   window.__canvasMountAll = mountAll;
+  window.__pasteImage = pasteImage;
+  window.__pasteText = pasteText;
 }
 
 // Boot
