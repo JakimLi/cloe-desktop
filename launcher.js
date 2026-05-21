@@ -26,6 +26,7 @@ const BRIDGE_HOST = '0.0.0.0';
 
 let win;
 let managerWin = null;
+let canvasWin = null;
 let tray = null;
 const bridgeClients = new Set();
 
@@ -1863,7 +1864,7 @@ function spawnPty(cols, rows) {
   try {
     const pty = require('node-pty');
     const shell = '/bin/zsh';
-    ptyProc = pty.spawn(shell, [], {
+    ptyProc = pty.spawn(shell, ['-l'], {
       name: 'xterm-256color',
       cols: cols || 80,
       rows: rows || 24,
@@ -2026,6 +2027,70 @@ ipcMain.on('open-settings', () => {
   createManagerWindow();
 });
 
+// ==================== Canvas Window ====================
+function createCanvasWindow() {
+  if (canvasWin) {
+    canvasWin.show();
+    canvasWin.focus();
+    return;
+  }
+
+  const display = screen.getPrimaryDisplay();
+  const { width: dw, height: dh } = display.workAreaSize;
+  const cw = Math.min(1000, Math.round(dw * 0.6));
+  const ch = Math.min(700, Math.round(dh * 0.7));
+
+  canvasWin = new BrowserWindow({
+    width: cw,
+    height: ch,
+    title: 'Cloe Canvas',
+    transparent: false,
+    frame: true,
+    alwaysOnTop: false,
+    resizable: true,
+    skipTaskbar: false,
+    hasShadow: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'canvas-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+
+  canvasWin.center();
+
+  if (!app.isPackaged) {
+    canvasWin.loadURL('http://localhost:5173/canvas/index.html');
+  } else {
+    canvasWin.loadFile(path.join(__dirname, 'dist', 'canvas', 'index.html'));
+  }
+
+  canvasWin.on('closed', () => {
+    canvasWin = null;
+  });
+
+  console.log('[Canvas] Window created');
+}
+
+// Canvas window IPC handlers
+ipcMain.on('open-canvas', () => {
+  createCanvasWindow();
+});
+
+ipcMain.on('canvas-window-move', (_e, { dx, dy }) => {
+  if (canvasWin && !canvasWin.isDestroyed()) {
+    const [x, y] = canvasWin.getPosition();
+    canvasWin.setPosition(x + dx, y + dy);
+  }
+});
+
+ipcMain.handle('canvas-get-position', () => {
+  if (!canvasWin || canvasWin.isDestroyed()) return null;
+  const [x, y] = canvasWin.getPosition();
+  return { x, y };
+});
+
 // ==================== System Tray ====================
 function createTray() {
   // Embedded 32x32 tray icon (base64, pink circle with "C") — no file I/O needed
@@ -2037,6 +2102,10 @@ function createTray() {
   tray.setToolTip('Cloe Desktop');
 
   const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '打开画布',
+      click: () => createCanvasWindow(),
+    },
     {
       label: '设置...',
       click: () => createManagerWindow(),
@@ -2062,6 +2131,8 @@ function createAppMenu() {
         { role: 'about', label: `关于 ${app.name}` },
         { type: 'separator' },
         { label: '设置...', accelerator: 'Cmd+,', click: () => createManagerWindow() },
+        { type: 'separator' },
+        { label: '打开画布', accelerator: 'Cmd+Shift+C', click: () => createCanvasWindow() },
         { type: 'separator' },
         { role: 'services', label: '服务' },
         { type: 'separator' },
