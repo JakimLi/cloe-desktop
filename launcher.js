@@ -2220,6 +2220,13 @@ function createCanvasWindow() {
     canvasWin = null;
   });
 
+  // Send initial elements when canvas window finishes loading
+  canvasWin.webContents.on('did-finish-load', () => {
+    if (canvasElements.length > 0) {
+      canvasWin.webContents.send('canvas-update', [...canvasElements]);
+    }
+  });
+
   console.log('[Canvas] Window created');
 }
 

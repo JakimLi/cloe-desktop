@@ -2,7 +2,7 @@
  * Canvas Element Data Model
  *
  * JSON structure: { id, type, x, y, w, h, content, style, author, timestamp }
- * Types: image | text | rect | arrow | highlight
+ * Types: image | text | rect | arrow | highlight | annotation | emoji
  */
 
 /**
@@ -21,7 +21,7 @@ export function generateId() {
 export function createElement(overrides = {}) {
   return {
     id: overrides.id || generateId(),
-    type: overrides.type || 'rect',          // image | text | rect | arrow | highlight
+    type: overrides.type || 'rect',          // image | text | rect | arrow | highlight | annotation | emoji
     x: overrides.x ?? 50,                     // absolute position X (px)
     y: overrides.y ?? 50,                     // absolute position Y (px)
     w: overrides.w ?? 200,                    // width (px)
@@ -60,7 +60,7 @@ export function createElement(overrides = {}) {
  */
 export function validateElement(el) {
   const errors = [];
-  const VALID_TYPES = ['image', 'text', 'rect', 'arrow', 'highlight'];
+  const VALID_TYPES = ['image', 'text', 'rect', 'arrow', 'highlight', 'annotation', 'emoji'];
 
   if (!el || typeof el !== 'object') {
     return { valid: false, errors: ['Element must be an object'] };

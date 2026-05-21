@@ -7,6 +7,11 @@
  */
 
 import { SAMPLE_ELEMENTS, validateElement, createElement, generateId } from './element-model.js';
+import {
+  registerMode, switchMode, getActiveMode, getActiveModeName,
+  getRegisteredModes, getCloeContext, notifyInput,
+} from './mode-system.js';
+import codeReviewMode, { isCodeElement, addLineNumbers } from './modes/code-review.js';
 
 // ==================== Constants ====================
 const CANVAS_API_BASE = 'http://localhost:19851';
@@ -86,6 +91,12 @@ function createElementDOM(el) {
     case 'highlight':
       node = createHighlightElement(el, style);
       break;
+    case 'annotation':
+      node = createAnnotationElement(el, style);
+      break;
+    case 'emoji':
+      node = createEmojiElement(el, style);
+      break;
     default:
       console.warn('[Canvas] Unknown element type:', el.type);
       node = document.createElement('div');
@@ -144,10 +155,26 @@ function createImageElement(el, style) {
 
 /**
  * Text element: styled <div> with textContent
+ * In code-review mode, code elements get line numbers.
  */
 function createTextElement(el, style) {
   const node = document.createElement('div');
-  node.textContent = el.content || '';
+
+  // Check if we should render with line numbers (code-review mode + code content)
+  const activeMode = getActiveMode();
+  const showLineNumbers = activeMode?.name === 'code-review' && isCodeElement(el);
+
+  if (showLineNumbers) {
+    // Use innerHTML for line numbers with syntax
+    const numberedContent = addLineNumbers(el.content || '');
+    const pre = document.createElement('pre');
+    pre.textContent = numberedContent;
+    pre.className = 'code-with-line-numbers';
+    node.appendChild(pre);
+  } else {
+    node.textContent = el.content || '';
+  }
+
   node.style.fontSize = `${style.fontSize ?? 16}px`;
   node.style.fontWeight = style.fontWeight || 'normal';
   node.style.color = style.color || '#333';
@@ -235,6 +262,54 @@ function createHighlightElement(el, style) {
   const hlColor = style.highlightColor || 'rgba(255, 255, 0, 0.35)';
   node.style.backgroundColor = hlColor;
   node.style.borderRadius = `${style.borderRadius ?? 6}px`;
+  return node;
+}
+
+/**
+ * Annotation element: Cloe's speech/thought bubble with author badge
+ */
+function createAnnotationElement(el, style) {
+  const isCloe = el.author === '可可' || el.author === 'cloe' || el.author === 'Cloe';
+  const bubble = document.createElement('div');
+  bubble.style.padding = '10px 14px';
+  bubble.style.borderRadius = '14px';
+  bubble.style.background = isCloe ? 'rgba(255, 107, 157, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+  bubble.style.color = isCloe ? '#fff' : '#333';
+  bubble.style.boxShadow = isCloe
+    ? '0 4px 16px rgba(255, 107, 157, 0.4)'
+    : '0 4px 16px rgba(0, 0, 0, 0.2)';
+  bubble.style.fontSize = `${style.fontSize ?? 14}px`;
+  bubble.style.lineHeight = '1.6';
+  bubble.style.whiteSpace = 'pre-wrap';
+  bubble.style.wordBreak = 'break-word';
+  bubble.style.overflow = 'hidden';
+
+  const badge = document.createElement('div');
+  badge.style.fontSize = '13px';
+  badge.style.marginBottom = '4px';
+  badge.style.opacity = '0.8';
+  badge.textContent = isCloe ? '🎀 可可' : (el.author || '未知');
+
+  const content = document.createElement('div');
+  content.textContent = el.content || '';
+
+  bubble.appendChild(badge);
+  bubble.appendChild(content);
+  return bubble;
+}
+
+/**
+ * Emoji element: large emoji display
+ */
+function createEmojiElement(el, style) {
+  const node = document.createElement('div');
+  node.textContent = el.content || '';
+  node.style.fontSize = `${style.fontSize ?? 48}px`;
+  node.style.lineHeight = '1';
+  node.style.display = 'flex';
+  node.style.alignItems = 'center';
+  node.style.justifyContent = 'center';
+  node.style.textAlign = 'center';
   return node;
 }
 
@@ -561,6 +636,9 @@ function pasteText(text) {
 
   syncElementToServer(el);
   console.log(`[Canvas] Pasted ${isCode ? 'code' : 'text'} element:`, el.id);
+
+  // Notify active mode about new input
+  notifyInput([el]);
 }
 
 /**

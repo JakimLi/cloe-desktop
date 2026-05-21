@@ -11,10 +11,146 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 }
 
 #cloe-canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+#canvas-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ==================== Base Element ==================== */
+.canvas-el {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* ==================== Fade-In Animation ==================== */
+.canvas-el {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.canvas-el.canvas-fade-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ==================== Annotation Bubble ==================== */
+.annotation-bubble {
+  max-width: 320px;
+  padding: 12px 16px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+/* Cloe's annotations: pink theme */
+.annotation-bubble.cloe-annotation {
+  background: rgba(255, 107, 157, 0.95);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.4), 0 0 0 1px rgba(255, 107, 157, 0.6);
+}
+
+.annotation-badge {
+  font-size: 14px;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.cloe-annotation .annotation-badge {
+  opacity: 1;
+  font-size: 16px;
+}
+
+.annotation-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cloe-annotation .annotation-content {
+  color: #fff;
+}
+
+.annotation-tip {
+  position: absolute;
+  bottom: -8px;
+  left: 20px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(255, 255, 255, 0.95);
+}
+
+.cloe-annotation .annotation-tip {
+  border-top-color: rgba(255, 107, 157, 0.95);
+}
+
+/* ==================== Text Element ==================== */
+.text-element {
+  padding: 6px 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.text-element.cloe-text {
+  padding-left: 24px;
+  position: relative;
+}
+
+.text-element.cloe-text::before {
+  content: '🎀';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+}
+
+/* ==================== Arrow Element ==================== */
+.arrow-element {
+  background: transparent;
+}
+
+.arrow-element svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ==================== Highlight Element ==================== */
+.highlight-element {
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+}
+
+/* ==================== Rect Element ==================== */
+.rect-element {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ==================== Emoji Element ==================== */
+.emoji-element {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
