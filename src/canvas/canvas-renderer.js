@@ -861,7 +861,7 @@ function updateInfoBar() {
 
 // ==================== Init ====================
 
-function init() {
+export function initCanvasApp() {
   console.log('[Canvas] Initializing with sample elements...');
 
   // Register mode plugins
@@ -885,13 +885,6 @@ function init() {
   document.addEventListener('paste', handlePaste);
   console.log('[Canvas] Paste handler registered (Cmd+V / Ctrl+V)');
 
-  // Setup IPC listener for server-side canvas updates
-  setupIPCListener();
-
-  // Setup mode system listeners
-  setupModeListener();
-  fetchCurrentMode();
-
   // Expose for debugging
   window.__canvasState = state;
   window.__canvasMount = mountElement;
@@ -903,6 +896,3 @@ function init() {
   window.__getActiveMode = getActiveMode;
   window.__getCloeContext = getCloeContext;
 }
-
-// Boot
-document.addEventListener('DOMContentLoaded', init);

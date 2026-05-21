@@ -388,9 +388,38 @@ window.addEventListener('mouseup', () => { isDragging = false; });
 // ==================== Terminal Mode ====================
 const terminalOverlay = document.getElementById('terminal-overlay');
 const terminalContainer = document.getElementById('terminal-container');
+const canvasOverlay = document.getElementById('canvas-overlay');
 
 let xtermInstance = null;
 let ptyActive = false;
+let canvasMode = false;
+let canvasInitialized = false;
+
+function switchToTerminal() {
+  canvasMode = false;
+  terminalContainer.classList.remove('hidden');
+  canvasOverlay.classList.add('hidden');
+  document.getElementById('mode-terminal-btn')?.classList.add('active');
+  document.getElementById('mode-canvas-btn')?.classList.remove('active');
+  if (xtermInstance) fitAddonInstance?.fit();
+}
+
+function switchToCanvas() {
+  canvasMode = true;
+  terminalContainer.classList.add('hidden');
+  canvasOverlay.classList.remove('hidden');
+  document.getElementById('mode-terminal-btn')?.classList.remove('active');
+  document.getElementById('mode-canvas-btn')?.classList.add('active');
+  if (!canvasInitialized) {
+    initCanvas();
+    canvasInitialized = true;
+  }
+}
+
+async function initCanvas() {
+  const { initCanvasApp } = await import('./canvas/canvas-app.js');
+  initCanvasApp();
+}
 
 function initTerminalToggle() {
   // Read initial state
@@ -459,6 +488,16 @@ function initTerminalToggle() {
   document.getElementById('settings-btn')?.addEventListener('click', () => {
     window.electronAPI?.openSettings?.();
   });
+
+  // Mode switcher buttons (terminal / canvas)
+  document.getElementById('mode-terminal-btn')?.addEventListener('click', () => {
+    if (!canvasMode) return;
+    switchToTerminal();
+  });
+  document.getElementById('mode-canvas-btn')?.addEventListener('click', () => {
+    if (canvasMode) return;
+    switchToCanvas();
+  });
 }
 
 async function enableTerminal() {
@@ -466,6 +505,9 @@ async function enableTerminal() {
   document.body.classList.add('terminal-mode');
   terminalOverlay.classList.remove('hidden');
   window.electronAPI?.setWindowMode?.('terminal');
+
+  // Default to terminal view (switch from canvas if needed)
+  if (canvasMode) switchToTerminal();
 
   if (!ptyActive) {
     await spawnTerminal();

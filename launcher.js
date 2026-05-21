@@ -26,7 +26,6 @@ const BRIDGE_HOST = '0.0.0.0';
 
 let win;
 let managerWin = null;
-let canvasWin = null;
 let tray = null;
 const bridgeClients = new Set();
 
@@ -36,17 +35,17 @@ const canvasElements = [];
 /** Current canvas mode (null = free/default mode) */
 let currentCanvasMode = null;
 
-/** Push canvas-update to Canvas BrowserWindow if it exists */
+/** Canvas mode broadcast (sends to main renderer window) */
 function broadcastCanvasUpdate() {
-  if (canvasWin && !canvasWin.isDestroyed()) {
-    canvasWin.webContents.send('canvas-update', [...canvasElements]);
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('canvas-update', [...canvasElements]);
   }
 }
 
-/** Broadcast mode change to Canvas BrowserWindow */
+/** Broadcast mode change to main renderer window */
 function broadcastCanvasModeChange(mode) {
-  if (canvasWin && !canvasWin.isDestroyed()) {
-    canvasWin.webContents.send('canvas-mode-change', { mode });
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('canvas-mode-change', { mode });
   }
 }
 
@@ -2172,77 +2171,6 @@ ipcMain.on('open-settings', () => {
 });
 
 // ==================== Canvas Window ====================
-function createCanvasWindow() {
-  if (canvasWin) {
-    canvasWin.show();
-    canvasWin.focus();
-    return;
-  }
-
-  const display = screen.getPrimaryDisplay();
-  const { width: dw, height: dh } = display.workAreaSize;
-  const cw = Math.min(1000, Math.round(dw * 0.6));
-  const ch = Math.min(700, Math.round(dh * 0.7));
-
-  canvasWin = new BrowserWindow({
-    width: cw,
-    height: ch,
-    title: 'Cloe Canvas',
-    transparent: false,
-    frame: true,
-    alwaysOnTop: false,
-    resizable: true,
-    skipTaskbar: false,
-    hasShadow: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'canvas-preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      webSecurity: false,
-    },
-  });
-
-  canvasWin.center();
-
-  if (!app.isPackaged) {
-    canvasWin.loadURL('http://localhost:5173/canvas/index.html');
-  } else {
-    canvasWin.loadFile(path.join(__dirname, 'dist', 'canvas', 'index.html'));
-  }
-
-  canvasWin.on('closed', () => {
-    canvasWin = null;
-  });
-
-  // Send initial elements and mode when canvas window finishes loading
-  canvasWin.webContents.on('did-finish-load', () => {
-    if (canvasElements.length > 0) {
-      canvasWin.webContents.send('canvas-update', [...canvasElements]);
-    }
-    canvasWin.webContents.send('canvas-mode-change', { mode: currentCanvasMode || 'free' });
-  });
-
-  console.log('[Canvas] Window created');
-}
-
-// Canvas window IPC handlers
-ipcMain.on('open-canvas', () => {
-  createCanvasWindow();
-});
-
-ipcMain.on('canvas-window-move', (_e, { dx, dy }) => {
-  if (canvasWin && !canvasWin.isDestroyed()) {
-    const [x, y] = canvasWin.getPosition();
-    canvasWin.setPosition(x + dx, y + dy);
-  }
-});
-
-ipcMain.handle('canvas-get-position', () => {
-  if (!canvasWin || canvasWin.isDestroyed()) return null;
-  const [x, y] = canvasWin.getPosition();
-  return { x, y };
-});
-
 // ==================== System Tray ====================
 function createTray() {
   // Embedded 32x32 tray icon (base64, pink circle with "C") — no file I/O needed
@@ -2254,10 +2182,6 @@ function createTray() {
   tray.setToolTip('Cloe Desktop');
 
   const contextMenu = Menu.buildFromTemplate([
-    {
-      label: '打开画布',
-      click: () => createCanvasWindow(),
-    },
     {
       label: '设置...',
       click: () => createManagerWindow(),
@@ -2283,8 +2207,6 @@ function createAppMenu() {
         { role: 'about', label: `关于 ${app.name}` },
         { type: 'separator' },
         { label: '设置...', accelerator: 'Cmd+,', click: () => createManagerWindow() },
-        { type: 'separator' },
-        { label: '打开画布', accelerator: 'Cmd+Shift+C', click: () => createCanvasWindow() },
         { type: 'separator' },
         { role: 'services', label: '服务' },
         { type: 'separator' },
@@ -2348,7 +2270,6 @@ app.whenReady().then(async () => {
   createWindow();
   createTray();
   createAppMenu();
-  createCanvasWindow();
 
   win.on('enter-full-screen', () => {
     if (!win || win.isDestroyed()) return;
