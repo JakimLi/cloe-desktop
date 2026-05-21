@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
-  <!-- Character layer (bottom) -->
+  <!-- Character layer (bottom) — managed by renderer.js (Vanilla JS) -->
   <div id="gif-container">
     <img id="cloe-gif-a" class="cloe-gif-layer" src="/gifs/blink.gif" alt="">
     <img id="cloe-gif-b" class="cloe-gif-layer" src="" alt="">
@@ -18,36 +18,15 @@
     </div>
   </div>
 
-  <!-- Terminal layer (also hosts canvas mode) -->
-  <div id="terminal-overlay" class="terminal-overlay hidden">
-    <div id="terminal-titlebar" class="terminal-titlebar">
-      <div class="terminal-traffic-lights">
-        <button id="terminal-btn-close" class="traffic-light traffic-close" title="Exit Terminal"></button>
-        <button id="terminal-btn-minimize" class="traffic-light traffic-minimize" title="Minimize"></button>
-        <button id="terminal-btn-fullscreen" class="traffic-light traffic-fullscreen" title="Fullscreen"></button>
-      </div>
-      <div class="titlebar-mode-switcher">
-        <button id="mode-terminal-btn" class="mode-btn active" title="Terminal">⌨</button>
-        <button id="mode-canvas-btn" class="mode-btn" title="Canvas">🎨</button>
-      </div>
-      <div class="terminal-drag-region"></div>
-    </div>
-    <div id="terminal-container" class="terminal-container"></div>
-    <div id="canvas-overlay" class="canvas-overlay hidden">
-      <div id="canvas-header" class="canvas-header-integrated">
-        <span class="canvas-title">🎨 Canvas</span>
-        <span class="canvas-info" id="element-count">0 个元素</span>
-        <span class="canvas-info" style="margin-left:12px" id="type-count"></span>
-      </div>
-      <div id="canvas-workspace" class="canvas-workspace-integrated">
-        <div id="canvas-board"></div>
-      </div>
-    </div>
-    <!-- Effect overlay for terminal animations (ripple, drop, etc.) -->
-  </div>
+  <!-- React overlay root — terminal/canvas managed by React -->
+  <div id="react-root"></div>
 
   <div id="ws-status" title="WebSocket">●</div>
   <button id="settings-btn" title="设置">⚙</button>
+
+  <!-- renderer.js: GIF animations, audio, WebSocket, idle loop, drag -->
   <script type="module" src="/src/renderer.js"></script>
+  <!-- React app: terminal (xterm), canvas (Excalidraw), titlebar -->
+  <script type="module" src="/src/react/main.jsx"></script>
 </body>
 </html>

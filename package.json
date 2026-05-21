@@ -19,8 +19,12 @@
     "test:smoke:dev": "node test/smoke-test.js --dev"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "@xterm/addon-fit": "^0.11.0",
     "node-pty": "^1.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "ws": "^8.20.0",
     "xterm": "^5.3.0"
   },
@@ -77,7 +81,6 @@
       "dist/**/*",
       "launcher.js",
       "preload.js",
-      "canvas-preload.js",
       "node_modules/ws/**/*",
       "node_modules/node-pty/**/*",
       "node_modules/xterm/**/*",

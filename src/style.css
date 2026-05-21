@@ -123,6 +123,21 @@ html, body {
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
 }
 
+/* ==================== React Overlay Root ==================== */
+#react-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none; /* pass through when nothing renders */
+}
+
+#react-root .terminal-overlay {
+  pointer-events: auto;
+}
+
 /* ==================== Terminal Overlay ==================== */
 .terminal-overlay {
   position: fixed;
