@@ -18,10 +18,18 @@ export default function App() {
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
 
   // ── Show/hide overlay ──
-  const show = useCallback(() => {
+  const show = useCallback((mode) => {
     setVisible(true);
     document.body.classList.add('terminal-mode');
-    window.electronAPI?.setWindowMode?.('terminal');
+    if (mode === 'canvas') {
+      document.body.classList.add('canvas-mode');
+      setMode('canvas');
+      window.electronAPI?.setWindowMode?.('canvas');
+    } else {
+      document.body.classList.remove('canvas-mode');
+      setMode('terminal');
+      window.electronAPI?.setWindowMode?.('terminal');
+    }
   }, []);
 
   const hide = useCallback(() => {
@@ -41,12 +49,32 @@ export default function App() {
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'cloe-terminal-visible') {
-        if (e.newValue === 'true') show();
-        else hide();
+        if (e.newValue === 'true') {
+          const canvasMode = localStorage.getItem('cloe-overlay-mode') === 'canvas';
+          show(canvasMode ? 'canvas' : 'terminal');
+        } else {
+          hide();
+        }
       }
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
+  }, [show, hide]);
+
+  // ── HTTP bridge commands (from launcher.js /canvas/show|hide) ──
+  useEffect(() => {
+    const handler = (e) => {
+      const cmd = e.detail;
+      if (!cmd || !cmd.action) return;
+      if (cmd.action === 'show') {
+        const m = (cmd.mode === 'canvas') ? 'canvas' : 'terminal';
+        show(m);
+      } else if (cmd.action === 'hide') {
+        hide();
+      }
+    };
+    window.addEventListener('cloe-bridge', handler);
+    return () => window.removeEventListener('cloe-bridge', handler);
   }, [show, hide]);
 
   // ── Keyboard shortcut (capture phase, before xterm) ──
@@ -83,11 +111,14 @@ export default function App() {
 
   // ── Fullscreen change re-fit ──
   useEffect(() => {
-    const unsub = window.electronAPI?.onFullscreenChanged?.(() => {
-      // Dispatch a resize event so xterm fit addon picks it up
-      window.dispatchEvent(new Event('resize'));
-    });
-    return () => unsub?.();
+    let unsub = null;
+    try {
+      const fn = window.electronAPI && window.electronAPI.onFullscreenChanged;
+      if (typeof fn === 'function') {
+        unsub = fn(() => window.dispatchEvent(new Event('resize')));
+      }
+    } catch (_) { /* preload not available in dev */ }
+    return () => { if (typeof unsub === 'function') unsub(); };
   }, []);
 
   // ── Settings button shortcut sync ──

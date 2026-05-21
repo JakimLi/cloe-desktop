@@ -30,6 +30,7 @@ const UI_OPTIONS = {
 export default function CanvasMode() {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState(null);
   const excalidrawRef = useRef(null);
+  const elementsRef = useRef([]); // authoritative source of truth
   const [loading, setLoading] = useState(true);
 
   // Lazy-load Excalidraw
@@ -49,24 +50,88 @@ export default function CanvasMode() {
     return () => { cancelled = true; };
   }, []);
 
+  // Normalize minimal element JSON into a valid Excalidraw element
+  const normalizeElement = useCallback((raw, idx) => {
+    const now = Date.now();
+    const defaults = {
+      type: 'rectangle',
+      x: 0, y: 0, width: 100, height: 100,
+      angle: 0,
+      strokeColor: '#1e1e1e',
+      backgroundColor: 'transparent',
+      fillStyle: 'solid',
+      strokeWidth: 2,
+      strokeStyle: 'solid',
+      roughness: 1,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      index: 'a' + idx,
+      roundness: null,
+      boundElements: [],
+      updated: now,
+      link: null,
+      locked: false,
+      isDeleted: false,
+      seed: Math.floor(Math.random() * 2 ** 31),
+      version: 1,
+      versionNonce: Math.floor(Math.random() * 2 ** 31),
+    };
+    const el = { ...defaults, ...raw };
+    // Ensure points exists for linear elements
+    if (['arrow', 'line', 'freedraw'].includes(el.type) && !el.points) {
+      el.points = [[0, 0]];
+    }
+    // Text-specific defaults
+    if (el.type === 'text') {
+      el.fontFamily = el.fontFamily ?? 5;
+      el.fontSize = el.fontSize ?? 20;
+      el.lineHeight = el.lineHeight ?? 1.25;
+      el.textAlign = el.textAlign ?? 'left';
+      el.verticalAlign = el.verticalAlign ?? 'top';
+      if (!el.originalText) el.originalText = el.text || '';
+      el.autoResize = el.autoResize ?? true;
+      el.containerId = el.containerId ?? null;
+    }
+    return el;
+  }, []);
+
   // Expose API for programmatic access (Hermes, etc.)
   const handleExcalidrawAPI = useCallback((api) => {
     if (api) {
       excalidrawRef.current = api;
       window.cloeExcalidraw = {
-        getSceneElements: () => api.getSceneElements(),
-        updateScene: (elements) => api.updateScene({ elements }),
+        getSceneElements: () => elementsRef.current,
+        updateScene: (elements) => {
+          const normalized = (Array.isArray(elements) ? elements : [])
+            .map((raw, i) => normalizeElement(raw, i));
+          // Merge into our ref: new elements overwrite by id
+          const map = new Map(elementsRef.current.map(el => [el.id, el]));
+          normalized.forEach(el => map.set(el.id, el));
+          elementsRef.current = Array.from(map.values());
+          // Push full set to Excalidraw
+          api.updateScene({ elements: elementsRef.current });
+          api.scrollToContent(undefined, { fitToContent: true });
+        },
         resetScene: () => {
+          elementsRef.current = [];
           api.updateScene({ elements: [] });
         },
         getAppState: () => api.getAppState(),
       };
       console.log('[Canvas] Excalidraw API exposed on window.cloeExcalidraw');
     }
-  }, []);
+  }, [normalizeElement]);
 
-  // onChange — required to keep Excalidraw in uncontrolled mode (drawing won't vanish)
-  const handleChange = useCallback(() => {}, []);
+  // onChange — sync Excalidraw internal state back to our ref
+  // This preserves user-drawn elements across programmatic updates
+  const handleChange = useCallback((_elements, _appState) => {
+    if (_elements && _elements.length > 0) {
+      const map = new Map(elementsRef.current.map(el => [el.id, el]));
+      _elements.forEach(el => map.set(el.id, el));
+      elementsRef.current = Array.from(map.values());
+    }
+  }, []);
 
   return (
     <div className="canvas-overlay" style={{

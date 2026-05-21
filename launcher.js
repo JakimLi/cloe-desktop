@@ -1842,6 +1842,117 @@ function createBridgeServers() {
       return;
     }
 
+    // POST /canvas/show — show overlay in canvas mode (trigger React to mount Excalidraw)
+    // POST /canvas/show — show overlay in terminal mode
+    // POST /canvas/hide — hide overlay
+    if (req.method === 'POST' && urlPath === '/canvas/show') {
+      readJsonBody(req, (err, data) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+        const overlayMode = data && data.mode ? data.mode : 'canvas';
+        const code = [
+          '(function() {',
+          "  window.dispatchEvent(new CustomEvent('cloe-bridge', {",
+          "    detail: { action: 'show', mode: '" + overlayMode + "' }",
+          "  }));",
+          "  return 'ok';",
+          '})()',
+        ].join('\n');
+        const timer = setTimeout(function() {
+          jsonRes(res, 200, { ok: true, mode: overlayMode, note: 'timeout' });
+        }, 3000);
+        win.webContents.executeJavaScript(code, true).then(function() {
+          clearTimeout(timer);
+          jsonRes(res, 200, { ok: true, mode: overlayMode });
+        }).catch(function(err) {
+          clearTimeout(timer);
+          jsonRes(res, 200, { ok: true, mode: overlayMode, warning: err.message });
+        });
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/canvas/hide') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      const hideCode = [
+        '(function() {',
+        "  window.dispatchEvent(new CustomEvent('cloe-bridge', {",
+        "    detail: { action: 'hide' }",
+        "  }));",
+        "  return 'ok';",
+        '})()',
+      ].join('\n');
+      const timer = setTimeout(function() {
+        jsonRes(res, 200, { ok: true });
+      }, 3000);
+      win.webContents.executeJavaScript(hideCode, true).then(function() {
+        clearTimeout(timer);
+        jsonRes(res, 200, { ok: true });
+      }).catch(function(err) {
+        clearTimeout(timer);
+        jsonRes(res, 200, { ok: true, warning: err.message });
+      });
+      return;
+    }
+
+    // ==================== Excalidraw Direct Bridge ====================
+    // These endpoints bypass the old IPC canvas mechanism and directly
+    // call window.cloeExcalidraw in the renderer via executeJavaScript.
+
+    // POST /canvas/excalidraw/draw — add/update elements on Excalidraw canvas
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/draw') {
+      readJsonBody(req, function(err, data) {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+        var elements = Array.isArray(data) ? data : (data.elements || []);
+        if (!Array.isArray(elements)) { jsonRes(res, 400, { error: 'expected array or { elements: array }' }); return; }
+        var drawCode = '(function() { if (!window.cloeExcalidraw) return JSON.stringify({error:"not loaded"}); window.cloeExcalidraw.updateScene(' + JSON.stringify(elements) + '); return JSON.stringify({ok:true,count:' + elements.length + '}); })()';
+        win.webContents.executeJavaScript(drawCode, true).then(function(result) {
+          jsonRes(res, 200, JSON.parse(result));
+        }).catch(function(err) {
+          jsonRes(res, 500, { error: err.message });
+        });
+      });
+      return;
+    }
+
+    // GET /canvas/excalidraw/scene — read current Excalidraw scene
+    if (req.method === 'GET' && urlPath === '/canvas/excalidraw/scene') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      var getSceneCode = [
+        '(function() {',
+        '  var result = { loaded: !!window.cloeExcalidraw, elements: [], count: 0 };',
+        '  if (window.cloeExcalidraw) {',
+        '    var els = window.cloeExcalidraw.getSceneElements();',
+        '    var clean = els.map(function(el) { var obj = Object.assign({}, el); delete obj.seed; return obj; });',
+        '    result.elements = clean;',
+        '    result.count = clean.length;',
+        '  }',
+        '  return JSON.stringify(result);',
+        '})()',
+      ].join('\n');
+      win.webContents.executeJavaScript(getSceneCode, true).then(function(result) {
+        jsonRes(res, 200, JSON.parse(result));
+      }).catch(function(err) {
+        jsonRes(res, 500, { error: err.message });
+      });
+      return;
+    }
+
+    // DELETE /canvas/excalidraw/scene — clear Excalidraw canvas
+    if (req.method === 'DELETE' && urlPath === '/canvas/excalidraw/scene') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      win.webContents.executeJavaScript(`
+        if (window.cloeExcalidraw) window.cloeExcalidraw.resetScene();
+        'ok';
+      `, true).then(() => {
+        jsonRes(res, 200, { ok: true });
+      }).catch(err => {
+        jsonRes(res, 500, { error: err.message });
+      });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });
@@ -2060,6 +2171,14 @@ ipcMain.on('set-window-mode', (_e, mode) => {
     const th = Math.min(800, Math.round(dh * 0.75));
     win.setAlwaysOnTop(false);
     win.setSize(tw, th, true);
+    win.center();
+  } else if (mode === 'canvas') {
+    const display = screen.getPrimaryDisplay();
+    const { width: dw, height: dh } = display.workAreaSize;
+    const cw = Math.min(1400, Math.round(dw * 0.85));
+    const ch = Math.min(900, Math.round(dh * 0.85));
+    win.setAlwaysOnTop(false);
+    win.setSize(cw, ch, true);
     win.center();
   } else {
     const scale = getWindowScale();
