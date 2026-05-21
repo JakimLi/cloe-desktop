@@ -342,186 +342,20 @@ body.terminal-mode #settings-btn {
   color: rgba(255, 255, 255, 1);
 }
 
-/* ==================== Canvas Overlay (inside terminal-overlay) ==================== */
-.canvas-overlay {
-  position: absolute;
-  top: 32px;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+/* ==================== Excalidraw Canvas (transparent overlay) ==================== */
+
+/* Make Excalidraw shell transparent so GIF character shows through */
+.excalidraw {
+  --ui-bg: transparent;
+  background: transparent !important;
 }
 
-.canvas-overlay.hidden {
-  display: none;
+/* Excalidraw main container — transparent */
+.excalidraw .excalidraw-canvas-wrapper {
+  background: transparent !important;
 }
 
-/* Canvas header (compact, integrated inside overlay) */
-.canvas-header-integrated {
-  height: 32px;
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  user-select: none;
-  -webkit-app-region: no-drag;
-}
-
-.canvas-title {
-  font-weight: 600;
-  margin-right: 12px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.canvas-info {
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-/* Canvas workspace (transparent, grid shows through overlay backdrop) */
-.canvas-workspace-integrated {
-  flex: 1;
-  overflow: auto;
-  position: relative;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
-    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-/* Canvas content area (the infinite-ish board) */
-#canvas-board {
-  position: relative;
-  min-width: 2000px;
-  min-height: 1500px;
-  width: 100%;
-  height: 100%;
-}
-
-/* ==================== Canvas Element Styles ==================== */
-.canvas-element {
-  position: absolute;
-  cursor: grab;
-  transition: box-shadow 0.15s ease;
-  z-index: 1;
-}
-
-.canvas-element:hover {
-  box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.5);
-  z-index: 10;
-}
-
-.canvas-element.dragging {
-  cursor: grabbing;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(100, 181, 246, 0.7);
-  z-index: 100;
-  opacity: 0.9;
-}
-
-/* Text Element */
-.canvas-element[data-type="text"] {
-  padding: 8px 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow: hidden;
-}
-
-/* Image Element */
-.canvas-element[data-type="image"] {
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-}
-
-.canvas-element[data-type="image"] img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-  display: block;
-}
-
-/* Loading overlay for images */
-.canvas-element[data-type="image"] .image-loading {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 13px;
-  text-align: center;
-}
-
-/* Rect Element */
-.canvas-element[data-type="rect"] {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-/* Arrow Element */
-.canvas-element[data-type="arrow"] {
-  pointer-events: auto;
-  background: transparent;
-  border: none;
-}
-
-.canvas-element[data-type="arrow"] svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Highlight Element */
-.canvas-element[data-type="highlight"] {
-  pointer-events: auto;
-  border: 2px dashed rgba(255, 255, 255, 0.15);
-}
-
-/* Code Block Element */
-.canvas-element.code-block {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace;
-  padding: 12px 16px;
-  line-height: 1.6;
-  white-space: pre;
-  overflow: auto;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.canvas-element.code-block:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(100, 181, 246, 0.5);
-}
-
-/* Code with Line Numbers (code-review mode) */
-.canvas-element .code-with-line-numbers {
-  margin: 0;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace;
-  font-size: inherit;
-  line-height: 1.6;
-  white-space: pre;
-  color: inherit;
-  background: transparent;
-}
-
-/* Mode Indicator */
-#mode-indicator {
-  margin-left: 12px;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-#mode-indicator:hover {
-  opacity: 0.8;
-}
-
-/* Paste Cursor Indicator */
-.canvas-element.paste-preview {
-  border: 2px dashed rgba(100, 181, 246, 0.5);
-  background: rgba(100, 181, 246, 0.05);
+/* The actual canvas layer — transparent */
+.excalidraw canvas {
+  background: transparent !important;
 }

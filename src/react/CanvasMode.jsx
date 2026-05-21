@@ -10,9 +10,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import '@excalidraw/excalidraw/index.css';
 
 // Stable initial data — only created once to prevent Excalidraw from resetting
+// viewBackgroundColor must be transparent so the character GIF shows through
 const INITIAL_DATA = {
   appState: {
-    viewBackgroundColor: '#1e1e2e',
+    viewBackgroundColor: 'transparent',
   },
 };
 
@@ -71,7 +72,6 @@ export default function CanvasMode() {
     <div className="canvas-overlay" style={{
       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      background: 'rgba(10, 10, 20, 0.72)',
     }}>
       {/* Header bar */}
       <div className="canvas-header-integrated">
