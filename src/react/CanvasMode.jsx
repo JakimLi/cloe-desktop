@@ -6,8 +6,25 @@
  * Exposes scene access via window.cloeExcalidraw for programmatic interaction.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import '@excalidraw/excalidraw/index.css';
+
+// Stable initial data — only created once to prevent Excalidraw from resetting
+const INITIAL_DATA = {
+  appState: {
+    viewBackgroundColor: '#1e1e2e',
+  },
+};
+
+// Stable UI options — inline objects on every render would reset Excalidraw state
+const UI_OPTIONS = {
+  canvasActions: {
+    loadScene: true,
+    export: {
+      saveFileToDisk: true,
+    },
+  },
+};
 
 export default function CanvasMode() {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState(null);
@@ -19,7 +36,6 @@ export default function CanvasMode() {
     let cancelled = false;
     (async () => {
       try {
-        // Excalidraw is a heavy dependency — load on demand
         const mod = await import('@excalidraw/excalidraw');
         if (cancelled) return;
         setExcalidrawComponent(() => mod.Excalidraw);
@@ -47,6 +63,9 @@ export default function CanvasMode() {
       console.log('[Canvas] Excalidraw API exposed on window.cloeExcalidraw');
     }
   }, []);
+
+  // onChange — required to keep Excalidraw in uncontrolled mode (drawing won't vanish)
+  const handleChange = useCallback(() => {}, []);
 
   return (
     <div className="canvas-overlay" style={{
@@ -76,19 +95,9 @@ export default function CanvasMode() {
           <ExcalidrawComponent
             ref={excalidrawRef}
             excalidrawAPI={handleExcalidrawAPI}
-            initialData={{
-              appState: {
-                viewBackgroundColor: '#1e1e2e',
-              },
-            }}
-            UIOptions={{
-              canvasActions: {
-                loadScene: true,
-                export: {
-                  saveFileToDisk: true,
-                },
-              },
-            }}
+            initialData={INITIAL_DATA}
+            UIOptions={UI_OPTIONS}
+            onChange={handleChange}
             theme="dark"
           />
         ) : (
