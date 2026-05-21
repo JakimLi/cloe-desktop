@@ -30,6 +30,16 @@ let canvasWin = null;
 let tray = null;
 const bridgeClients = new Set();
 
+// ==================== Canvas Elements (in-memory store) ====================
+const canvasElements = [];
+
+/** Push canvas-update to Canvas BrowserWindow if it exists */
+function broadcastCanvasUpdate() {
+  if (canvasWin && !canvasWin.isDestroyed()) {
+    canvasWin.webContents.send('canvas-update', [...canvasElements]);
+  }
+}
+
 // ==================== User config (~/.cloe/config.json) ====================
 
 function getCloeConfigDir() {
@@ -991,7 +1001,7 @@ function createBridgeServers() {
   // --- HTTP ---
   const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -1699,6 +1709,100 @@ function createBridgeServers() {
       return;
     }
 
+    // ==================== Canvas API ====================
+
+    // Helper: read JSON body from request
+    function readJsonBody(req, callback) {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          callback(null, JSON.parse(body || '{}'));
+        } catch (e) {
+          callback(e, null);
+        }
+      });
+    }
+
+    // Helper: send JSON response
+    function jsonRes(res, status, data) {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    }
+
+    // GET /canvas/elements — return all elements
+    if (req.method === 'GET' && urlPath === '/canvas/elements') {
+      jsonRes(res, 200, { elements: canvasElements });
+      return;
+    }
+
+    // POST /canvas/elements — add an element
+    if (req.method === 'POST' && urlPath === '/canvas/elements') {
+      readJsonBody(req, (err, data) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        if (!data.id || !data.type) {
+          jsonRes(res, 400, { error: 'element must have id and type' });
+          return;
+        }
+        canvasElements.push(data);
+        broadcastCanvasUpdate();
+        jsonRes(res, 201, { ok: true, element: data, total: canvasElements.length });
+      });
+      return;
+    }
+
+    // PUT /canvas/elements/:id — update an element
+    const putCanvasMatch = req.method === 'PUT' && urlPath.match(/^\/canvas\/elements\/([^/]+)$/);
+    if (putCanvasMatch) {
+      const id = decodeURIComponent(putCanvasMatch[1]);
+      readJsonBody(req, (err, data) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        const idx = canvasElements.findIndex(el => el.id === id);
+        if (idx === -1) { jsonRes(res, 404, { error: 'element not found' }); return; }
+        canvasElements[idx] = { ...canvasElements[idx], ...data, id }; // keep original id
+        broadcastCanvasUpdate();
+        jsonRes(res, 200, { ok: true, element: canvasElements[idx] });
+      });
+      return;
+    }
+
+    // DELETE /canvas/elements/:id — delete an element
+    const delCanvasElMatch = req.method === 'DELETE' && urlPath.match(/^\/canvas\/elements\/([^/]+)$/);
+    if (delCanvasElMatch) {
+      const id = decodeURIComponent(delCanvasElMatch[1]);
+      const idx = canvasElements.findIndex(el => el.id === id);
+      if (idx === -1) { jsonRes(res, 404, { error: 'element not found' }); return; }
+      canvasElements.splice(idx, 1);
+      broadcastCanvasUpdate();
+      jsonRes(res, 200, { ok: true, total: canvasElements.length });
+      return;
+    }
+
+    // DELETE /canvas — clear all elements
+    if (req.method === 'DELETE' && urlPath === '/canvas') {
+      canvasElements.length = 0;
+      broadcastCanvasUpdate();
+      jsonRes(res, 200, { ok: true, total: 0 });
+      return;
+    }
+
+    // POST /canvas/sync — batch sync (full replace)
+    if (req.method === 'POST' && urlPath === '/canvas/sync') {
+      readJsonBody(req, (err, data) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        const elements = Array.isArray(data) ? data : (data.elements || []);
+        if (!Array.isArray(elements)) {
+          jsonRes(res, 400, { error: 'expected array or { elements: array }' });
+          return;
+        }
+        canvasElements.length = 0;
+        canvasElements.push(...elements);
+        broadcastCanvasUpdate();
+        jsonRes(res, 200, { ok: true, total: canvasElements.length });
+      });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });
@@ -1983,6 +2087,52 @@ ipcMain.handle('save-window-position', (_event, payload) => {
   return { ok: true };
 });
 
+// ==================== Canvas BrowserWindow ====================
+function createCanvasWindow() {
+  if (canvasWin) {
+    canvasWin.show();
+    canvasWin.focus();
+    return;
+  }
+
+  canvasWin = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    title: 'Cloe Canvas',
+    transparent: false,
+    frame: true,
+    alwaysOnTop: false,
+    resizable: true,
+    skipTaskbar: false,
+    hasShadow: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+
+  canvasWin.setMenuBarVisibility(false);
+
+  if (!app.isPackaged) {
+    canvasWin.loadURL('http://localhost:5173/src/canvas/canvas.html');
+  } else {
+    canvasWin.loadFile(path.join(__dirname, 'dist', 'src', 'canvas', 'canvas.html'));
+  }
+
+  canvasWin.on('closed', () => {
+    canvasWin = null;
+  });
+
+  // Send initial elements when window finishes loading
+  canvasWin.webContents.on('did-finish-load', () => {
+    if (canvasElements.length > 0) {
+      canvasWin.webContents.send('canvas-update', [...canvasElements]);
+    }
+  });
+}
+
 // ==================== Manager Window ====================
 function createManagerWindow() {
   if (managerWin) {
@@ -2196,6 +2346,7 @@ app.whenReady().then(async () => {
   createWindow();
   createTray();
   createAppMenu();
+  createCanvasWindow();
 
   win.on('enter-full-screen', () => {
     if (!win || win.isDestroyed()) return;
