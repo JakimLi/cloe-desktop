@@ -24,4 +24,16 @@ contextBridge.exposeInMainWorld('canvasAPI', {
     ipcRenderer.on('canvas-update', handler);
     return () => ipcRenderer.removeListener('canvas-update', handler);
   },
+
+  /**
+   * Listen for canvas mode change events from the main process.
+   * Fired when POST /canvas/mode is called or mode is reset.
+   * @param {function} callback - receives ({ mode: string })
+   * @returns {function} unsubscribe function
+   */
+  onModeChange: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('canvas-mode-change', handler);
+    return () => ipcRenderer.removeListener('canvas-mode-change', handler);
+  },
 });

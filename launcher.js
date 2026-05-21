@@ -33,10 +33,20 @@ const bridgeClients = new Set();
 // ==================== Canvas Elements (in-memory store) ====================
 const canvasElements = [];
 
+/** Current canvas mode (null = free/default mode) */
+let currentCanvasMode = null;
+
 /** Push canvas-update to Canvas BrowserWindow if it exists */
 function broadcastCanvasUpdate() {
   if (canvasWin && !canvasWin.isDestroyed()) {
     canvasWin.webContents.send('canvas-update', [...canvasElements]);
+  }
+}
+
+/** Broadcast mode change to Canvas BrowserWindow */
+function broadcastCanvasModeChange(mode) {
+  if (canvasWin && !canvasWin.isDestroyed()) {
+    canvasWin.webContents.send('canvas-mode-change', { mode });
   }
 }
 
@@ -1803,6 +1813,36 @@ function createBridgeServers() {
       return;
     }
 
+    // GET /canvas/mode — get current canvas mode
+    if (req.method === 'GET' && urlPath === '/canvas/mode') {
+      jsonRes(res, 200, { mode: currentCanvasMode || 'free' });
+      return;
+    }
+
+    // POST /canvas/mode — set canvas mode
+    if (req.method === 'POST' && urlPath === '/canvas/mode') {
+      readJsonBody(req, (err, data) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        const name = data.name;
+        if (!name || typeof name !== 'string') {
+          jsonRes(res, 400, { error: 'body must contain { name: string }' });
+          return;
+        }
+        currentCanvasMode = name === 'free' ? null : name;
+        broadcastCanvasModeChange(currentCanvasMode || 'free');
+        jsonRes(res, 200, { ok: true, mode: currentCanvasMode || 'free' });
+      });
+      return;
+    }
+
+    // POST /canvas/mode/reset — reset canvas mode to free
+    if (req.method === 'POST' && urlPath === '/canvas/mode/reset') {
+      currentCanvasMode = null;
+      broadcastCanvasModeChange('free');
+      jsonRes(res, 200, { ok: true, mode: 'free' });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });
@@ -2087,52 +2127,6 @@ ipcMain.handle('save-window-position', (_event, payload) => {
   return { ok: true };
 });
 
-// ==================== Canvas BrowserWindow ====================
-function createCanvasWindow() {
-  if (canvasWin) {
-    canvasWin.show();
-    canvasWin.focus();
-    return;
-  }
-
-  canvasWin = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    title: 'Cloe Canvas',
-    transparent: false,
-    frame: true,
-    alwaysOnTop: false,
-    resizable: true,
-    skipTaskbar: false,
-    hasShadow: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      webSecurity: false,
-    },
-  });
-
-  canvasWin.setMenuBarVisibility(false);
-
-  if (!app.isPackaged) {
-    canvasWin.loadURL('http://localhost:5173/src/canvas/canvas.html');
-  } else {
-    canvasWin.loadFile(path.join(__dirname, 'dist', 'src', 'canvas', 'canvas.html'));
-  }
-
-  canvasWin.on('closed', () => {
-    canvasWin = null;
-  });
-
-  // Send initial elements when window finishes loading
-  canvasWin.webContents.on('did-finish-load', () => {
-    if (canvasElements.length > 0) {
-      canvasWin.webContents.send('canvas-update', [...canvasElements]);
-    }
-  });
-}
-
 // ==================== Manager Window ====================
 function createManagerWindow() {
   if (managerWin) {
@@ -2220,11 +2214,12 @@ function createCanvasWindow() {
     canvasWin = null;
   });
 
-  // Send initial elements when canvas window finishes loading
+  // Send initial elements and mode when canvas window finishes loading
   canvasWin.webContents.on('did-finish-load', () => {
     if (canvasElements.length > 0) {
       canvasWin.webContents.send('canvas-update', [...canvasElements]);
     }
+    canvasWin.webContents.send('canvas-mode-change', { mode: currentCanvasMode || 'free' });
   });
 
   console.log('[Canvas] Window created');

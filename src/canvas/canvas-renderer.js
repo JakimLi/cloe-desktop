@@ -746,6 +746,101 @@ function setupIPCListener() {
   }
 }
 
+// ==================== Mode System Integration ====================
+
+/**
+ * Set up mode switch API listener.
+ * Listens for mode change events from the main process via IPC.
+ */
+function setupModeListener() {
+  const api = window.canvasAPI;
+  if (api && api.onModeChange) {
+    api.onModeChange((modeName) => {
+      const result = switchMode(modeName);
+      if (result.ok) {
+        console.log(`[Canvas] Mode changed to: ${modeName || 'default'}`);
+        // Re-render all elements to apply mode-specific rendering
+        reRenderAll();
+        updateModeIndicator();
+      }
+    });
+  }
+}
+
+/**
+ * Poll the server for the current mode (fallback if IPC not available).
+ */
+async function fetchCurrentMode() {
+  try {
+    const resp = await fetch(`${CANVAS_API_BASE}/canvas/mode`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.mode) {
+        switchMode(data.mode);
+        console.log(`[Canvas] Fetched mode from server: ${data.mode}`);
+      }
+    }
+  } catch (err) {
+    // Server might not be running — that's OK
+  }
+}
+
+/**
+ * Re-render all elements (used after mode switch to apply mode-specific rendering).
+ */
+function reRenderAll() {
+  const allElements = [...state.elements.values()];
+  for (const el of allElements) {
+    const node = state.domRefs.get(el.id);
+    if (node) {
+      // Update code-review rendering
+      if (el.type === 'text') {
+        const activeMode = getActiveMode();
+        const showLineNumbers = activeMode?.name === 'code-review' && isCodeElement(el);
+
+        // Remove existing line number pre if present
+        const existingPre = node.querySelector('.code-with-line-numbers');
+        if (existingPre && !showLineNumbers) {
+          existingPre.remove();
+          node.textContent = el.content || '';
+        } else if (!existingPre && showLineNumbers) {
+          // Need full re-mount for simplicity
+          const pos = { x: el.x, y: el.y };
+          mountElement(el);
+        } else if (existingPre && showLineNumbers) {
+          existingPre.textContent = addLineNumbers(el.content || '');
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Update the mode indicator in the header.
+ */
+function updateModeIndicator() {
+  let indicator = document.getElementById('mode-indicator');
+  const modeName = getActiveModeName();
+
+  if (!indicator) {
+    indicator = document.createElement('span');
+    indicator.id = 'mode-indicator';
+    indicator.className = 'info';
+    const header = document.getElementById('canvas-header');
+    if (header) {
+      header.appendChild(indicator);
+    }
+  }
+
+  if (modeName) {
+    indicator.textContent = `🔍 ${modeName}`;
+    indicator.style.color = '#1a73e8';
+    indicator.style.fontWeight = '600';
+  } else {
+    indicator.textContent = '';
+  }
+}
+
 // ==================== Info Bar ====================
 
 function updateInfoBar() {
@@ -769,6 +864,10 @@ function updateInfoBar() {
 function init() {
   console.log('[Canvas] Initializing with sample elements...');
 
+  // Register mode plugins
+  registerMode('code-review', codeReviewMode);
+  console.log('[Canvas] Registered modes:', getRegisteredModes().join(', '));
+
   // Mount sample elements
   mountAll(SAMPLE_ELEMENTS);
 
@@ -789,6 +888,10 @@ function init() {
   // Setup IPC listener for server-side canvas updates
   setupIPCListener();
 
+  // Setup mode system listeners
+  setupModeListener();
+  fetchCurrentMode();
+
   // Expose for debugging
   window.__canvasState = state;
   window.__canvasMount = mountElement;
@@ -796,6 +899,9 @@ function init() {
   window.__canvasMountAll = mountAll;
   window.__pasteImage = pasteImage;
   window.__pasteText = pasteText;
+  window.__switchMode = switchMode;
+  window.__getActiveMode = getActiveMode;
+  window.__getCloeContext = getCloeContext;
 }
 
 // Boot

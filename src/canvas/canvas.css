@@ -162,6 +162,28 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(26, 115, 232, 0.4);
 }
 
+/* ==================== Code with Line Numbers (code-review mode) ==================== */
+.canvas-element .code-with-line-numbers {
+  margin: 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace;
+  font-size: inherit;
+  line-height: 1.6;
+  white-space: pre;
+  color: inherit;
+  background: transparent;
+}
+
+/* ==================== Mode Indicator ==================== */
+#mode-indicator {
+  margin-left: 12px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+#mode-indicator:hover {
+  opacity: 0.8;
+}
+
 /* ==================== Paste Cursor Indicator ==================== */
 .canvas-element.paste-preview {
   border: 2px dashed rgba(26, 115, 232, 0.5);
