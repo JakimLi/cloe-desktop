@@ -416,6 +416,25 @@ curl -s http://localhost:19851/canvas/excalidraw/scene
 curl -s -X DELETE http://localhost:19851/canvas/excalidraw/scene
 ```
 
+### ⚠️ 程序化绘图必须使用 convertToExcalidrawElements
+
+CanvasMode.jsx 的 `updateScene` 内部会调用 `convertToExcalidrawElements(incoming, { regenerateIds: false })` 将 skeleton 转换为完整元素。
+
+**禁止手动设置 text 元素的 width/height**：
+- `convertToExcalidrawElements` 会自动计算正确的文字尺寸
+- 手动写 width/height 会导致文字截断或 hit-test 崩溃
+- `updateScene` 不会触发 Excalidraw 内部的 `autoResize`
+
+**容器自动适配（boundElements）**：
+- text 元素加 `boundElements: [{ "id": "框id", "type": "rectangle" }]` 后，容器会自动撑大到 `text宽高 + 48px padding`
+- 文字自动居中到容器内
+- 支持 rectangle、ellipse、diamond 三种容器
+- 不加 boundElements 的纯文字/纯框不受影响
+
+### ⚠️ Canvas 画布背景
+
+Excalidraw workspace 容器设置了 `backgroundColor: rgba(0, 0, 0, 0.75)` 半透明黑底，保证白色文字和彩色元素的可读性，同时不完全遮挡背后的 GIF 角色。可调范围 0（全透明）~ 1（纯黑）。
+
 ### ⚠️ Canvas 通信机制（CustomEvent，非 StorageEvent）
 
 Main process（launcher.js）通过 `executeJavaScript` 向 renderer 发送 `CustomEvent('cloe-bridge')` 来切换模式，React 端监听此事件。
