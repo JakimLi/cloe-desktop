@@ -2377,7 +2377,32 @@ function createAppMenu() {
 }
 
 // ==================== Bootstrap ====================
+
+// Fix PATH for packaged app — macOS GUI apps get a minimal PATH from launchd,
+// missing Homebrew, Hermes, and other shell-configured paths.
+// Run a login shell to capture the full PATH and merge into process.env.
+async function fixPath() {
+  const { execSync } = require('child_process');
+  try {
+    const shellPath = process.env.SHELL || '/bin/zsh';
+    const loginPath = execSync(`${shellPath} -l -c 'echo $PATH'`, {
+      encoding: 'utf8',
+      timeout: 5000,
+    }).trim();
+    if (loginPath) {
+      const extra = loginPath.split(':').filter(p => !process.env.PATH.includes(p));
+      if (extra.length > 0) {
+        process.env.PATH = [...extra, process.env.PATH].join(':');
+        console.log('[PATH] Enriched with', extra.length, 'entries from login shell');
+      }
+    }
+  } catch (e) {
+    console.warn('[PATH] Failed to enrich PATH from login shell:', e.message);
+  }
+}
+
 app.whenReady().then(async () => {
+  await fixPath();
   ensureCloeConfigDirAndMigrateConfig();
   if (app.isPackaged) {
     bootstrapPackagedData();

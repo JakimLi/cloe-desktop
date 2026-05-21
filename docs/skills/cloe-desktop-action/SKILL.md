@@ -416,30 +416,105 @@ curl -s http://localhost:19851/canvas/excalidraw/scene
 curl -s -X DELETE http://localhost:19851/canvas/excalidraw/scene
 ```
 
-### ⚠️ 程序化绘图必须使用 convertToExcalidrawElements
+### ⚠️ 程序化绘图规范
 
-CanvasMode.jsx 的 `updateScene` 内部会调用 `convertToExcalidrawElements(incoming, { regenerateIds: false })` 将 skeleton 转换为完整元素。
+1. **所有 skeleton 走 `convertToExcalidrawElements`**：自动补全必需字段 + 正确计算文字尺寸。禁止手动设 text 的 `width`/`height`（会截断或崩溃）
+2. **容器自动撑大**：text 加 `boundElements: [{ "id": "框id", "type": "rectangle" }]` → 框扩展到 `text宽高 + 48px padding`，文字居中。支持 rectangle/ellipse/diamond
+3. **黑色文字自动转白**：见下方「Canvas 画布背景 & 文字颜色」
 
-**禁止手动设置 text 元素的 width/height**：
-- `convertToExcalidrawElements` 会自动计算正确的文字尺寸
-- 手动写 width/height 会导致文字截断或 hit-test 崩溃
-- `updateScene` 不会触发 Excalidraw 内部的 `autoResize`
+### ⚠️ Canvas 画布背景 & 文字颜色
 
-**容器自动适配（boundElements）**：
-- text 元素加 `boundElements: [{ "id": "框id", "type": "rectangle" }]` 后，容器会自动撑大到 `text宽高 + 48px padding`
-- 文字自动居中到容器内
-- 支持 rectangle、ellipse、diamond 三种容器
-- 不加 boundElements 的纯文字/纯框不受影响
+画布背景为**完全透明**（`transparent`），不遮挡背后的 GIF 角色。
 
-### ⚠️ Canvas 画布背景
+- **不要加半透明黑底或毛玻璃**：试过 `rgba(0,0,0,0.75)` 和 `backdrop-filter: blur()`，都导致角色看不清且文字可读性无改善
+- **所有文字强制白色**：`updateScene` 会将**所有** text 元素的 `strokeColor` 无条件设为 `#ffffff`，不管 skeleton 里传什么颜色。原因是 `convertToExcalidrawElements` 输出的颜色可能是 Excalidraw 内部格式（非字符串），无法可靠做字符串匹配判断。skeleton 里 `strokeColor` 可以不写或随便写，最终都是白色
+- **深色背景配色建议**（见上方「⚠️ 深色背景配色建议」章节）
 
-Excalidraw workspace 容器设置了 `backgroundColor: rgba(0, 0, 0, 0.75)` 半透明黑底，保证白色文字和彩色元素的可读性，同时不完全遮挡背后的 GIF 角色。可调范围 0（全透明）~ 1（纯黑）。
+### ⚠️ Excalidraw 文字颜色归一化（重要踩坑）
+
+Excalidraw 的 `api.updateScene()` 会**内部归一化 text 元素的 strokeColor**，把自定义颜色覆盖回默认黑色。
+
+**正确做法**：用 `scene.replaceAllElements()` 代替 `api.updateScene({ elements })`：
+```jsx
+import { convertToExcalidrawElements, scene } from '@excalidraw/excalidraw';
+// ✅ 直接替换 store，不触发归一化
+scene.replaceAllElements(elementsRef.current);
+// ❌ 会触发归一化，白色变黑
+api.updateScene({ elements: elementsRef.current });
+```
+
+**onChange 里不要 push-back**：`onChange` 拿到的是归一化后的黑色，如果尝试修改后推回 Excalidraw 会导致**无限 React 循环**（即使 useRef guard 也无法阻止，因为 React 批量处理同步更新）。
 
 ### ⚠️ Canvas 通信机制（CustomEvent，非 StorageEvent）
 
 Main process（launcher.js）通过 `executeJavaScript` 向 renderer 发送 `CustomEvent('cloe-bridge')` 来切换模式，React 端监听此事件。
 
 **为什么不用 StorageEvent**：`StorageEvent` 在同源页面间通信时会触发复杂的 React 状态链路，已证实导致 renderer 崩溃（闪退只留 devtools 空壳）。
+
+### ⚠️ Canvas 画布背景 & 文字颜色
+
+Cloe Desktop 画布背景为黑色透明，Excalidraw 默认文字颜色是黑色，几乎不可见。
+
+**坑**：`convertToExcalidrawElements` 和 `api.updateScene` 都会把文字 `strokeColor` 归一化回 `#000000`，光在 `updateScene` 前设白色没用——Excalidraw 内部会覆盖。
+
+**正确做法**（CanvasMode.jsx）：
+1. `updateScene` 前强制白色
+2. `onChange` 回调里也强制白色 + 推回 `api.updateScene`
+3. 用 `_pushingBack` ref 防止无限循环（onChange → updateScene → onChange）
+
+```jsx
+const _pushingBack = useRef(false);
+const handleChange = useCallback((_elements, _appState) => {
+  if (_elements && _elements.length > 0) {
+    let hasText = false;
+    _elements.forEach(el => {
+      if (el.type === 'text') { el.strokeColor = "#ffffff"; hasText = true; }
+    });
+    // ... merge to elementsRef ...
+    if (hasText && !_pushingBack.current) {
+      _pushingBack.current = true;
+      api.updateScene({ elements: elementsRef.current });
+      _pushingBack.current = false;
+    }
+  }
+}, []);
+```
+
+### ⚠️ 打包后代码没生效？检查缓存
+
+electron-builder 可能用了 Vite 缓存的旧 dist。打包前**必须**清除三个缓存：
+
+```bash
+rm -rf dist release node_modules/.vite
+```
+
+打包后**验证 asar**（dist 和 asar 的 JS hash 可能不同）：
+
+```bash
+npx asar extract release/mac-universal/Cloe.app/Contents/Resources/app.asar /tmp/check
+grep "你要验证的特征字符串" /tmp/check/dist/assets/index-*.js
+```
+
+### ⚠️ 安装包 PATH 缺失
+
+从 Finder 双击启动的 Electron app 不继承 shell 的 PATH（`.zshrc`/`.bash_profile`），macOS 只给 launchd 的精简 PATH，找不到 hermes、homebrew 等命令。
+
+**修复**（launcher.js 启动时）：通过 login shell 获取完整 PATH 注入 `process.env`：
+
+```js
+async function fixPath() {
+  const { execSync } = require("child_process");
+  const shellPath = process.env.SHELL || "/bin/zsh";
+  const loginPath = execSync(`${shellPath} -l -c 'echo $PATH'`, {
+    encoding: "utf8", timeout: 5000,
+  }).trim();
+  const extra = loginPath.split(":").filter(p => !process.env.PATH.includes(p));
+  if (extra.length > 0) {
+    process.env.PATH = [...extra, process.env.PATH].join(":");
+  }
+}
+// 在 app.whenReady() 最前面 await fixPath()
+```
 
 ### ⚠️ executeJavaScript 限制（launcher.js）
 
