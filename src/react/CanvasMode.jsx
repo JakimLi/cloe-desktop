@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import '@excalidraw/excalidraw/index.css';
 
 export default function CanvasMode() {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState(null);
@@ -77,7 +78,7 @@ export default function CanvasMode() {
             excalidrawAPI={handleExcalidrawAPI}
             initialData={{
               appState: {
-                viewBackgroundColor: '#1a1a2e',
+                viewBackgroundColor: '#1e1e2e',
               },
             }}
             UIOptions={{
