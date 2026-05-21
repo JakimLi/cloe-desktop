@@ -152,11 +152,12 @@ export default function App() {
         onModeChange={setMode}
       />
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>
-        {mode === 'terminal' ? (
+        <div style={{ display: mode === 'terminal' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
           <TerminalMode />
-        ) : (
+        </div>
+        <div style={{ display: mode === 'canvas' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
           <CanvasMode />
-        )}
+        </div>
       </div>
     </div>
   );

@@ -15,18 +15,37 @@ export default function OverlayTitlebar({ onClose, mode, onModeChange }) {
         <button className="traffic-light traffic-fullscreen" title="Fullscreen" onClick={() => window.electronAPI?.toggleFullscreen?.()} />
       </div>
 
-      {/* Mode switcher: ⌨ Terminal / 🎨 Canvas */}
+      {/* Mode switcher */}
       <div className="titlebar-mode-switcher">
         <button
           className={`mode-btn ${mode === 'terminal' ? 'active' : ''}`}
           title="Terminal"
           onClick={() => onModeChange('terminal')}
-        >⌨</button>
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1.5" width="14" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M3.5 5L5.5 7.5L3.5 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="6.5" y1="10" x2="9.5" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="2" y1="13.5" x2="14" y2="13.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          <span className="mode-label">Terminal</span>
+        </button>
         <button
           className={`mode-btn ${mode === 'canvas' ? 'active' : ''}`}
           title="Canvas"
           onClick={() => onModeChange('canvas')}
-        >🎨</button>
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M1 6H15" stroke="currentColor" strokeWidth="1.2"/>
+            <path d="M6 1V15" stroke="currentColor" strokeWidth="1.2"/>
+            <circle cx="3.5" cy="3.5" r="1" fill="currentColor" opacity="0.5"/>
+            <circle cx="12.5" cy="3.5" r="1" fill="currentColor" opacity="0.5"/>
+            <circle cx="3.5" cy="8.5" r="1" fill="currentColor" opacity="0.5"/>
+            <circle cx="3.5" cy="12.5" r="1" fill="currentColor" opacity="0.5"/>
+          </svg>
+          <span className="mode-label">Canvas</span>
+        </button>
       </div>
 
       {/* Drag region */}
