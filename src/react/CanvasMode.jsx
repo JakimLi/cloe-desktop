@@ -62,10 +62,32 @@ export default function CanvasMode() {
           // Use official API to convert skeletons → fully qualified elements
           // This correctly computes text width/height and fills all required fields
           const converted = convertToExcalidrawElements(incoming, { regenerateIds: false });
+
+          // Auto-fit bounding containers (rectangles) to their bound text.
+          // If a text element has boundElements referencing a container,
+          // resize the container to fit the text with padding.
+          const PAD = 24;
+          const map = new Map(converted.map(el => [el.id, el]));
+          converted.forEach(el => {
+            if (el.type === 'text' && el.boundElements) {
+              el.boundElements.forEach(be => {
+                const container = map.get(be.id);
+                if (container && (container.type === 'rectangle' || container.type === 'ellipse' || container.type === 'diamond')) {
+                  // Container position is already set in skeleton; just adjust size
+                  container.width = Math.max(container.width, el.width + PAD * 2);
+                  container.height = Math.max(container.height, el.height + PAD * 2);
+                  // Re-center text within container
+                  el.x = container.x + (container.width - el.width) / 2;
+                  el.y = container.y + (container.height - el.height) / 2;
+                }
+              });
+            }
+          });
+
           // Merge into our ref: new elements overwrite by id
-          const map = new Map(elementsRef.current.map(el => [el.id, el]));
-          converted.forEach(el => map.set(el.id, el));
-          elementsRef.current = Array.from(map.values());
+          const allMap = new Map(elementsRef.current.map(el => [el.id, el]));
+          converted.forEach(el => allMap.set(el.id, el));
+          elementsRef.current = Array.from(allMap.values());
           api.updateScene({ elements: elementsRef.current });
           api.scrollToContent(undefined, { fitToContent: true });
         },
