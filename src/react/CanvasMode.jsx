@@ -63,6 +63,16 @@ export default function CanvasMode() {
           // This correctly computes text width/height and fills all required fields
           const converted = convertToExcalidrawElements(incoming, { regenerateIds: false });
 
+          // Force dark text to white — near-black text is invisible on dark transparent background
+          converted.forEach(el => {
+            if (el.type === 'text' && el.strokeColor) {
+              const c = el.strokeColor.toLowerCase();
+              if (c === '#000000' || c === '#000' || c === 'black') {
+                el.strokeColor = '#ffffff';
+              }
+            }
+          });
+
           // Auto-fit bounding containers (rectangles) to their bound text.
           // If a text element has boundElements referencing a container,
           // resize the container to fit the text with padding.
