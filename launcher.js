@@ -1959,7 +1959,8 @@ function createBridgeServers() {
     //   body: { "level": 2 }  (1 = 100%, 2 = 200%)
     if (req.method === 'POST' && urlPath === '/canvas/excalidraw/zoom') {
       if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      bodyJson(req, (body) => {
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
         const level = Number(body.level) || 1;
         win.webContents.executeJavaScript(`
           if (window.cloeExcalidraw) window.cloeExcalidraw.zoomTo(${level});
@@ -1974,7 +1975,8 @@ function createBridgeServers() {
     //   body: { "x": 200, "y": 300 }
     if (req.method === 'POST' && urlPath === '/canvas/excalidraw/pan') {
       if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      bodyJson(req, (body) => {
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
         const x = Number(body.x) || 0;
         const y = Number(body.y) || 0;
         win.webContents.executeJavaScript(`
@@ -1990,7 +1992,8 @@ function createBridgeServers() {
     //   body: { "ids": ["el1", "el2"] }
     if (req.method === 'POST' && urlPath === '/canvas/excalidraw/select') {
       if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      bodyJson(req, (body) => {
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
         const ids = Array.isArray(body.ids) ? body.ids : [];
         const safeIds = JSON.stringify(ids);
         win.webContents.executeJavaScript(`
@@ -2017,7 +2020,8 @@ function createBridgeServers() {
     //   body: { "ids": ["el1", "el2"] }
     if (req.method === 'POST' && urlPath === '/canvas/excalidraw/focus') {
       if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      bodyJson(req, (body) => {
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
         const ids = Array.isArray(body.ids) ? body.ids : [];
         const safeIds = JSON.stringify(ids);
         win.webContents.executeJavaScript(`
@@ -2033,7 +2037,8 @@ function createBridgeServers() {
     //   body: { "ids": ["el1", "el2"] }
     if (req.method === 'DELETE' && urlPath === '/canvas/excalidraw/elements') {
       if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      bodyJson(req, (body) => {
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
         const ids = Array.isArray(body.ids) ? body.ids : [];
         const safeIds = JSON.stringify(ids);
         win.webContents.executeJavaScript(`
