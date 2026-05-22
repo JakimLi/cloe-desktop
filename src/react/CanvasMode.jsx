@@ -106,6 +106,111 @@ export default function CanvasMode() {
           api.updateScene({ elements: [] });
         },
         getAppState: () => api.getAppState(),
+
+        // ── Attention-guiding operations ──
+
+        /**
+         * Zoom the canvas to a specific level.
+         * @param {number} level - zoom value (e.g. 1 = 100%, 2 = 200%)
+         */
+        zoomTo: (level) => {
+          const state = api.getAppState();
+          api.updateScene({ appState: { zoom: { value: level } } });
+        },
+
+        /**
+         * Pan the canvas so that (x, y) in scene coordinates is at the center.
+         * @param {number} x - scene X
+         * @param {number} y - scene Y
+         */
+        panTo: (x, y) => {
+          const state = api.getAppState();
+          const { zoom, scrollX, scrollY } = state;
+          const z = typeof zoom === 'object' ? zoom.value : zoom;
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          api.updateScene({ appState: { scrollX: cx / z - x, scrollY: cy / z - y } });
+        },
+
+        /**
+         * Select elements by id (highlights them with selection handles).
+         * @param {string[]} ids
+         */
+        selectElements: (ids) => {
+          const selected = {};
+          ids.forEach(id => { selected[id] = true; });
+          api.updateScene({ appState: { selectedElementIds: selected } });
+        },
+
+        /**
+         * Clear all selections.
+         */
+        deselectAll: () => {
+          api.updateScene({ appState: { selectedElementIds: {} } });
+        },
+
+        /**
+         * Focus camera on one or more elements — zoom + pan to center them with padding.
+         * Also selects them for visual highlight.
+         * @param {string[]} ids - element ids to focus on
+         */
+        focusElements: (ids) => {
+          const els = elementsRef.current.filter(el => ids.includes(el.id));
+          if (els.length === 0) return;
+
+          // Compute bounding box of target elements
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          els.forEach(el => {
+            const x = el.x, y = el.y;
+            const w = el.width || 0, h = el.height || 0;
+            // Handle rotated elements
+            if (el.angle && el.angle !== 0) {
+              const cx = x + w / 2, cy = y + h / 2;
+              const rad = (el.angle * Math.PI) / 180;
+              const corners = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]];
+              corners.forEach(([px, py]) => {
+                const rx = cx + (px - cx) * Math.cos(rad) - (py - cy) * Math.sin(rad);
+                const ry = cy + (px - cx) * Math.sin(rad) + (py - cy) * Math.cos(rad);
+                minX = Math.min(minX, rx); minY = Math.min(minY, ry);
+                maxX = Math.max(maxX, rx); maxY = Math.max(maxY, ry);
+              });
+            } else {
+              minX = Math.min(minX, x); minY = Math.min(minY, y);
+              maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+            }
+          });
+
+          const padding = 80;
+          const contentW = maxX - minX + padding * 2;
+          const contentH = maxY - minY + padding * 2;
+          const viewW = window.innerWidth;
+          const viewH = window.innerHeight - 40; // minus header
+          const zoomLevel = Math.min(viewW / contentW, viewH / contentH, 3);
+
+          const centerX = (minX + maxX) / 2;
+          const centerY = (minY + maxY) / 2;
+
+          api.updateScene({
+            appState: {
+              zoom: { value: zoomLevel },
+              scrollX: viewW / 2 / zoomLevel - centerX,
+              scrollY: (viewH / 2 + 20) / zoomLevel - centerY,
+              selectedElementIds: Object.fromEntries(ids.map(id => [id, true])),
+            },
+          });
+        },
+
+        /**
+         * Delete elements by id (soft delete — sets isDeleted: true).
+         * @param {string[]} ids
+         */
+        deleteElements: (ids) => {
+          const idSet = new Set(ids);
+          elementsRef.current = elementsRef.current.map(el =>
+            idSet.has(el.id) ? { ...el, isDeleted: true } : el
+          );
+          api.updateScene({ elements: elementsRef.current });
+        },
       };
       console.log('[Canvas] Excalidraw API exposed on window.cloeExcalidraw (skeleton mode)');
     }

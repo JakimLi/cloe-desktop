@@ -1953,6 +1953,98 @@ function createBridgeServers() {
       return;
     }
 
+    // ── Canvas attention-guiding endpoints ──
+
+    // POST /canvas/excalidraw/zoom — zoom to specific level
+    //   body: { "level": 2 }  (1 = 100%, 2 = 200%)
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/zoom') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      bodyJson(req, (body) => {
+        const level = Number(body.level) || 1;
+        win.webContents.executeJavaScript(`
+          if (window.cloeExcalidraw) window.cloeExcalidraw.zoomTo(${level});
+          'ok';
+        `, true).then(() => jsonRes(res, 200, { ok: true, level }))
+          .catch(err => jsonRes(res, 500, { error: err.message }));
+      });
+      return;
+    }
+
+    // POST /canvas/excalidraw/pan — pan canvas so (x,y) is centered
+    //   body: { "x": 200, "y": 300 }
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/pan') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      bodyJson(req, (body) => {
+        const x = Number(body.x) || 0;
+        const y = Number(body.y) || 0;
+        win.webContents.executeJavaScript(`
+          if (window.cloeExcalidraw) window.cloeExcalidraw.panTo(${x}, ${y});
+          'ok';
+        `, true).then(() => jsonRes(res, 200, { ok: true, x, y }))
+          .catch(err => jsonRes(res, 500, { error: err.message }));
+      });
+      return;
+    }
+
+    // POST /canvas/excalidraw/select — select/highlight elements
+    //   body: { "ids": ["el1", "el2"] }
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/select') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      bodyJson(req, (body) => {
+        const ids = Array.isArray(body.ids) ? body.ids : [];
+        const safeIds = JSON.stringify(ids);
+        win.webContents.executeJavaScript(`
+          if (window.cloeExcalidraw) window.cloeExcalidraw.selectElements(${safeIds});
+          'ok';
+        `, true).then(() => jsonRes(res, 200, { ok: true, selected: ids }))
+          .catch(err => jsonRes(res, 500, { error: err.message }));
+      });
+      return;
+    }
+
+    // POST /canvas/excalidraw/deselect — clear selection
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/deselect') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      win.webContents.executeJavaScript(`
+        if (window.cloeExcalidraw) window.cloeExcalidraw.deselectAll();
+        'ok';
+      `, true).then(() => jsonRes(res, 200, { ok: true }))
+        .catch(err => jsonRes(res, 500, { error: err.message }));
+      return;
+    }
+
+    // POST /canvas/excalidraw/focus — zoom + pan to center on specific elements
+    //   body: { "ids": ["el1", "el2"] }
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/focus') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      bodyJson(req, (body) => {
+        const ids = Array.isArray(body.ids) ? body.ids : [];
+        const safeIds = JSON.stringify(ids);
+        win.webContents.executeJavaScript(`
+          if (window.cloeExcalidraw) window.cloeExcalidraw.focusElements(${safeIds});
+          'ok';
+        `, true).then(() => jsonRes(res, 200, { ok: true, focused: ids }))
+          .catch(err => jsonRes(res, 500, { error: err.message }));
+      });
+      return;
+    }
+
+    // DELETE /canvas/excalidraw/elements — delete specific elements by id
+    //   body: { "ids": ["el1", "el2"] }
+    if (req.method === 'DELETE' && urlPath === '/canvas/excalidraw/elements') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      bodyJson(req, (body) => {
+        const ids = Array.isArray(body.ids) ? body.ids : [];
+        const safeIds = JSON.stringify(ids);
+        win.webContents.executeJavaScript(`
+          if (window.cloeExcalidraw) window.cloeExcalidraw.deleteElements(${safeIds});
+          'ok';
+        `, true).then(() => jsonRes(res, 200, { ok: true, deleted: ids }))
+          .catch(err => jsonRes(res, 500, { error: err.message }));
+      });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });
