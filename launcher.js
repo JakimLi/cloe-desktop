@@ -2256,26 +2256,28 @@ ipcMain.on('pty-resize', (_e, { cols, rows }) => {
 // 'character' = alwaysOnTop small float, 'terminal' = native title bar window
 ipcMain.on('set-window-mode', (_e, mode) => {
   if (!win) return;
-  if (mode === 'terminal') {
-    const display = screen.getPrimaryDisplay();
-    const { width: dw, height: dh } = display.workAreaSize;
-    const tw = Math.min(1200, Math.round(dw * 0.75));
-    const th = Math.min(800, Math.round(dh * 0.75));
-    win.setAlwaysOnTop(false);
-    win.setSize(tw, th, true);
-    win.center();
-  } else if (mode === 'canvas') {
-    const display = screen.getPrimaryDisplay();
-    const { width: dw, height: dh } = display.workAreaSize;
-    const cw = Math.min(1400, Math.round(dw * 0.85));
-    const ch = Math.min(900, Math.round(dh * 0.85));
-    win.setAlwaysOnTop(false);
-    win.setSize(cw, ch, true);
-    win.center();
-  } else {
+  if (mode === 'character') {
     const scale = getWindowScale();
     win.setAlwaysOnTop(true);
     win.setSize(Math.round(BASE_WIDTH * scale), Math.round(BASE_HEIGHT * scale), true);
+    return;
+  }
+  // terminal / canvas: if maximized, keep maximized — just change alwaysOnTop
+  win.setAlwaysOnTop(false);
+  if (!win.isMaximized()) {
+    const display = screen.getPrimaryDisplay();
+    const { width: dw, height: dh } = display.workAreaSize;
+    if (mode === 'terminal') {
+      const tw = Math.min(1200, Math.round(dw * 0.75));
+      const th = Math.min(800, Math.round(dh * 0.75));
+      win.setSize(tw, th, true);
+      win.center();
+    } else if (mode === 'canvas') {
+      const cw = Math.min(1400, Math.round(dw * 0.85));
+      const ch = Math.min(900, Math.round(dh * 0.85));
+      win.setSize(cw, ch, true);
+      win.center();
+    }
   }
 });
 
