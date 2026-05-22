@@ -2050,6 +2050,18 @@ function createBridgeServers() {
       return;
     }
 
+    // GET /screenshot — capture window content as PNG (for debugging)
+    if (req.method === 'GET' && urlPath === '/screenshot') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      win.webContents.capturePage().then(img => {
+        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.end(img.toPNG());
+      }).catch(err => {
+        jsonRes(res, 500, { error: err.message });
+      });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });

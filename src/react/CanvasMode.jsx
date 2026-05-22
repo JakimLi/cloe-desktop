@@ -10,8 +10,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { convertToExcalidrawElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 
-// Stable initial data — only created once to prevent Excalidraw from resetting
-// viewBackgroundColor must be transparent so the character GIF shows through
 const INITIAL_DATA = {
   appState: {
     viewBackgroundColor: 'transparent',
@@ -62,16 +60,6 @@ export default function CanvasMode() {
           // Use official API to convert skeletons → fully qualified elements
           // This correctly computes text width/height and fills all required fields
           const converted = convertToExcalidrawElements(incoming, { regenerateIds: false });
-
-          // Force dark text to white — near-black text is invisible on dark transparent background
-          converted.forEach(el => {
-            if (el.type === 'text' && el.strokeColor) {
-              const c = el.strokeColor.toLowerCase();
-              if (c === '#000000' || c === '#000' || c === 'black') {
-                el.strokeColor = '#ffffff';
-              }
-            }
-          });
 
           // Auto-fit bounding containers (rectangles) to their bound text.
           // If a text element has boundElements referencing a container,
@@ -256,7 +244,7 @@ export default function CanvasMode() {
             initialData={INITIAL_DATA}
             UIOptions={UI_OPTIONS}
             onChange={handleChange}
-            theme="dark"
+            theme="light"
           />
         ) : (
           <div style={{

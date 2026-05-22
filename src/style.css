@@ -308,6 +308,18 @@ body.terminal-mode #settings-btn {
   display: none;
 }
 
+/* ==================== Canvas Mode (white opaque background) ==================== */
+body.canvas-mode {
+  background: #ffffff !important;
+}
+body.canvas-mode #gif-container {
+  z-index: 1; /* above body white bg, below react-root (z-index 5) */
+  pointer-events: none;
+}
+body.canvas-mode .terminal-overlay {
+  background: transparent !important;
+}
+
 /* ==================== Titlebar Mode Switcher ==================== */
 .titlebar-mode-switcher {
   display: flex;
@@ -362,18 +374,4 @@ body.terminal-mode #settings-btn {
 
 /* ==================== Excalidraw Canvas (transparent overlay) ==================== */
 
-/* Make Excalidraw shell transparent so GIF character shows through */
-.excalidraw {
-  --ui-bg: transparent;
-  background: transparent !important;
-}
-
-/* Excalidraw main container — transparent */
-.excalidraw .excalidraw-canvas-wrapper {
-  background: transparent !important;
-}
-
-/* The actual canvas layer — transparent */
-.excalidraw canvas {
-  background: transparent !important;
-}
+/* Excalidraw canvas transparent so drawn shapes float above the character GIF */
