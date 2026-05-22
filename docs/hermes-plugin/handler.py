@@ -319,10 +319,6 @@ class CloeDesktopBridge:
         if not user_message:
             return
 
-        # First turn → wave
-        if is_first_turn:
-            self._trigger_action("wave", force=True)
-
         # Keyword matching from rules
         rules = self._rules()
         lower = user_message.lower()
