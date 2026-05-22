@@ -309,15 +309,12 @@ body.terminal-mode #settings-btn {
 }
 
 /* ==================== Canvas Mode (white opaque background) ==================== */
-body.canvas-mode {
-  background: #ffffff !important;
-}
 body.canvas-mode #gif-container {
-  z-index: 1; /* above body white bg, below react-root (z-index 5) */
+  z-index: 1;
   pointer-events: none;
 }
 body.canvas-mode .terminal-overlay {
-  background: transparent !important;
+  background: rgba(10, 10, 20, 0.72);
 }
 
 /* ==================== Titlebar Mode Switcher ==================== */

@@ -2438,7 +2438,8 @@ ipcMain.handle('hermes-check-health', async () => {
   });
 });
 
-ipcMain.on('hermes-chat-send', (event, { message, sessionId }) => {
+ipcMain.on('hermes-chat-send', (event, payload) => {
+  const { message, sessionId } = payload || {};
   const { host, port, key } = getHermesApiConfig();
 
   const headers = { 'Content-Type': 'application/json' };
@@ -2454,6 +2455,21 @@ ipcMain.on('hermes-chat-send', (event, { message, sessionId }) => {
       headers,
     },
     (res) => {
+      let ended = false;
+
+      // Non-200: read body, send error to renderer
+      if (res.statusCode !== 200) {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          if (!ended) {
+            ended = true;
+            try { event.sender.send('hermes-stream-error', { error: `HTTP ${res.statusCode}: ${body.slice(0, 100)}` }); } catch {}
+          }
+        });
+        return;
+      }
+
       // Relay session ID from response header
       const newSessionId = res.headers['x-hermes-session-id'];
       if (newSessionId) {
@@ -2462,7 +2478,6 @@ ipcMain.on('hermes-chat-send', (event, { message, sessionId }) => {
 
       let buffer = '';
       let currentEvent = '';
-      let ended = false;
 
       res.on('data', (chunk) => {
         buffer += chunk.toString();
@@ -2515,11 +2530,12 @@ ipcMain.on('hermes-chat-send', (event, { message, sessionId }) => {
     try { event.sender.send('hermes-stream-error', { error: err.message }); } catch {}
   });
 
-  req.write(JSON.stringify({
+  const body = JSON.stringify({
     model: 'hermes',
     messages: [{ role: 'user', content: message }],
     stream: true,
-  }));
+  });
+  req.write(body);
   req.end();
 });
 

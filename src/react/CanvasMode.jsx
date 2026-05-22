@@ -13,6 +13,12 @@ import '@excalidraw/excalidraw/index.css';
 const INITIAL_DATA = {
   appState: {
     viewBackgroundColor: 'transparent',
+    currentStrokeColor: '#e0e0e0',
+    currentBackgroundColor: 'transparent',
+    currentFillStyle: 'cross-hatch',
+    currentItemStrokeColor: '#e0e0e0',
+    currentItemBackgroundColor: 'transparent',
+    currentItemFillStyle: 'cross-hatch',
   },
 };
 
@@ -233,7 +239,7 @@ export default function CanvasMode() {
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'monospace',
+            color: 'rgba(0,0,0,0.5)', fontSize: 14, fontFamily: 'monospace',
           }}>
             Loading Excalidraw...
           </div>

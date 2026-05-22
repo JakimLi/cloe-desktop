@@ -54,7 +54,7 @@ export default function ChatPanel({ visible, onClose }) {
   useEffect(() => {
     if (!visible) return;
 
-    const unsubDelta = window.electronAPI?.onHermesDelta?.((_e, data) => {
+    const unsubDelta = window.electronAPI?.onHermesDelta?.((data) => {
       if (data.sessionId) setSessionId(data.sessionId);
       if (data.content) {
         streamRef.current += data.content;
@@ -62,13 +62,13 @@ export default function ChatPanel({ visible, onClose }) {
       }
     });
 
-    const unsubTool = window.electronAPI?.onHermesTool?.((_e, data) => {
+    const unsubTool = window.electronAPI?.onHermesTool?.((data) => {
       const t = `\n${data.emoji || '⚙️'} ${data.label || data.tool}\n`;
       streamRef.current += t;
       setStreamingContent(streamRef.current);
     });
 
-    const unsubEnd = window.electronAPI?.onHermesEnd?.((_e) => {
+    const unsubEnd = window.electronAPI?.onHermesEnd?.(() => {
       const c = streamRef.current;
       streamRef.current = '';
       setStreamingContent('');
@@ -77,7 +77,7 @@ export default function ChatPanel({ visible, onClose }) {
       setConnected(true);
     });
 
-    const unsubError = window.electronAPI?.onHermesError?.((_e, data) => {
+    const unsubError = window.electronAPI?.onHermesError?.((data) => {
       const c = streamRef.current;
       streamRef.current = '';
       setStreamingContent('');
