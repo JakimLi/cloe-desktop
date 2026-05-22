@@ -18,4 +18,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTerminalShortcut: (accelerator) => ipcRenderer.send('set-terminal-shortcut', accelerator),
   onTerminalToggle: (cb) => ipcRenderer.on('terminal-toggle-shortcut', () => cb()),
   onFullscreenChanged: (cb) => ipcRenderer.on('fullscreen-changed', (_e, isFull) => cb(isFull)),
+  // Hermes API (main-process proxy to localhost:8642)
+  hermesCheckHealth: () => ipcRenderer.invoke('hermes-check-health'),
+  hermesSendMessage: (message, sessionId) => ipcRenderer.send('hermes-chat-send', { message, sessionId }),
+  onHermesDelta: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('hermes-stream-delta', h);
+    return () => ipcRenderer.removeListener('hermes-stream-delta', h);
+  },
+  onHermesTool: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('hermes-stream-tool', h);
+    return () => ipcRenderer.removeListener('hermes-stream-tool', h);
+  },
+  onHermesEnd: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('hermes-stream-end', h);
+    return () => ipcRenderer.removeListener('hermes-stream-end', h);
+  },
+  onHermesError: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('hermes-stream-error', h);
+    return () => ipcRenderer.removeListener('hermes-stream-error', h);
+  },
 });

@@ -2400,6 +2400,129 @@ ipcMain.on('open-settings', () => {
   createManagerWindow();
 });
 
+// ==================== Hermes API Proxy ====================
+// Proxies chat requests from the renderer to local Hermes API Server,
+// avoiding CORS issues (main process has no CORS restrictions).
+
+function getHermesApiConfig() {
+  const cfg = loadConfig();
+  const api = cfg.hermesApi || {};
+  return {
+    host: api.host || '127.0.0.1',
+    port: api.port || 8642,
+    key: api.key || '',
+  };
+}
+
+ipcMain.handle('hermes-check-health', async () => {
+  const { host, port } = getHermesApiConfig();
+  return new Promise((resolve) => {
+    const req = http.request(
+      { hostname: host, port, path: '/health', method: 'GET', timeout: 5000 },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            resolve({ connected: true, model: data.model || null });
+          } catch {
+            resolve({ connected: true });
+          }
+        });
+      },
+    );
+    req.on('error', () => resolve({ connected: false }));
+    req.on('timeout', () => { req.destroy(); resolve({ connected: false }); });
+    req.end();
+  });
+});
+
+ipcMain.on('hermes-chat-send', (event, { message, sessionId }) => {
+  const { host, port, key } = getHermesApiConfig();
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers['Authorization'] = `Bearer ${key}`;
+  if (sessionId) headers['X-Hermes-Session-Id'] = sessionId;
+
+  const req = http.request(
+    {
+      hostname: host,
+      port,
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers,
+    },
+    (res) => {
+      // Relay session ID from response header
+      const newSessionId = res.headers['x-hermes-session-id'];
+      if (newSessionId) {
+        try { event.sender.send('hermes-stream-delta', { sessionId: newSessionId }); } catch {}
+      }
+
+      let buffer = '';
+      let currentEvent = '';
+      let ended = false;
+
+      res.on('data', (chunk) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) { currentEvent = ''; continue; }
+          if (trimmed.startsWith('event:')) {
+            currentEvent = trimmed.slice(6).trim();
+            continue;
+          }
+          if (trimmed.startsWith('data:')) {
+            const data = trimmed.slice(5).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (currentEvent === 'hermes.tool.progress') {
+                try { event.sender.send('hermes-stream-tool', parsed); } catch {}
+              } else {
+                // Standard chat.completion.chunk
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  try { event.sender.send('hermes-stream-delta', { content }); } catch {}
+                }
+              }
+            } catch { /* ignore malformed JSON lines */ }
+          }
+        }
+      });
+
+      res.on('end', () => {
+        if (!ended) {
+          ended = true;
+          try { event.sender.send('hermes-stream-end', {}); } catch {}
+        }
+      });
+
+      res.on('error', (err) => {
+        if (!ended) {
+          ended = true;
+          try { event.sender.send('hermes-stream-error', { error: err.message }); } catch {}
+        }
+      });
+    },
+  );
+
+  req.on('error', (err) => {
+    try { event.sender.send('hermes-stream-error', { error: err.message }); } catch {}
+  });
+
+  req.write(JSON.stringify({
+    model: 'hermes',
+    messages: [{ role: 'user', content: message }],
+    stream: true,
+  }));
+  req.end();
+});
+
 // ==================== Canvas Window ====================
 // ==================== System Tray ====================
 function createTray() {
