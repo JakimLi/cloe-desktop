@@ -2400,6 +2400,69 @@ ipcMain.on('open-settings', () => {
   createManagerWindow();
 });
 
+// ==================== Chat Window (standalone BrowserWindow) ====================
+let chatWin = null;
+
+function createChatWindow() {
+  if (chatWin && !chatWin.isDestroyed()) {
+    chatWin.focus();
+    return chatWin;
+  }
+
+  const mainBounds = win?.getBounds() || { x: 100, y: 100, width: 600, height: 500 };
+
+  chatWin = new BrowserWindow({
+    width: 400,
+    height: 520,
+    x: mainBounds.x + mainBounds.width + 16,
+    y: mainBounds.y,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: true,
+    minWidth: 300,
+    minHeight: 250,
+    skipTaskbar: true,
+    hasShadow: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'chat-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+
+  if (!app.isPackaged) {
+    chatWin.loadURL('http://localhost:5173/src/chat.html');
+  } else {
+    chatWin.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
+  }
+
+  chatWin.once('ready-to-show', () => { chatWin.show(); });
+
+  chatWin.on('closed', () => {
+    chatWin = null;
+    try { win?.webContents.send('chat-window-state', false); } catch {}
+  });
+
+  try { win?.webContents.send('chat-window-state', true); } catch {}
+  return chatWin;
+}
+
+function toggleChatWindow() {
+  if (chatWin && !chatWin.isDestroyed()) {
+    if (chatWin.isVisible()) { chatWin.close(); }
+    else { chatWin.show(); chatWin.focus(); }
+  } else {
+    createChatWindow();
+  }
+}
+
+ipcMain.on('chat-window-close', () => { if (chatWin) chatWin.close(); });
+ipcMain.on('chat-window-toggle', () => toggleChatWindow());
+ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
+
 // ==================== Hermes API Proxy ====================
 // Proxies chat requests from the renderer to local Hermes API Server,
 // avoiding CORS issues (main process has no CORS restrictions).
@@ -2446,6 +2509,20 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   if (key) headers['Authorization'] = `Bearer ${key}`;
   if (sessionId) headers['X-Hermes-Session-Id'] = sessionId;
 
+  // Send to chat window if it exists, otherwise fall back to event sender
+  const sender = (ch) => {
+    if (chatWin && !chatWin.isDestroyed()) {
+      try { chatWin.webContents.send(ch); return true; } catch {}
+    }
+    return false;
+  };
+  const sendTo = (ch, data) => {
+    if (chatWin && !chatWin.isDestroyed()) {
+      try { chatWin.webContents.send(ch, data); return; } catch {}
+    }
+    try { event.sender.send(ch, data); } catch {}
+  };
+
   const req = http.request(
     {
       hostname: host,
@@ -2464,7 +2541,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
         res.on('end', () => {
           if (!ended) {
             ended = true;
-            try { event.sender.send('hermes-stream-error', { error: `HTTP ${res.statusCode}: ${body.slice(0, 100)}` }); } catch {}
+            try { sendTo('hermes-stream-error', { error: `HTTP ${res.statusCode}: ${body.slice(0, 100)}` }); } catch {}
           }
         });
         return;
@@ -2473,7 +2550,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       // Relay session ID from response header
       const newSessionId = res.headers['x-hermes-session-id'];
       if (newSessionId) {
-        try { event.sender.send('hermes-stream-delta', { sessionId: newSessionId }); } catch {}
+        try { sendTo('hermes-stream-delta', { sessionId: newSessionId }); } catch {}
       }
 
       let buffer = '';
@@ -2497,12 +2574,12 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
             try {
               const parsed = JSON.parse(data);
               if (currentEvent === 'hermes.tool.progress') {
-                try { event.sender.send('hermes-stream-tool', parsed); } catch {}
+                try { sendTo('hermes-stream-tool', parsed); } catch {}
               } else {
                 // Standard chat.completion.chunk
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
-                  try { event.sender.send('hermes-stream-delta', { content }); } catch {}
+                  try { sendTo('hermes-stream-delta', { content }); } catch {}
                 }
               }
             } catch { /* ignore malformed JSON lines */ }
@@ -2513,21 +2590,21 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('end', () => {
         if (!ended) {
           ended = true;
-          try { event.sender.send('hermes-stream-end', {}); } catch {}
+          try { sendTo('hermes-stream-end', {}); } catch {}
         }
       });
 
       res.on('error', (err) => {
         if (!ended) {
           ended = true;
-          try { event.sender.send('hermes-stream-error', { error: err.message }); } catch {}
+          try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
         }
       });
     },
   );
 
   req.on('error', (err) => {
-    try { event.sender.send('hermes-stream-error', { error: err.message }); } catch {}
+    try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
   });
 
   const body = JSON.stringify({

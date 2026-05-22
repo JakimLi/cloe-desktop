@@ -41,4 +41,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('hermes-stream-error', h);
     return () => ipcRenderer.removeListener('hermes-stream-error', h);
   },
+  // Chat window (separate BrowserWindow)
+  toggleChatWindow: () => ipcRenderer.send('chat-window-toggle'),
+  onChatWindowState: (cb) => {
+    const h = (_e, isOpen) => cb(isOpen);
+    ipcRenderer.on('chat-window-state', h);
+    return () => ipcRenderer.removeListener('chat-window-state', h);
+  },
 });

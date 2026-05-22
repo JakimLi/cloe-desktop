@@ -12,12 +12,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import OverlayTitlebar from './OverlayTitlebar';
 import TerminalMode from './TerminalMode';
 import CanvasMode from './CanvasMode';
-import ChatPanel from './ChatPanel';
 
 export default function App() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
-  const [chatVisible, setChatVisible] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   // ── Show/hide overlay ──
   const show = useCallback((mode) => {
@@ -136,6 +135,17 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── Chat window toggle (separate BrowserWindow) ──
+  useEffect(() => {
+    // Listen for state updates from main process (when chat window is closed externally)
+    const fn = window.electronAPI?.onChatWindowState?.((isOpen) => setChatOpen(isOpen));
+    return () => fn?.();
+  }, []);
+
+  const toggleChat = useCallback(() => {
+    window.electronAPI?.toggleChatWindow?.();
+  }, []);
+
   // ── Settings button click ──
   useEffect(() => {
     const btn = document.getElementById('settings-btn');
@@ -145,8 +155,7 @@ export default function App() {
   }, []);
 
   if (!visible) {
-    // Chat panel can float even when overlay is hidden
-    return <ChatPanel visible={chatVisible} onClose={() => setChatVisible(false)} />;
+    return null;
   }
 
   return (
@@ -155,8 +164,8 @@ export default function App() {
         onClose={() => { hide(); localStorage.setItem('cloe-terminal-visible', 'false'); }}
         mode={mode}
         onModeChange={setMode}
-        onChatToggle={() => setChatVisible(v => !v)}
-        chatVisible={chatVisible}
+        onChatToggle={toggleChat}
+        chatVisible={chatOpen}
       />
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>
         <div style={{ display: mode === 'terminal' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
@@ -166,8 +175,6 @@ export default function App() {
           <CanvasMode />
         </div>
       </div>
-      {/* Chat panel floats on top of everything */}
-      <ChatPanel visible={chatVisible} onClose={() => setChatVisible(false)} />
     </div>
   );
 }

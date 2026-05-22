@@ -379,6 +379,8 @@ let dragStartY = 0;
 container.addEventListener('mousedown', (e) => {
   // No dragging when terminal overlay is visible (React handles this)
   if (document.body.classList.contains('terminal-mode')) return;
+  // Skip window drag if clicking inside the chat panel (it has its own drag)
+  if (e.target.closest('.chat-panel')) return;
   isDragging = true;
   dragStartX = e.screenX;
   dragStartY = e.screenY;

@@ -14,6 +14,7 @@
     "start": "vite build && electron .",
     "pack": "vite build && electron-builder --mac",
     "pack:dir": "vite build && electron-builder --mac --dir",
+    "deploy": "bash scripts/deploy.sh",
     "test:bridge": "node test/bridge.test.js",
     "test:smoke": "node test/smoke-test.js",
     "test:smoke:dev": "node test/smoke-test.js --dev"
@@ -81,6 +82,7 @@
       "dist/**/*",
       "launcher.js",
       "preload.js",
+      "chat-preload.js",
       "node_modules/ws/**/*",
       "node_modules/node-pty/**/*",
       "node_modules/xterm/**/*",
