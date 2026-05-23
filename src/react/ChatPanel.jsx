@@ -65,7 +65,7 @@ function renderInlineCode(text) {
 }
 
 /** Message content renderer with code block and image support */
-function MessageContent({ content, image, isStreaming }) {
+function MessageContent({ content, image, isStreaming, onImageClick }) {
   const blocks = useMemo(() => renderMarkdown(content || ''), [content]);
 
   return (
@@ -75,11 +75,7 @@ function MessageContent({ content, image, isStreaming }) {
           src={`data:image/png;base64,${image}`}
           alt=""
           style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
-          onClick={(e) => {
-            // Open image in new window on click
-            const w = window.open('', '_blank', 'width=800,height=600');
-            if (w) w.document.write(`<!DOCTYPE html><html><head><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}.close{position:fixed;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:1;text-shadow:0 1px 4px rgba(0,0,0,.8);user-select:none}.close:hover{color:#ff6b6b}</style></head><body><span class="close" onclick="window.close()">✕</span><img src="data:image/png;base64,${image}"></body></html>`);
-          }}
+          onClick={() => onImageClick?.(image)}
         />
       )}
       {blocks.map((block, i) => {
@@ -121,6 +117,7 @@ export default function ChatPanel({ visible, onClose }) {
   const [pos, setPos] = useState(null); // {x,y} when dragged; null=CSS default
   const [size, setSize] = useState(null); // {w,h} when resized; null=CSS default
   const [streamingContent, setStreamingContent] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
 
   const streamRef = useRef('');
   const dragRef = useRef({ active: false, ox: 0, oy: 0 });
@@ -132,6 +129,14 @@ export default function ChatPanel({ visible, onClose }) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
+
+  // ── Image preview: close on Escape ──
+  useEffect(() => {
+    if (!previewImage) return;
+    const onKey = (e) => { if (e.key === 'Escape') setPreviewImage(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewImage]);
 
   // ── Health check ──
   useEffect(() => {
@@ -330,7 +335,7 @@ export default function ChatPanel({ visible, onClose }) {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg chat-msg-${m.role}`}>
-            <MessageContent content={m.content} image={m.image} />
+            <MessageContent content={m.content} image={m.image} onImageClick={setPreviewImage} />
           </div>
         ))}
         {streamingContent && (
@@ -373,6 +378,21 @@ export default function ChatPanel({ visible, onClose }) {
 
       {/* ── Resize handle ── */}
       <div className="chat-resize-handle" onMouseDown={onResizeMouseDown} />
+
+      {/* ── Image preview modal ── */}
+      {previewImage && (
+        <div
+          className="chat-image-overlay"
+          onClick={() => setPreviewImage(null)}
+        >
+          <img
+            className="chat-image-preview"
+            src={`data:image/png;base64,${previewImage}`}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

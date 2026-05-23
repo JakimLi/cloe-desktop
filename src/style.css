@@ -373,4 +373,32 @@ body.canvas-mode .terminal-overlay {
 
 /* Excalidraw canvas transparent so drawn shapes float above the character GIF */
 
+/* ==================== Image Preview Modal ==================== */
+
+.chat-image-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  animation: chat-overlay-fade-in 0.15s ease;
+}
+
+.chat-image-preview {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  cursor: default;
+  user-select: none;
+}
+
+@keyframes chat-overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* ==================== End of style.css ==================== */
