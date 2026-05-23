@@ -205,7 +205,10 @@
     "terminalShortcutDesc": "按此快捷键快速切换终端显示/隐藏",
     "terminalShortcutEmpty": "点击设置快捷键…",
     "terminalShortcutHint": "点击输入框后按下想要的组合键",
-    "terminalShortcutClear": "清除"
+    "terminalShortcutClear": "清除",
+    "chatNickname": "聊天昵称",
+    "chatNicknameDesc": "设置聊天窗口中显示的 AI 名称，默认为 Hermes",
+    "chatNicknamePlaceholder": "Hermes"
   },
   "pluginRules": {
     "throttle": "触发节流",

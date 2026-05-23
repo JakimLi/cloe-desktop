@@ -99,6 +99,17 @@ function renderPreferences() {
         </div>
         <div class="pref-item">
           <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.chatNickname')}</div>
+            <div class="pref-desc">${I18n.t('prefs.chatNicknameDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <input type="text" id="pref-chat-nickname" class="form-input"
+              style="width:180px;" placeholder="${I18n.t('prefs.chatNicknamePlaceholder')}"
+              autocomplete="off" spellcheck="false" maxlength="20">
+          </div>
+        </div>
+        <div class="pref-item">
+          <div class="pref-info">
             <div class="pref-label">${I18n.t('prefs.terminal')}</div>
             <div class="pref-desc">${I18n.t('prefs.terminalDesc')}</div>
           </div>
@@ -222,11 +233,27 @@ function renderPreferences() {
     });
   }
 
+  // Chat nickname
+  const nicknameInput = document.getElementById('pref-chat-nickname');
+  let nicknameDebounceTimer;
+
+  nicknameInput.addEventListener('input', () => {
+    clearTimeout(nicknameDebounceTimer);
+    nicknameDebounceTimer = setTimeout(() => {
+      fetch(`${API_CONFIG_BASE}/api-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatNickname: nicknameInput.value.trim() || '' }),
+      }).catch(() => {});
+    }, 300);
+  });
+
   async function loadApiConfig() {
     try {
       const res = await fetch(`${API_CONFIG_BASE}/api-config`);
       if (!res.ok) return;
       const cfg = await res.json();
+      nicknameInput.value = cfg.chatNickname || '';
       apiKeyInput.value = cfg.dashscopeApiKey != null ? String(cfg.dashscopeApiKey) : '';
       const vm = cfg.videoModel != null && cfg.videoModel !== '' ? cfg.videoModel : 'wan2.7-i2v';
       if ([...videoModelSelect.options].some((o) => o.value === vm)) {

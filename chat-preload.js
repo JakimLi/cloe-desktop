@@ -27,4 +27,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window control
   closeWindow: () => ipcRenderer.send('chat-window-close'),
   minimizeWindow: () => ipcRenderer.send('chat-window-minimize'),
+  // Config
+  getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
 });

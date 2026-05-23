@@ -205,7 +205,10 @@
     "terminalShortcutDesc": "Press this shortcut to toggle terminal visibility",
     "terminalShortcutEmpty": "Click to set shortcut…",
     "terminalShortcutHint": "Click the input then press desired key combo",
-    "terminalShortcutClear": "Clear"
+    "terminalShortcutClear": "Clear",
+    "chatNickname": "Chat Nickname",
+    "chatNicknameDesc": "Display name in the chat window, defaults to Hermes",
+    "chatNicknamePlaceholder": "Hermes"
   },
   "pluginRules": {
     "throttle": "Throttle",

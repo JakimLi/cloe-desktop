@@ -83,6 +83,7 @@ function ChatApp() {
   const [connected, setConnected] = useState(null);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingTools, setStreamingTools] = useState([]);
+  const [nickname, setNickname] = useState('Hermes');
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -94,7 +95,7 @@ function ChatApp() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, streamingTools]);
 
-  // Health check
+  // Health check + load nickname
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -105,6 +106,10 @@ function ChatApp() {
     };
     check();
     const iv = setInterval(check, 20000);
+    // Load nickname from config
+    window.electronAPI?.getChatNickname?.().then((name) => {
+      if (name && !cancelled) setNickname(name);
+    }).catch(() => {});
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
 
@@ -193,7 +198,7 @@ function ChatApp() {
       <div className="chat-titlebar" data-tauri-drag-region>
         <div className="chat-titlebar-left">
           <span className="chat-dot" style={{ background: dotColor }} />
-          <span className="chat-title">Hermes</span>
+          <span className="chat-title">{nickname}</span>
           {sessionId && <span className="chat-session-badge" title={sessionId}>Session</span>}
         </div>
         <div className="chat-titlebar-right">
@@ -209,7 +214,7 @@ function ChatApp() {
             {connected === false
               ? 'Cannot reach Hermes API\nEnsure api_server is enabled in hermes config'
               : connected
-                ? 'Say hi to Hermes ✨'
+                ? `Say hi to ${nickname} ✨`
                 : 'Connecting...'}
           </div>
         )}
@@ -239,7 +244,7 @@ function ChatApp() {
           value={input}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder={connected === false ? 'Not connected' : 'Message Hermes… (Enter to send)'}
+          placeholder={connected === false ? 'Not connected' : `Message ${nickname}… (Enter to send)`}
           disabled={connected === false}
           rows={1}
         />

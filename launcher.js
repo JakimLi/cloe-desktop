@@ -2479,6 +2479,7 @@ ipcMain.on('chat-window-close', () => {
 });
 ipcMain.on('chat-window-toggle', () => toggleChatWindow());
 ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
+ipcMain.handle('get-chat-nickname', () => loadConfig().chatNickname || '');
 
 // ==================== Hermes API Proxy ====================
 // Proxies chat requests from the renderer to local Hermes API Server,
