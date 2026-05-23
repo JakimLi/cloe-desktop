@@ -2062,6 +2062,12 @@ function createBridgeServers() {
       return;
     }
 
+    if (req.method === 'POST' && urlPath === '/chat-toggle') {
+      toggleChatWindow();
+      jsonRes(res, 200, { ok: true });
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });
