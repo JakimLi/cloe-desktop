@@ -40,19 +40,19 @@ curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 
 ```bash
 # 生成 + 自动触发桌面 speak 播放
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_tts.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_tts.py \
   --text "要说的话" --speak
 
 # 仅生成音频（输出 MP3 路径到 stdout）
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_tts.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_tts.py \
   --text "要说的话"
 
 # 指定输出路径
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_tts.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_tts.py \
   --text "要说的话" --output /tmp/custom.mp3
 
 # 强制指定 provider
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_tts.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_tts.py \
   --text "要说的话" --provider cosyvoice
 ```
 
@@ -124,17 +124,17 @@ base64 编码后传 `data:audio/mpeg;base64,...`，curl 上限约 128KB。
 
 ```bash
 # 单个生成（默认绿幕，输出到 ~/.cloe/gifs/{action}.gif）
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_gif_v2.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py \
   --action pout \
   --prompt "她微微嘟起嘴唇，表情可爱委屈，身体保持不动。纯绿色背景。电影质感，高清。"
 
 # 蓝幕模式（对黑发效果更好）
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_gif_v2.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py \
   --action pout \
   --prompt "...纯蓝色背景..." --chromakey blue
 
 # 指定参考图
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_gif_v2.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py \
   --action wave \
   --prompt "..." --reference ~/.cloe/references/default.png
 ```

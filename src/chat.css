@@ -375,3 +375,77 @@ html, body, #root {
 
 .chat-send-btn:active:not(:disabled) { transform: translateY(0); }
 .chat-send-btn:disabled { opacity: 0.25; cursor: default; }
+
+/* ── Tool calls (collapsible) ── */
+.chat-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.chat-tool-call {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chat-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  line-height: 1.5;
+}
+
+.chat-tool-clickable {
+  cursor: pointer;
+}
+
+.chat-tool-clickable:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chat-tool-arrow {
+  font-size: 9px;
+  width: 10px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.chat-tool-emoji {
+  flex-shrink: 0;
+}
+
+.chat-tool-name {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+}
+
+.chat-tool-preview {
+  color: rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-tool-detail {
+  padding: 0 8px 6px 24px;
+}
+
+.chat-tool-detail pre {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}

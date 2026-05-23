@@ -34,7 +34,7 @@ curl -s http://localhost:19851/actions
 curl -s http://localhost:19851/action -d '{"action":"wave"}'
 
 # TTS 语音（推荐）
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_tts.py --text "你好" --speak
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_tts.py --text "你好" --speak
 
 # 画布：显示/隐藏
 curl -s -X POST http://localhost:19851/canvas/show -H 'Content-Type: application/json' -d '{"mode":"canvas"}'

@@ -8,9 +8,38 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './chat.css';
 
+/* ── Collapsible tool call component ── */
+
+function ToolCall({ tool, emoji, label }) {
+  const [open, setOpen] = useState(false);
+
+  // Dedup: if label is same as tool name, don't show it expanded (nothing extra)
+  const hasDetail = label && label !== tool;
+
+  return (
+    <div className="chat-tool-call" onClick={() => hasDetail && setOpen(!open)}>
+      <div className={`chat-tool-header${hasDetail ? ' chat-tool-clickable' : ''}`}>
+        <span className="chat-tool-arrow">{hasDetail ? (open ? '▾' : '▸') : '•'}</span>
+        <span className="chat-tool-emoji">{emoji || '⚙️'}</span>
+        <span className="chat-tool-name">{tool}</span>
+        {hasDetail && !open && (
+          <span className="chat-tool-preview">
+            — {label.length > 60 ? label.slice(0, 57) + '…' : label}
+          </span>
+        )}
+      </div>
+      {hasDetail && open && (
+        <div className="chat-tool-detail">
+          <pre>{label}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Markdown renderer — react-markdown with GFM ── */
 
-function MessageContent({ content, isStreaming }) {
+function MessageContent({ content, tools, isStreaming }) {
   const components = {
     pre({ children }) {
       return <div className="chat-code-block">{children}</div>;
@@ -31,7 +60,14 @@ function MessageContent({ content, isStreaming }) {
 
   return (
     <div className="chat-msg-content">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{content}</ReactMarkdown>
+      {tools && tools.length > 0 && (
+        <div className="chat-tool-list">
+          {tools.map((t, i) => <ToolCall key={i} {...t} />)}
+        </div>
+      )}
+      {content && (
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{content}</ReactMarkdown>
+      )}
       {isStreaming && <span className="chat-cursor">▊</span>}
     </div>
   );
@@ -46,15 +82,17 @@ function ChatApp() {
   const [sessionId, setSessionId] = useState(null);
   const [connected, setConnected] = useState(null);
   const [streamingContent, setStreamingContent] = useState('');
+  const [streamingTools, setStreamingTools] = useState([]);
 
   const streamRef = useRef('');
+  const toolsRef = useRef([]);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
 
   // Auto-scroll
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages, streamingContent, streamingTools]);
 
   // Health check
   useEffect(() => {
@@ -80,24 +118,31 @@ function ChatApp() {
       }
     });
     const unsubTool = window.electronAPI?.onHermesTool?.((data) => {
-      const t = `\n${data.emoji || '⚙️'} ${data.label || data.tool}\n`;
-      streamRef.current += t;
-      setStreamingContent(streamRef.current);
+      toolsRef.current.push({ tool: data.tool, emoji: data.emoji, label: data.label });
+      setStreamingTools([...toolsRef.current]);
     });
     const unsubEnd = window.electronAPI?.onHermesEnd?.(() => {
       const c = streamRef.current;
+      const t = toolsRef.current;
       streamRef.current = '';
+      toolsRef.current = [];
       setStreamingContent('');
-      if (c) setMessages(prev => [...prev, { role: 'assistant', content: c }]);
+      setStreamingTools([]);
+      if (c || t.length > 0) {
+        setMessages(prev => [...prev, { role: 'assistant', content: c, tools: t }]);
+      }
       setSending(false);
       setConnected(true);
     });
     const unsubError = window.electronAPI?.onHermesError?.((data) => {
       const c = streamRef.current;
+      const t = toolsRef.current;
       streamRef.current = '';
+      toolsRef.current = [];
       setStreamingContent('');
+      setStreamingTools([]);
       const msg = c ? `${c}\n\n⚠️ ${data.error}` : `⚠️ ${data.error}`;
-      setMessages(prev => [...prev, { role: 'assistant', content: msg }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: msg, tools: t }]);
       setSending(false);
       setConnected(false);
     });
@@ -112,7 +157,9 @@ function ChatApp() {
     if (!sending) {
       setSending(true);
       streamRef.current = '';
+      toolsRef.current = [];
       setStreamingContent('');
+      setStreamingTools([]);
     }
     window.electronAPI?.hermesSendMessage?.(msg, sessionId);
   }, [input, sending, connected, sessionId]);
@@ -132,8 +179,10 @@ function ChatApp() {
     setSessionId(null);
     setMessages([]);
     setStreamingContent('');
+    setStreamingTools([]);
     setSending(false);
     streamRef.current = '';
+    toolsRef.current = [];
   }, []);
 
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
@@ -166,15 +215,15 @@ function ChatApp() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg chat-msg-${m.role}`}>
-            <MessageContent content={m.content} />
+            <MessageContent content={m.content} tools={m.tools} />
           </div>
         ))}
-        {streamingContent && (
+        {(streamingContent || streamingTools.length > 0) && (
           <div className="chat-msg chat-msg-assistant">
-            <MessageContent content={streamingContent} isStreaming />
+            <MessageContent content={streamingContent} tools={streamingTools} isStreaming />
           </div>
         )}
-        {sending && !streamingContent && (
+        {sending && !streamingContent && streamingTools.length === 0 && (
           <div className="chat-msg chat-msg-assistant">
             <div className="chat-typing"><span /><span /><span /></div>
           </div>

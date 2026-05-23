@@ -93,7 +93,7 @@ assert data.get("ok"), f"画图失败: {data}"
 curl -s -X POST http://localhost:19851/canvas/excalidraw/draw -H 'Content-Type: application/json' -d '{"elements": [...]}'
 
 # 再说
-python3 ~/.hermes/skills/creative/cloe-desktop/scripts/generate_tts.py \
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_tts.py \
   --text "解说内容" --speak
 ```
 
