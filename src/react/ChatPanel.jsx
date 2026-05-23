@@ -193,7 +193,19 @@ export default function ChatPanel({ visible, onClose }) {
     });
 
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
-      setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
+      // Flush any in-progress stream before inserting the external message
+      const pending = streamRef.current;
+      if (pending) {
+        streamRef.current = '';
+        setStreamingContent('');
+        setMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: pending },
+          { role: data.role || 'assistant', content: data.content, image: data.image },
+        ]);
+      } else {
+        setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
+      }
     });
 
     return () => {
@@ -263,11 +275,18 @@ export default function ChatPanel({ visible, onClose }) {
     if (!input.trim() || connected === false) return;
     const msg = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: msg }]);
-    if (!sending) {
-      setSending(true);
+
+    // If streaming is in progress, finalize current stream into messages first
+    const pending = streamRef.current;
+    if (pending) {
       streamRef.current = '';
       setStreamingContent('');
+      setMessages(prev => [...prev, { role: 'assistant', content: pending }, { role: 'user', content: msg }]);
+    } else {
+      setMessages(prev => [...prev, { role: 'user', content: msg }]);
+    }
+    if (!sending) {
+      setSending(true);
     }
     window.electronAPI?.hermesSendMessage?.(msg, sessionId);
   }, [input, sending, connected, sessionId]);
