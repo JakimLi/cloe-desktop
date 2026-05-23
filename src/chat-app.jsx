@@ -39,7 +39,7 @@ function ToolCall({ tool, emoji, label }) {
 
 /* ── Markdown renderer — react-markdown with GFM ── */
 
-function MessageContent({ content, tools, isStreaming }) {
+function MessageContent({ content, tools, image, isStreaming }) {
   const components = {
     pre({ children }) {
       return <div className="chat-code-block">{children}</div>;
@@ -60,6 +60,17 @@ function MessageContent({ content, tools, isStreaming }) {
 
   return (
     <div className="chat-msg-content">
+      {image && (
+        <img
+          src={`data:image/png;base64,${image}`}
+          alt=""
+          style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
+          onClick={() => {
+            const w = window.open('', '_blank', 'width=800,height=600');
+            if (w) w.document.write(`<img src="data:image/png;base64,${image}" style="max-width:100%;margin:auto;display:block;">`);
+          }}
+        />
+      )}
       {tools && tools.length > 0 && (
         <div className="chat-tool-list">
           {tools.map((t, i) => <ToolCall key={i} {...t} />)}
@@ -151,7 +162,10 @@ function ChatApp() {
       setSending(false);
       setConnected(false);
     });
-    return () => { unsubDelta?.(); unsubTool?.(); unsubEnd?.(); unsubError?.(); };
+    const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
+      setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
+    });
+    return () => { unsubDelta?.(); unsubTool?.(); unsubEnd?.(); unsubError?.(); unsubExternal?.(); };
   }, []);
 
   const send = useCallback(() => {
@@ -220,7 +234,7 @@ function ChatApp() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg chat-msg-${m.role}`}>
-            <MessageContent content={m.content} tools={m.tools} />
+            <MessageContent content={m.content} tools={m.tools} image={m.image} />
           </div>
         ))}
         {(streamingContent || streamingTools.length > 0) && (

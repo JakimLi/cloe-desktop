@@ -109,3 +109,99 @@ TTS 生成约 3 秒，可以先发 TTS 再画下一批。MOSI speak 播放期间
 4. Excalidraw 画布 — 透明（只有绘制的图形可见）
 
 > ⚠️ curl payload 含 emoji 或换行符时，shell 会截断命令。用 `execute_code` 调 terminal 避免转义问题。
+
+## 图片元素
+
+画布支持显示图片。流程：先注册文件数据，再绘制 image 元素。
+
+### 1. 注册文件
+
+```bash
+curl -s -X POST http://localhost:19851/canvas/excalidraw/files \
+  -H 'Content-Type: application/json' -d '{
+  "files": {
+    "photo-1": {
+      "mimeType": "image/jpeg",
+      "data": "<base64 编码的图片数据>"
+    }
+  }
+}'
+# 返回 {"ok":true}
+```
+
+### 2. 绘制图片元素
+
+```bash
+curl -s -X POST http://localhost:19851/canvas/excalidraw/draw \
+  -H 'Content-Type: application/json' -d '{
+  "elements": [
+    {
+      "id": "img-1",
+      "type": "image",
+      "x": 100,
+      "y": 100,
+      "width": 200,
+      "height": 200,
+      "fileId": "photo-1",
+      "status": "saved",
+      "strokeColor": "transparent",
+      "backgroundColor": "transparent",
+      "roundness": null
+    }
+  ]
+}'
+```
+
+### Python 示例（图片文件 → 画布）
+
+```python
+import base64, json
+from hermes_tools import write_file, terminal
+
+# 读取并编码图片
+with open("/tmp/photo.jpg", "rb") as f:
+    img_b64 = base64.b64encode(f.read()).decode()
+
+file_id = "my-photo-1"
+
+# 注册文件
+files_payload = {"files": {file_id: {"mimeType": "image/jpeg", "data": img_b64}}}
+write_file("/tmp/canvas-files.json", json.dumps(files_payload))
+r = terminal(f"curl -s -X POST http://localhost:19851/canvas/excalidraw/files -H 'Content-Type: application/json' -d @/tmp/canvas-files.json")
+
+# 绘制图片元素（尺寸需要提前知道或给个默认值）
+img_elements = [{
+    "id": "img-1", "type": "image",
+    "x": 100, "y": 100, "width": 300, "height": 200,
+    "fileId": file_id, "status": "saved",
+    "strokeColor": "transparent", "backgroundColor": "transparent"
+}]
+draw_payload = {"elements": img_elements}
+write_file("/tmp/canvas-draw.json", json.dumps(draw_payload))
+terminal(f"curl -s -X POST http://localhost:19851/canvas/excalidraw/draw -H 'Content-Type: application/json' -d @/tmp/canvas-draw.json")
+```
+
+> **注意**：图片尺寸不会自动适配，需要手动指定 width/height。
+
+## 聊天消息注入
+
+通过 HTTP API 向 Chat 面板（主窗口或独立聊天窗口）注入消息，支持纯文本和带图片的消息。
+
+```bash
+# 纯文本消息
+curl -s -X POST http://localhost:19851/chat/message \
+  -H 'Content-Type: application/json' -d '{
+  "role": "assistant",
+  "content": "Hello from Hermes!"
+}'
+
+# 带图片的消息
+curl -s -X POST http://localhost:19851/chat/message \
+  -H 'Content-Type: application/json' -d '{
+  "role": "assistant",
+  "content": "看看这张图",
+  "image": "<base64 编码的图片>"
+}'
+```
+
+消息会同时发送到主窗口的 ChatPanel 和独立的聊天窗口（如果打开的话）。图片支持点击放大查看。

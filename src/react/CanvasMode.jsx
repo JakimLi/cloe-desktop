@@ -205,6 +205,31 @@ export default function CanvasMode() {
           );
           api.updateScene({ elements: elementsRef.current });
         },
+
+        /**
+         * Register binary files for image elements.
+         * @param {Object} filesMap - { fileId: { mimeType: string, data: string (base64) } }
+         *
+         * Excalidraw's addFiles expects BinaryFileData[] with a `dataURL` field
+         * (e.g. "data:image/png;base64,<base64>"), not raw ArrayBuffer.
+         * @see https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/types/excalidraw/types.d.ts
+         */
+        addFiles: (filesMap) => {
+          if (!api.addFiles) { console.warn('[Canvas] addFiles not available on Excalidraw API'); return; }
+          const binaryFiles = Object.entries(filesMap).map(([id, { mimeType, data }]) => ({
+            id,
+            mimeType: mimeType || 'image/png',
+            dataURL: `data:${mimeType || 'image/png'};base64,${data}`,
+            created: Date.now(),
+            lastRetrieved: Date.now(),
+          }));
+          try {
+            api.addFiles(binaryFiles);
+            api.updateScene({ elements: elementsRef.current });
+          } catch (e) {
+            console.error('[Canvas] addFiles failed:', e);
+          }
+        },
       };
       console.log('[Canvas] Excalidraw API exposed on window.cloeExcalidraw (skeleton mode)');
     }

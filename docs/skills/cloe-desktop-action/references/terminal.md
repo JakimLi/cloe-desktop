@@ -43,6 +43,15 @@ curl -s -X POST http://localhost:19851/canvas/hide
 | `/canvas/excalidraw/draw` | POST | 画元素：`{"elements":[...]}` |
 | `/canvas/excalidraw/scene` | GET | 读取当前场景 |
 | `/canvas/excalidraw/scene` | DELETE | 清空画布 |
+| `/canvas/excalidraw/files` | POST | 注册图片文件：`{"files":{id:{mimeType,data}}}` |
+| `/canvas/excalidraw/zoom` | POST | 缩放：`{"level":2}` |
+| `/canvas/excalidraw/pan` | POST | 平移：`{"x":200,"y":300}` |
+| `/canvas/excalidraw/select` | POST | 选中元素：`{"ids":["el1"]}` |
+| `/canvas/excalidraw/deselect` | POST | 取消选中 |
+| `/canvas/excalidraw/focus` | POST | 聚焦元素：`{"ids":["el1"]}` |
+| `/canvas/excalidraw/elements` | DELETE | 删除元素：`{"ids":["el1"]}` |
+| `/chat/message` | POST | 注入消息：`{"role":"assistant","content":"...","image":"<base64>"}` |
+| `/screenshot` | GET | 截取窗口 PNG |
 
 ## 终端快捷键
 

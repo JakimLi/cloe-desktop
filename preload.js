@@ -48,4 +48,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('chat-window-state', h);
     return () => ipcRenderer.removeListener('chat-window-state', h);
   },
+  // External message injection (from Hermes via /chat/message)
+  onExternalChatMessage: (cb) => {
+    const h = (_e, msg) => cb(msg);
+    ipcRenderer.on('external-chat-message', h);
+    return () => ipcRenderer.removeListener('external-chat-message', h);
+  },
 });

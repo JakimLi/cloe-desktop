@@ -64,12 +64,24 @@ function renderInlineCode(text) {
   return parts.length === 0 ? [{ type: 'plain', content: text }] : parts;
 }
 
-/** Message content renderer with code block support */
-function MessageContent({ content, isStreaming }) {
-  const blocks = useMemo(() => renderMarkdown(content), [content]);
+/** Message content renderer with code block and image support */
+function MessageContent({ content, image, isStreaming }) {
+  const blocks = useMemo(() => renderMarkdown(content || ''), [content]);
 
   return (
     <div className="chat-msg-content">
+      {image && (
+        <img
+          src={`data:image/png;base64,${image}`}
+          alt=""
+          style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
+          onClick={(e) => {
+            // Open image in new window on click
+            const w = window.open('', '_blank', 'width=800,height=600');
+            if (w) w.document.write(`<img src="data:image/png;base64,${image}" style="max-width:100%;margin:auto;display:block;">`);
+          }}
+        />
+      )}
       {blocks.map((block, i) => {
         if (block.type === 'codeblock') {
           return (
@@ -175,11 +187,16 @@ export default function ChatPanel({ visible, onClose }) {
       setConnected(false);
     });
 
+    const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
+      setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
+    });
+
     return () => {
       unsubDelta?.();
       unsubTool?.();
       unsubEnd?.();
       unsubError?.();
+      unsubExternal?.();
     };
   }, [visible]);
 
@@ -313,7 +330,7 @@ export default function ChatPanel({ visible, onClose }) {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg chat-msg-${m.role}`}>
-            <MessageContent content={m.content} />
+            <MessageContent content={m.content} image={m.image} />
           </div>
         ))}
         {streamingContent && (

@@ -29,4 +29,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimizeWindow: () => ipcRenderer.send('chat-window-minimize'),
   // Config
   getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
+  // External message injection (from Hermes via /chat/message)
+  onExternalChatMessage: (cb) => {
+    const h = (_e, msg) => cb(msg);
+    ipcRenderer.on('external-chat-message', h);
+    return () => ipcRenderer.removeListener('external-chat-message', h);
+  },
 });

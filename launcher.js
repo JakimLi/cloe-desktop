@@ -2050,6 +2050,50 @@ function createBridgeServers() {
       return;
     }
 
+    // POST /canvas/excalidraw/files — register binary files for image elements
+    //   body: { "files": { "fileId1": { "mimeType": "image/jpeg", "data": "<base64>" } } }
+    if (req.method === 'POST' && urlPath === '/canvas/excalidraw/files') {
+      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        const filesMap = body.files || body;
+        if (typeof filesMap !== 'object' || Array.isArray(filesMap)) {
+          jsonRes(res, 400, { error: 'expected { files: { id: { mimeType, data } } }' }); return;
+        }
+        const safeFiles = JSON.stringify(filesMap);
+        win.webContents.executeJavaScript(`
+          (function() {
+            if (!window.cloeExcalidraw || !window.cloeExcalidraw.addFiles) return JSON.stringify({error:'addFiles not available'});
+            try { window.cloeExcalidraw.addFiles(${safeFiles}); return JSON.stringify({ok:true}); }
+            catch(e) { return JSON.stringify({error:e.message}); }
+          })()
+        `, true).then(result => {
+          jsonRes(res, 200, JSON.parse(result));
+        }).catch(err => {
+          jsonRes(res, 500, { error: err.message });
+        });
+      });
+      return;
+    }
+
+    // POST /chat/message — inject an external message into the chat window
+    //   body: { "role": "assistant", "content": "text", "image": "<optional base64>" }
+    if (req.method === 'POST' && urlPath === '/chat/message') {
+      readJsonBody(req, (err, body) => {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        const role = body.role || 'assistant';
+        const content = body.content || '';
+        const image = body.image || null;
+        if (!content && !image) { jsonRes(res, 400, { error: 'content or image required' }); return; }
+        // Send via IPC to all windows that might be listening
+        const msg = { role, content, image, timestamp: Date.now() };
+        try { win?.webContents?.send('external-chat-message', msg); } catch {}
+        try { chatWin?.webContents?.send('external-chat-message', msg); } catch {}
+        jsonRes(res, 200, { ok: true });
+      });
+      return;
+    }
+
     // GET /screenshot — capture window content as PNG (for debugging)
     if (req.method === 'GET' && urlPath === '/screenshot') {
       if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
