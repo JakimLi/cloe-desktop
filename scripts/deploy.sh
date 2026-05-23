@@ -7,6 +7,9 @@ cd "$(dirname "$0")/.."
 APP_NAME="Cloe"
 APP_PATH="/Applications/${APP_NAME}.app"
 
+echo "⏳ Step 0: Clean caches..."
+rm -rf dist node_modules/.vite
+
 echo "⏳ Step 1: vite build..."
 npm run build
 
