@@ -455,3 +455,21 @@ html, body, #root {
   word-break: break-word;
   margin: 0;
 }
+
+/* ── Image preview modal ── */
+.chat-image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.chat-image-modal img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+  cursor: default;
+}

@@ -67,7 +67,7 @@ function MessageContent({ content, tools, image, isStreaming }) {
           style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
           onClick={() => {
             const w = window.open('', '_blank', 'width=800,height=600');
-            if (w) w.document.write(`<!DOCTYPE html><html><head><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}.close{position:fixed;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:1;text-shadow:0 1px 4px rgba(0,0,0,.8);user-select:none}.close:hover{color:#ff6b6b}</style></head><body><span class="close" onclick="window.close()">✕</span><img src="data:image/png;base64,${image}"></body></html>`);
+            if (w) w.document.write(`<!DOCTYPE html><html><head><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style></head><body><img src="data:image/png;base64,${image}"></body></html>`);
           }}
         />
       )}
