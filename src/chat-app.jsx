@@ -2,64 +2,36 @@
  * Chat App — Standalone Hermes client for the chat BrowserWindow.
  * Independent window, no drag/resize needed (OS handles that).
  */
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './chat.css';
 
-/* ── Markdown renderers (same as before) ── */
-
-function renderMarkdown(text) {
-  const parts = [];
-  const codeBlockRe = /```(\w*)\n([\s\S]*?)```/g;
-  let lastIdx = 0;
-  let match;
-  while ((match = codeBlockRe.exec(text)) !== null) {
-    if (match.index > lastIdx) parts.push({ type: 'text', content: text.slice(lastIdx, match.index) });
-    parts.push({ type: 'codeblock', lang: match[1] || '', content: match[2].replace(/\n$/, '') });
-    lastIdx = match.index + match[0].length;
-  }
-  if (lastIdx < text.length) parts.push({ type: 'text', content: text.slice(lastIdx) });
-  return parts;
-}
-
-function renderInlineCode(text) {
-  const parts = [];
-  const inlineRe = /`([^\n`]+)`/g;
-  let lastIdx = 0;
-  let match;
-  while ((match = inlineRe.exec(text)) !== null) {
-    if (match.index > lastIdx) parts.push({ type: 'plain', content: text.slice(lastIdx, match.index) });
-    parts.push({ type: 'code', content: match[1] });
-    lastIdx = match.index + match[0].length;
-  }
-  if (lastIdx < text.length) parts.push({ type: 'plain', content: text.slice(lastIdx) });
-  return parts.length === 0 ? [{ type: 'plain', content: text }] : parts;
-}
+/* ── Markdown renderer — react-markdown with GFM ── */
 
 function MessageContent({ content, isStreaming }) {
-  const blocks = useMemo(() => renderMarkdown(content), [content]);
+  const components = {
+    pre({ children }) {
+      return <div className="chat-code-block">{children}</div>;
+    },
+    code({ className, children, ...props }) {
+      const lang = (className || '').replace(/^language-/, '');
+      if (lang) {
+        return <><div className="chat-code-lang">{lang}</div><pre className="chat-code-pre"><code className={className} {...props}>{children}</code></pre></>;
+      }
+      // Inline code — check if it's inside a pre (parent handles block code)
+      const isBlock = typeof children === 'string' && children.includes('\n');
+      if (isBlock) {
+        return <pre className="chat-code-pre"><code {...props}>{children}</code></pre>;
+      }
+      return <code className="chat-inline-code" {...props}>{children}</code>;
+    },
+  };
+
   return (
     <div className="chat-msg-content">
-      {blocks.map((block, i) => {
-        if (block.type === 'codeblock') {
-          return (
-            <div key={i} className="chat-code-block">
-              {block.lang && <div className="chat-code-lang">{block.lang}</div>}
-              <pre className="chat-code-pre"><code>{block.content}</code></pre>
-            </div>
-          );
-        }
-        const inlines = renderInlineCode(block.content);
-        return (
-          <span key={i}>
-            {inlines.map((seg, j) =>
-              seg.type === 'code'
-                ? <code key={j} className="chat-inline-code">{seg.content}</code>
-                : <span key={j} className="chat-plain-text">{seg.content}</span>
-            )}
-          </span>
-        );
-      })}
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{content}</ReactMarkdown>
       {isStreaming && <span className="chat-cursor">▊</span>}
     </div>
   );
