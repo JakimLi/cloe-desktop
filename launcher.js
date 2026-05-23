@@ -2458,14 +2458,25 @@ function createChatWindow() {
 
 function toggleChatWindow() {
   if (chatWin && !chatWin.isDestroyed()) {
-    if (chatWin.isVisible()) { chatWin.close(); }
-    else { chatWin.show(); chatWin.focus(); }
+    if (chatWin.isVisible()) {
+      chatWin.hide();
+      try { win?.webContents.send('chat-window-state', false); } catch {}
+    } else {
+      chatWin.show();
+      chatWin.focus();
+      try { win?.webContents.send('chat-window-state', true); } catch {}
+    }
   } else {
     createChatWindow();
   }
 }
 
-ipcMain.on('chat-window-close', () => { if (chatWin) chatWin.close(); });
+ipcMain.on('chat-window-close', () => {
+  if (chatWin && !chatWin.isDestroyed()) {
+    chatWin.hide();
+    try { win?.webContents.send('chat-window-state', false); } catch {}
+  }
+});
 ipcMain.on('chat-window-toggle', () => toggleChatWindow());
 ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
 
