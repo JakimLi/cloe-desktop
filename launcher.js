@@ -2563,8 +2563,34 @@ ipcMain.handle('hermes-check-health', async () => {
   });
 });
 
+ipcMain.handle('hermes-chat-models', async () => {
+  const { host, port, key } = getHermesApiConfig();
+  return new Promise((resolve) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (key) headers['Authorization'] = `Bearer ${key}`;
+    const req = http.request(
+      { hostname: host, port, path: '/v1/models', method: 'GET', headers, timeout: 5000 },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            resolve((data.data || []).map((m) => m.id));
+          } catch {
+            resolve([]);
+          }
+        });
+      },
+    );
+    req.on('error', () => resolve([]));
+    req.on('timeout', () => { req.destroy(); resolve([]); });
+    req.end();
+  });
+});
+
 ipcMain.on('hermes-chat-send', (event, payload) => {
-  const { message, sessionId } = payload || {};
+  const { message, sessionId, model } = payload || {};
   const { host, port, key } = getHermesApiConfig();
 
   const headers = { 'Content-Type': 'application/json' };
@@ -2670,7 +2696,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   });
 
   const body = JSON.stringify({
-    model: 'hermes',
+    model: model || 'hermes',
     messages: [{ role: 'user', content: message }],
     stream: true,
   });
