@@ -135,6 +135,36 @@ function renderPreferences() {
             </div>
           </div>
         </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.canvasShortcut')}</div>
+            <div class="pref-desc">${I18n.t('prefs.canvasShortcutDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="text" id="pref-canvas-shortcut" class="form-input"
+                style="width:160px;text-align:center;font-family:'SF Mono',monospace;font-size:13px;cursor:pointer;"
+                placeholder="${I18n.t('prefs.canvasShortcutEmpty')}"
+                readonly>
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-canvas-shortcut-clear">${I18n.t('prefs.canvasShortcutClear')}</button>
+            </div>
+          </div>
+        </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.chatShortcut')}</div>
+            <div class="pref-desc">${I18n.t('prefs.chatShortcutDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="text" id="pref-chat-shortcut" class="form-input"
+                style="width:160px;text-align:center;font-family:'SF Mono',monospace;font-size:13px;cursor:pointer;"
+                placeholder="${I18n.t('prefs.chatShortcutEmpty')}"
+                readonly>
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-chat-shortcut-clear">${I18n.t('prefs.chatShortcutClear')}</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -430,6 +460,72 @@ function renderPreferences() {
   if (savedShortcut) {
     window.electronAPI?.setTerminalShortcut?.(savedShortcut);
   }
+
+  // ── Canvas shortcut recorder ──
+  const canvasShortcutInput = document.getElementById('pref-canvas-shortcut');
+  const canvasShortcutClearBtn = document.getElementById('pref-canvas-shortcut-clear');
+  let canvasSavedShortcut = localStorage.getItem('cloe-canvas-shortcut') || '';
+  if (canvasSavedShortcut) canvasShortcutInput.value = electronAcceleratorToDisplay(canvasSavedShortcut);
+
+  canvasShortcutInput.addEventListener('focus', () => {
+    canvasShortcutInput.value = I18n.t('prefs.canvasShortcutHint');
+    canvasShortcutInput.classList.add('shortcut-recording');
+  });
+
+  canvasShortcutInput.addEventListener('blur', () => {
+    canvasShortcutInput.classList.remove('shortcut-recording');
+    canvasShortcutInput.value = canvasSavedShortcut ? electronAcceleratorToDisplay(canvasSavedShortcut) : '';
+  });
+
+  canvasShortcutInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const accel = buildElectronAccelerator(e);
+    if (!accel) return;
+    canvasSavedShortcut = accel;
+    localStorage.setItem('cloe-canvas-shortcut', accel);
+    canvasShortcutInput.value = electronAcceleratorToDisplay(accel);
+    canvasShortcutInput.blur();
+  });
+
+  canvasShortcutClearBtn.addEventListener('click', () => {
+    canvasSavedShortcut = '';
+    localStorage.removeItem('cloe-canvas-shortcut');
+    canvasShortcutInput.value = '';
+  });
+
+  // ── Chat shortcut recorder ──
+  const chatShortcutInput = document.getElementById('pref-chat-shortcut');
+  const chatShortcutClearBtn = document.getElementById('pref-chat-shortcut-clear');
+  let chatSavedShortcut = localStorage.getItem('cloe-chat-shortcut') || '';
+  if (chatSavedShortcut) chatShortcutInput.value = electronAcceleratorToDisplay(chatSavedShortcut);
+
+  chatShortcutInput.addEventListener('focus', () => {
+    chatShortcutInput.value = I18n.t('prefs.chatShortcutHint');
+    chatShortcutInput.classList.add('shortcut-recording');
+  });
+
+  chatShortcutInput.addEventListener('blur', () => {
+    chatShortcutInput.classList.remove('shortcut-recording');
+    chatShortcutInput.value = chatSavedShortcut ? electronAcceleratorToDisplay(chatSavedShortcut) : '';
+  });
+
+  chatShortcutInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const accel = buildElectronAccelerator(e);
+    if (!accel) return;
+    chatSavedShortcut = accel;
+    localStorage.setItem('cloe-chat-shortcut', accel);
+    chatShortcutInput.value = electronAcceleratorToDisplay(accel);
+    chatShortcutInput.blur();
+  });
+
+  chatShortcutClearBtn.addEventListener('click', () => {
+    chatSavedShortcut = '';
+    localStorage.removeItem('cloe-chat-shortcut');
+    chatShortcutInput.value = '';
+  });
 }
 
 /**

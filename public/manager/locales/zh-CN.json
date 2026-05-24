@@ -208,7 +208,17 @@
     "terminalShortcutClear": "清除",
     "chatNickname": "聊天昵称",
     "chatNicknameDesc": "设置聊天窗口中显示的 AI 名称，默认为 Hermes",
-    "chatNicknamePlaceholder": "Hermes"
+    "chatNicknamePlaceholder": "Hermes",
+    "canvasShortcut": "画布快捷键",
+    "canvasShortcutDesc": "按此快捷键快速切换画布显示/隐藏",
+    "canvasShortcutEmpty": "点击设置快捷键…",
+    "canvasShortcutHint": "点击输入框后按下想要的组合键",
+    "canvasShortcutClear": "清除",
+    "chatShortcut": "聊天快捷键",
+    "chatShortcutDesc": "按此快捷键快速打开/关闭聊天窗口",
+    "chatShortcutEmpty": "点击设置快捷键…",
+    "chatShortcutHint": "点击输入框后按下想要的组合键",
+    "chatShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",

@@ -110,6 +110,61 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, [visible, show, hide]);
 
+  // ── Canvas keyboard shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-canvas-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (visible && mode === 'canvas') {
+          hide();
+          localStorage.setItem('cloe-terminal-visible', 'false');
+        } else {
+          show('canvas');
+          localStorage.setItem('cloe-terminal-visible', 'true');
+          localStorage.setItem('cloe-overlay-mode', 'canvas');
+        }
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [visible, mode, show, hide]);
+
+  // ── Chat keyboard shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-chat-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.electronAPI?.toggleChatWindow?.();
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   // ── Fullscreen change re-fit ──
   useEffect(() => {
     let unsub = null;

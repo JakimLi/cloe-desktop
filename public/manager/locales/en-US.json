@@ -208,7 +208,17 @@
     "terminalShortcutClear": "Clear",
     "chatNickname": "Chat Nickname",
     "chatNicknameDesc": "Display name in the chat window, defaults to Hermes",
-    "chatNicknamePlaceholder": "Hermes"
+    "chatNicknamePlaceholder": "Hermes",
+    "canvasShortcut": "Canvas Shortcut",
+    "canvasShortcutDesc": "Press this shortcut to toggle canvas visibility",
+    "canvasShortcutEmpty": "Click to set shortcut…",
+    "canvasShortcutHint": "Click the input then press desired key combo",
+    "canvasShortcutClear": "Clear",
+    "chatShortcut": "Chat Shortcut",
+    "chatShortcutDesc": "Press this shortcut to toggle the chat window",
+    "chatShortcutEmpty": "Click to set shortcut…",
+    "chatShortcutHint": "Click the input then press desired key combo",
+    "chatShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",
