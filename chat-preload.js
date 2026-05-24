@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // Hermes API proxy
   hermesCheckHealth: () => ipcRenderer.invoke('hermes-check-health'),
-  hermesSendMessage: (message, sessionId) => ipcRenderer.send('hermes-chat-send', { message, sessionId }),
+  hermesGetModels: () => ipcRenderer.invoke('hermes-chat-models'),
+  hermesSendMessage: (message, sessionId, model) => ipcRenderer.send('hermes-chat-send', { message, sessionId, model }),
   onHermesDelta: (cb) => {
     const h = (_e, d) => cb(d);
     ipcRenderer.on('hermes-stream-delta', h);

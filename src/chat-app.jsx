@@ -95,6 +95,8 @@ function ChatApp() {
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingTools, setStreamingTools] = useState([]);
   const [nickname, setNickname] = useState('Hermes');
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -120,6 +122,10 @@ function ChatApp() {
     // Load nickname from config
     window.electronAPI?.getChatNickname?.().then((name) => {
       if (name && !cancelled) setNickname(name);
+    }).catch(() => {});
+    // Load model list
+    window.electronAPI?.hermesGetModels?.().then((list) => {
+      if (!cancelled && Array.isArray(list)) setModels(list);
     }).catch(() => {});
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
@@ -180,8 +186,8 @@ function ChatApp() {
       setStreamingContent('');
       setStreamingTools([]);
     }
-    window.electronAPI?.hermesSendMessage?.(msg, sessionId);
-  }, [input, sending, connected, sessionId]);
+    window.electronAPI?.hermesSendMessage?.(msg, sessionId, selectedModel || undefined);
+  }, [input, sending, connected, sessionId, selectedModel]);
 
   const onKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -204,6 +210,12 @@ function ChatApp() {
     toolsRef.current = [];
   }, []);
 
+  const onModelChange = useCallback((e) => {
+    const v = e.target.value;
+    setSelectedModel(v);
+    localStorage.setItem('cloe-chat-model', v);
+  }, []);
+
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
 
   return (
@@ -220,6 +232,19 @@ function ChatApp() {
           <button className="chat-btn chat-btn-close" onClick={() => window.electronAPI?.closeWindow?.()} title="Close">✕</button>
         </div>
       </div>
+
+      {/* Model selector */}
+      {models.length > 0 && (
+        <div className="chat-model-row">
+          <label className="chat-model-label">Model</label>
+          <select className="chat-model-select" value={selectedModel} onChange={onModelChange}>
+            <option value="">Default</option>
+            {models.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="chat-messages">
