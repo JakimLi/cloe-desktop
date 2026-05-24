@@ -56,7 +56,7 @@ html, body {
 
 .context-bar {
   position: absolute;
-  top: 8px;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
   width: 70%;
