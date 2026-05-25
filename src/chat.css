@@ -669,3 +669,123 @@ html, body, #root {
   color: #fca5a5;
 }
 
+/* ── Avatar Cropper Modal ── */
+.avatar-cropper-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.avatar-cropper-modal {
+  background: rgba(20, 20, 24, 0.96);
+  border: 1px solid rgba(96, 165, 250, 0.15);
+  border-radius: 16px;
+  padding: 20px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(96, 165, 250, 0.08);
+}
+
+.avatar-cropper-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.3px;
+}
+
+.avatar-cropper-area {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  cursor: grab;
+  border: 2px solid rgba(96, 165, 250, 0.3);
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.12);
+}
+
+.avatar-cropper-area:active {
+  cursor: grabbing;
+}
+
+.avatar-cropper-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  user-select: none;
+  image-rendering: auto;
+}
+
+.avatar-cropper-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+}
+
+.avatar-cropper-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.2px;
+}
+
+.avatar-cropper-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.avatar-cropper-btn {
+  padding: 7px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  letter-spacing: 0.2px;
+}
+
+.avatar-cropper-btn:active {
+  transform: scale(0.97);
+}
+
+.avatar-cropper-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.avatar-cropper-cancel:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.avatar-cropper-confirm {
+  background: rgba(96, 165, 250, 0.25);
+  color: rgba(147, 197, 253, 0.95);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.avatar-cropper-confirm:hover {
+  background: rgba(96, 165, 250, 0.4);
+  color: #bfdbfe;
+}
+

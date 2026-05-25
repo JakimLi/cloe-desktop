@@ -2559,25 +2559,35 @@ ipcMain.handle('chat-select-avatar', async () => {
   }
   const srcPath = result.filePaths[0];
   try {
+    // Read the original image and return as base64 data URL (no resize — let the frontend crop)
+    const nativeImg = nativeImage.createFromPath(srcPath);
+    if (nativeImg.isEmpty()) return null;
+    const pngBuf = nativeImg.toPNG();
+    const base64 = pngBuf.toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch (err) {
+    console.error('[Chat] Error reading avatar image:', err);
+    return null;
+  }
+});
+
+ipcMain.handle('chat-save-avatar', (_event, dataUrl) => {
+  try {
+    if (!dataUrl || !dataUrl.startsWith('data:image/')) return false;
+    // Extract base64 payload
+    const base64 = dataUrl.replace(/^data:image\/[a-z+]+;base64,/, '');
+    const buf = Buffer.from(base64, 'base64');
     // Ensure ~/.cloe directory exists
     const cloeDir = path.join(os.homedir(), '.cloe');
     if (!fs.existsSync(cloeDir)) {
       fs.mkdirSync(cloeDir, { recursive: true });
     }
-    // Read, resize, and save as PNG
-    const nativeImg = nativeImage.createFromPath(srcPath);
-    if (nativeImg.isEmpty()) return null;
-    // Resize to 128x128 for performance
-    const resized = nativeImg.resize({ width: 128, height: 128 });
-    const pngBuf = resized.toPNG();
     const avatarPath = getChatAvatarPath();
-    fs.writeFileSync(avatarPath, pngBuf);
-    // Return as base64 data URL for immediate display
-    const base64 = pngBuf.toString('base64');
-    return `data:image/png;base64,${base64}`;
+    fs.writeFileSync(avatarPath, buf);
+    return true;
   } catch (err) {
-    console.error('[Chat] Error saving avatar:', err);
-    return null;
+    console.error('[Chat] Error saving cropped avatar:', err);
+    return false;
   }
 });
 

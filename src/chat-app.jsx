@@ -84,6 +84,137 @@ function MessageContent({ content, tools, image, isStreaming }) {
   );
 }
 
+/* ── Avatar Cropper Modal ── */
+
+const CROP_SIZE = 200; // diameter of the circular crop area (px)
+
+function AvatarCropper({ imageSrc, onConfirm, onCancel }) {
+  const containerRef = useRef(null);
+  const imgRef = useRef(null);
+  const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
+  // Position & scale of the image relative to the crop container
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startOffX: 0, startOffY: 0 });
+
+  // Load natural dimensions
+  const handleImgLoad = useCallback((e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    setNaturalSize({ w: naturalWidth, h: naturalHeight });
+    // Fit the image so the shorter side fills the crop circle
+    const fitScale = CROP_SIZE / Math.min(naturalWidth, naturalHeight);
+    setScale(fitScale);
+    // Center the image in the crop area
+    const drawW = naturalWidth * fitScale;
+    const drawH = naturalHeight * fitScale;
+    setOffset({ x: (CROP_SIZE - drawW) / 2, y: (CROP_SIZE - drawH) / 2 });
+  }, []);
+
+  // ── Drag handling ──
+  const onMouseDown = useCallback((e) => {
+    e.preventDefault();
+    dragRef.current = {
+      dragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffX: offset.x,
+      startOffY: offset.y,
+    };
+  }, [offset]);
+
+  const onMouseMove = useCallback((e) => {
+    if (!dragRef.current.dragging) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setOffset({
+      x: dragRef.current.startOffX + dx,
+      y: dragRef.current.startOffY + dy,
+    });
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    dragRef.current.dragging = false;
+  }, []);
+
+  // ── Wheel zoom ──
+  const onWheel = useCallback((e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.95 : 1.05;
+    setScale((prev) => {
+      const next = prev * delta;
+      // Clamp: don't let the image become smaller than the crop circle
+      const minScale = CROP_SIZE / Math.max(naturalSize.w, naturalSize.h);
+      return Math.max(minScale, next);
+    });
+  }, [naturalSize]);
+
+  // ── Crop & export ──
+  const handleConfirm = useCallback(() => {
+    const canvas = document.createElement('canvas');
+    const outSize = 128;
+    canvas.width = outSize;
+    canvas.height = outSize;
+    const ctx = canvas.getContext('2d');
+    // Clip to circle
+    ctx.beginPath();
+    ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2);
+    ctx.clip();
+    // Map crop-area coordinates → original image coordinates
+    // The crop circle is centered at (CROP_SIZE/2, CROP_SIZE/2) in the container
+    // The image draw position is (offset.x, offset.y) at `scale`
+    // We need to draw the portion of the image visible through the crop circle
+    const ratio = outSize / CROP_SIZE;
+    const dx = offset.x * ratio;
+    const dy = offset.y * ratio;
+    const dw = naturalSize.w * scale * ratio;
+    const dh = naturalSize.h * scale * ratio;
+    ctx.drawImage(imgRef.current, dx, dy, dw, dh);
+    const result = canvas.toDataURL('image/png');
+    onConfirm(result);
+  }, [offset, scale, naturalSize, onConfirm]);
+
+  // Draw dimensions
+  const drawW = naturalSize.w * scale;
+  const drawH = naturalSize.h * scale;
+
+  return (
+    <div className="avatar-cropper-overlay" onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+      <div className="avatar-cropper-modal">
+        <div className="avatar-cropper-title">Crop Avatar</div>
+        <div
+          className="avatar-cropper-area"
+          ref={containerRef}
+          onMouseDown={onMouseDown}
+          onWheel={onWheel}
+        >
+          <img
+            ref={imgRef}
+            src={imageSrc}
+            alt=""
+            draggable={false}
+            onLoad={handleImgLoad}
+            className="avatar-cropper-img"
+            style={{
+              width: drawW,
+              height: drawH,
+              transform: `translate(${offset.x}px, ${offset.y}px)`,
+            }}
+          />
+          {/* Circular mask overlay */}
+          <div className="avatar-cropper-mask">
+            <div className="avatar-cropper-hole" />
+          </div>
+        </div>
+        <div className="avatar-cropper-hint">Drag to pan · Scroll to zoom</div>
+        <div className="avatar-cropper-actions">
+          <button className="avatar-cropper-btn avatar-cropper-cancel" onClick={onCancel}>✕ Cancel</button>
+          <button className="avatar-cropper-btn avatar-cropper-confirm" onClick={handleConfirm}>✓ Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main component ── */
 
 function ChatApp() {
@@ -100,6 +231,7 @@ function ChatApp() {
   const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
   const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
   const [avatarUrl, setAvatarUrl] = useState(null);
+  const [cropperSrc, setCropperSrc] = useState(null); // raw image data URL to crop
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -171,7 +303,20 @@ function ChatApp() {
 
   const handleAvatarClick = useCallback(async () => {
     const url = await window.electronAPI?.selectChatAvatar?.();
-    if (url) setAvatarUrl(url);
+    if (url) setCropperSrc(url); // open the cropper instead of directly setting avatar
+  }, []);
+
+  // Called when the cropper confirms the crop
+  const handleCropConfirm = useCallback(async (croppedDataUrl) => {
+    setCropperSrc(null);
+    const saved = await window.electronAPI?.saveChatAvatar?.(croppedDataUrl);
+    if (saved) {
+      setAvatarUrl(croppedDataUrl);
+    }
+  }, []);
+
+  const handleCropCancel = useCallback(() => {
+    setCropperSrc(null);
   }, []);
 
   const handleAvatarContextMenu = useCallback((e) => {
@@ -201,7 +346,7 @@ function ChatApp() {
       document.removeEventListener('click', handleClick);
       if (action === 'change') {
         const url = await window.electronAPI?.selectChatAvatar?.();
-        if (url) setAvatarUrl(url);
+        if (url) setCropperSrc(url);
       } else if (action === 'remove') {
         await window.electronAPI?.removeChatAvatar?.();
         setAvatarUrl(null);
@@ -513,6 +658,15 @@ function ChatApp() {
           )}
         </button>
       </div>
+
+      {/* Avatar Cropper Modal */}
+      {cropperSrc && (
+        <AvatarCropper
+          imageSrc={cropperSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 }
