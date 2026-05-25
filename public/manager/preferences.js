@@ -195,6 +195,21 @@ function renderPreferences() {
             </div>
           </div>
         </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.chatFocusShortcut')}</div>
+            <div class="pref-desc">${I18n.t('prefs.chatFocusShortcutDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="text" id="pref-chat-focus-shortcut" class="form-input"
+                style="width:160px;text-align:center;font-family:'SF Mono',monospace;font-size:13px;cursor:pointer;"
+                placeholder="${I18n.t('prefs.chatFocusShortcutEmpty')}"
+                readonly>
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-chat-focus-shortcut-clear">${I18n.t('prefs.chatFocusShortcutClear')}</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -621,6 +636,39 @@ function renderPreferences() {
     pinSavedShortcut = '';
     localStorage.removeItem('cloe-chat-pin-shortcut');
     pinShortcutInput.value = '';
+  });
+
+  // ── Chat focus input shortcut recorder ──
+  const focusShortcutInput = document.getElementById('pref-chat-focus-shortcut');
+  const focusShortcutClearBtn = document.getElementById('pref-chat-focus-shortcut-clear');
+  let focusSavedShortcut = localStorage.getItem('cloe-chat-focus-shortcut') || '';
+  if (focusSavedShortcut) focusShortcutInput.value = electronAcceleratorToDisplay(focusSavedShortcut);
+
+  focusShortcutInput.addEventListener('focus', () => {
+    focusShortcutInput.value = I18n.t('prefs.chatFocusShortcutHint');
+    focusShortcutInput.classList.add('shortcut-recording');
+  });
+
+  focusShortcutInput.addEventListener('blur', () => {
+    focusShortcutInput.classList.remove('shortcut-recording');
+    focusShortcutInput.value = focusSavedShortcut ? electronAcceleratorToDisplay(focusSavedShortcut) : '';
+  });
+
+  focusShortcutInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const accel = buildElectronAccelerator(e);
+    if (!accel) return;
+    focusSavedShortcut = accel;
+    localStorage.setItem('cloe-chat-focus-shortcut', accel);
+    focusShortcutInput.value = electronAcceleratorToDisplay(accel);
+    focusShortcutInput.blur();
+  });
+
+  focusShortcutClearBtn.addEventListener('click', () => {
+    focusSavedShortcut = '';
+    localStorage.removeItem('cloe-chat-focus-shortcut');
+    focusShortcutInput.value = '';
   });
 }
 

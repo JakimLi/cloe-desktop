@@ -228,7 +228,12 @@
     "chatPinShortcutDesc": "Toggle chat window fullscreen pin mode",
     "chatPinShortcutEmpty": "Click to set shortcut…",
     "chatPinShortcutHint": "Press desired key combination",
-    "chatPinShortcutClear": "Clear"
+    "chatPinShortcutClear": "Clear",
+    "chatFocusShortcut": "Focus Input Shortcut",
+    "chatFocusShortcutDesc": "Quickly focus the chat input box",
+    "chatFocusShortcutEmpty": "Click to set shortcut…",
+    "chatFocusShortcutHint": "Press desired key combination",
+    "chatFocusShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",

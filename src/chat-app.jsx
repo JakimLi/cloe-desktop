@@ -316,6 +316,29 @@ function ChatApp() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // ── Chat focus input shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-chat-focus-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        textareaRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   // Auto-scroll
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });

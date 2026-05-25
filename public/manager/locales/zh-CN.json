@@ -228,7 +228,12 @@
     "chatPinShortcutDesc": "按此快捷键切换聊天窗口全屏固定模式",
     "chatPinShortcutEmpty": "点击设置快捷键…",
     "chatPinShortcutHint": "点击输入框后按下想要的组合键",
-    "chatPinShortcutClear": "清除"
+    "chatPinShortcutClear": "清除",
+    "chatFocusShortcut": "聚焦输入框快捷键",
+    "chatFocusShortcutDesc": "按此快捷键快速聚焦到聊天输入框",
+    "chatFocusShortcutEmpty": "点击设置快捷键…",
+    "chatFocusShortcutHint": "点击输入框后按下想要的组合键",
+    "chatFocusShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",
