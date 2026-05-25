@@ -228,6 +228,7 @@ function ChatApp() {
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
   const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
+  const [focusedIndex, setFocusedIndex] = useState(null);
   const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
   const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -343,6 +344,17 @@ function ChatApp() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, streamingTools]);
+
+  // ESC to exit focus mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && focusedIndex !== null) {
+        setFocusedIndex(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedIndex]);
 
   // Apply window opacity on mount and when transparent state changes
   useEffect(() => {
@@ -642,7 +654,7 @@ function ChatApp() {
       )}
 
       {/* Messages */}
-      <div className="chat-messages">
+      <div className="chat-messages" onClick={(e) => { if (e.target === e.currentTarget) setFocusedIndex(null); }}>
         {messages.length === 0 && !sending && (
           <div className="chat-empty">
             {connected === false
@@ -653,7 +665,11 @@ function ChatApp() {
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+          <div
+            key={i}
+            className={`chat-msg chat-msg-${m.role}${focusedIndex === i ? ' chat-msg-focused' : ''}${focusedIndex !== null && focusedIndex !== i ? ' chat-msg-hidden' : ''}`}
+            onClick={() => setFocusedIndex(i)}
+          >
             {m.role === 'assistant' && (
               <div className="chat-msg-avatar">
                 {avatarUrl ? (
