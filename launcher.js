@@ -2564,29 +2564,77 @@ ipcMain.handle('hermes-check-health', async () => {
 });
 
 ipcMain.handle('hermes-chat-models', async () => {
-  const { host, port, key } = getHermesApiConfig();
-  return new Promise((resolve) => {
-    const headers = { 'Content-Type': 'application/json' };
-    if (key) headers['Authorization'] = `Bearer ${key}`;
-    const req = http.request(
-      { hostname: host, port, path: '/v1/models', method: 'GET', headers, timeout: 5000 },
-      (res) => {
-        let body = '';
-        res.on('data', (c) => (body += c));
-        res.on('end', () => {
-          try {
-            const data = JSON.parse(body);
-            resolve((data.data || []).map((m) => m.id));
-          } catch {
-            resolve([]);
-          }
-        });
-      },
-    );
-    req.on('error', () => resolve([]));
-    req.on('timeout', () => { req.destroy(); resolve([]); });
-    req.end();
-  });
+  // Read LLM models from Hermes config + provider API (not from Hermes /v1/models
+  // which only returns the agent name "hermes-agent")
+  const hermesConfigPath = path.join(os.homedir(), '.hermes', 'config.yaml');
+  try {
+    const yamlContent = fs.readFileSync(hermesConfigPath, 'utf-8');
+    // Simple YAML parsing for model config
+    let currentModel = '';
+    let base_url = '';
+    let api_key = '';
+    const lines = yamlContent.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^default:\s*(.+)/.test(trimmed) && !base_url) currentModel = trimmed.replace(/^default:\s*/, '');
+      if (/^base_url:\s*(.+)/.test(trimmed)) base_url = trimmed.replace(/^base_url:\s*/, '');
+      if (/^api_key:\s*(.+)/.test(trimmed) && !api_key) api_key = trimmed.replace(/^api_key:\s*/, '');
+    }
+    // Query provider's /models endpoint to get available LLM models
+    if (base_url) {
+      const modelsUrl = base_url.replace(/\/+$/, '') + '/models';
+      return new Promise((resolve) => {
+        const headers = { 'Content-Type': 'application/json' };
+        if (api_key) headers['Authorization'] = `Bearer ${api_key}`;
+        const parsed = new URL(modelsUrl);
+        const req = https.request(
+          { hostname: parsed.hostname, port: parsed.port || 443, path: parsed.pathname, method: 'GET', headers, timeout: 5000 },
+          (res) => {
+            let body = '';
+            res.on('data', (c) => (body += c));
+            res.on('end', () => {
+              try {
+                const data = JSON.parse(body);
+                const models = (data.data || []).map((m) => m.id);
+                // Return models with current model info
+                resolve({ models, current: currentModel });
+              } catch {
+                resolve({ models: [currentModel], current: currentModel });
+              }
+            });
+          },
+        );
+        req.on('error', () => resolve({ models: [currentModel], current: currentModel }));
+        req.on('timeout', () => { req.destroy(); resolve({ models: [currentModel], current: currentModel }); });
+        req.end();
+      });
+    }
+    return { models: [currentModel], current: currentModel };
+  } catch {
+    return { models: [], current: '' };
+  }
+});
+
+ipcMain.handle('hermes-switch-model', async (_event, newModel) => {
+  // Update Hermes config.yaml model.default and restart gateway
+  const hermesConfigPath = path.join(os.homedir(), '.hermes', 'config.yaml');
+  try {
+    let content = fs.readFileSync(hermesConfigPath, 'utf-8');
+    // Replace model.default value
+    content = content.replace(/^(model:\s*\n\s*default:\s*).*/m, `$1${newModel}`);
+    fs.writeFileSync(hermesConfigPath, content, 'utf-8');
+    // Restart gateway via launchd (kill triggers KeepAlive auto-restart)
+    const pidFile = path.join(os.homedir(), '.hermes', 'gateway.pid');
+    if (fs.existsSync(pidFile)) {
+      try {
+        const pidInfo = JSON.parse(fs.readFileSync(pidFile, 'utf-8'));
+        if (pidInfo.pid) process.kill(pidInfo.pid, 'SIGTERM');
+      } catch {}
+    }
+    return { success: true, model: newModel };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.on('hermes-chat-send', (event, payload) => {

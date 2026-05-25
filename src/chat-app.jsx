@@ -96,7 +96,7 @@ function ChatApp() {
   const [streamingTools, setStreamingTools] = useState([]);
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
+  const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -123,9 +123,17 @@ function ChatApp() {
     window.electronAPI?.getChatNickname?.().then((name) => {
       if (name && !cancelled) setNickname(name);
     }).catch(() => {});
-    // Load model list
-    window.electronAPI?.hermesGetModels?.().then((list) => {
-      if (!cancelled && Array.isArray(list)) setModels(list);
+    // Load LLM model list from Hermes config + provider API
+    window.electronAPI?.hermesGetModels?.().then((result) => {
+      if (!cancelled && result) {
+        const modelList = result.models || [];
+        setModels(modelList);
+        // Set current model from config if not already in localStorage
+        if (result.current && !localStorage.getItem('cloe-chat-model')) {
+          setCurrentModel(result.current);
+          localStorage.setItem('cloe-chat-model', result.current);
+        }
+      }
     }).catch(() => {});
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
@@ -186,8 +194,8 @@ function ChatApp() {
       setStreamingContent('');
       setStreamingTools([]);
     }
-    window.electronAPI?.hermesSendMessage?.(msg, sessionId, selectedModel || undefined);
-  }, [input, sending, connected, sessionId, selectedModel]);
+    window.electronAPI?.hermesSendMessage?.(msg, sessionId, currentModel || undefined);
+  }, [input, sending, connected, sessionId, currentModel]);
 
   const onKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -212,8 +220,20 @@ function ChatApp() {
 
   const onModelChange = useCallback((e) => {
     const v = e.target.value;
-    setSelectedModel(v);
+    setCurrentModel(v);
     localStorage.setItem('cloe-chat-model', v);
+    // Actually switch the LLM model (updates Hermes config + restarts gateway)
+    window.electronAPI?.hermesSwitchModel?.(v).then((result) => {
+      if (result?.success) {
+        // Gateway is restarting — show disconnected briefly
+        setConnected(false);
+        setTimeout(() => {
+          window.electronAPI?.hermesCheckHealth?.().then((r) => {
+            setConnected(r?.connected ?? false);
+          }).catch(() => setConnected(false));
+        }, 3000);
+      }
+    }).catch(() => {});
   }, []);
 
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
@@ -233,12 +253,11 @@ function ChatApp() {
         </div>
       </div>
 
-      {/* Model selector */}
+      {/* LLM model selector */}
       {models.length > 0 && (
         <div className="chat-model-row">
-          <label className="chat-model-label">Model</label>
-          <select className="chat-model-select" value={selectedModel} onChange={onModelChange}>
-            <option value="">Default</option>
+          <label className="chat-model-label">LLM</label>
+          <select className="chat-model-select" value={currentModel} onChange={onModelChange}>
             {models.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}

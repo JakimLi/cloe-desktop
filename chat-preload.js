@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Hermes API proxy
   hermesCheckHealth: () => ipcRenderer.invoke('hermes-check-health'),
   hermesGetModels: () => ipcRenderer.invoke('hermes-chat-models'),
+  hermesSwitchModel: (model) => ipcRenderer.invoke('hermes-switch-model', model),
   hermesSendMessage: (message, sessionId, model) => ipcRenderer.send('hermes-chat-send', { message, sessionId, model }),
   onHermesDelta: (cb) => {
     const h = (_e, d) => cb(d);
