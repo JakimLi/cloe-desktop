@@ -165,6 +165,36 @@ function renderPreferences() {
             </div>
           </div>
         </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.chatTransparencyShortcut')}</div>
+            <div class="pref-desc">${I18n.t('prefs.chatTransparencyShortcutDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="text" id="pref-chat-transparency-shortcut" class="form-input"
+                style="width:160px;text-align:center;font-family:'SF Mono',monospace;font-size:13px;cursor:pointer;"
+                placeholder="${I18n.t('prefs.chatTransparencyShortcutEmpty')}"
+                readonly>
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-chat-transparency-shortcut-clear">${I18n.t('prefs.chatTransparencyShortcutClear')}</button>
+            </div>
+          </div>
+        </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.chatPinShortcut')}</div>
+            <div class="pref-desc">${I18n.t('prefs.chatPinShortcutDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="text" id="pref-chat-pin-shortcut" class="form-input"
+                style="width:160px;text-align:center;font-family:'SF Mono',monospace;font-size:13px;cursor:pointer;"
+                placeholder="${I18n.t('prefs.chatPinShortcutEmpty')}"
+                readonly>
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-chat-pin-shortcut-clear">${I18n.t('prefs.chatPinShortcutClear')}</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -525,6 +555,72 @@ function renderPreferences() {
     chatSavedShortcut = '';
     localStorage.removeItem('cloe-chat-shortcut');
     chatShortcutInput.value = '';
+  });
+
+  // ── Chat transparency shortcut recorder ──
+  const transShortcutInput = document.getElementById('pref-chat-transparency-shortcut');
+  const transShortcutClearBtn = document.getElementById('pref-chat-transparency-shortcut-clear');
+  let transSavedShortcut = localStorage.getItem('cloe-chat-transparency-shortcut') || '';
+  if (transSavedShortcut) transShortcutInput.value = electronAcceleratorToDisplay(transSavedShortcut);
+
+  transShortcutInput.addEventListener('focus', () => {
+    transShortcutInput.value = I18n.t('prefs.chatTransparencyShortcutHint');
+    transShortcutInput.classList.add('shortcut-recording');
+  });
+
+  transShortcutInput.addEventListener('blur', () => {
+    transShortcutInput.classList.remove('shortcut-recording');
+    transShortcutInput.value = transSavedShortcut ? electronAcceleratorToDisplay(transSavedShortcut) : '';
+  });
+
+  transShortcutInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const accel = buildElectronAccelerator(e);
+    if (!accel) return;
+    transSavedShortcut = accel;
+    localStorage.setItem('cloe-chat-transparency-shortcut', accel);
+    transShortcutInput.value = electronAcceleratorToDisplay(accel);
+    transShortcutInput.blur();
+  });
+
+  transShortcutClearBtn.addEventListener('click', () => {
+    transSavedShortcut = '';
+    localStorage.removeItem('cloe-chat-transparency-shortcut');
+    transShortcutInput.value = '';
+  });
+
+  // ── Chat pin shortcut recorder ──
+  const pinShortcutInput = document.getElementById('pref-chat-pin-shortcut');
+  const pinShortcutClearBtn = document.getElementById('pref-chat-pin-shortcut-clear');
+  let pinSavedShortcut = localStorage.getItem('cloe-chat-pin-shortcut') || '';
+  if (pinSavedShortcut) pinShortcutInput.value = electronAcceleratorToDisplay(pinSavedShortcut);
+
+  pinShortcutInput.addEventListener('focus', () => {
+    pinShortcutInput.value = I18n.t('prefs.chatPinShortcutHint');
+    pinShortcutInput.classList.add('shortcut-recording');
+  });
+
+  pinShortcutInput.addEventListener('blur', () => {
+    pinShortcutInput.classList.remove('shortcut-recording');
+    pinShortcutInput.value = pinSavedShortcut ? electronAcceleratorToDisplay(pinSavedShortcut) : '';
+  });
+
+  pinShortcutInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const accel = buildElectronAccelerator(e);
+    if (!accel) return;
+    pinSavedShortcut = accel;
+    localStorage.setItem('cloe-chat-pin-shortcut', accel);
+    pinShortcutInput.value = electronAcceleratorToDisplay(accel);
+    pinShortcutInput.blur();
+  });
+
+  pinShortcutClearBtn.addEventListener('click', () => {
+    pinSavedShortcut = '';
+    localStorage.removeItem('cloe-chat-pin-shortcut');
+    pinShortcutInput.value = '';
   });
 }
 

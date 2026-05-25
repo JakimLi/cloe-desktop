@@ -218,7 +218,17 @@
     "chatShortcutDesc": "Press this shortcut to toggle the chat window",
     "chatShortcutEmpty": "Click to set shortcut…",
     "chatShortcutHint": "Click the input then press desired key combo",
-    "chatShortcutClear": "Clear"
+    "chatShortcutClear": "Clear",
+    "chatTransparencyShortcut": "Transparency Shortcut",
+    "chatTransparencyShortcutDesc": "Toggle chat window transparency",
+    "chatTransparencyShortcutEmpty": "Click to set shortcut…",
+    "chatTransparencyShortcutHint": "Press desired key combination",
+    "chatTransparencyShortcutClear": "Clear",
+    "chatPinShortcut": "Fullscreen Pin Shortcut",
+    "chatPinShortcutDesc": "Toggle chat window fullscreen pin mode",
+    "chatPinShortcutEmpty": "Click to set shortcut…",
+    "chatPinShortcutHint": "Press desired key combination",
+    "chatPinShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",

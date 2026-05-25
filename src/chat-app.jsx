@@ -262,6 +262,60 @@ function ChatApp() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // ── Chat transparency shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-chat-transparency-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        setTransparent(prev => {
+          const next = !prev;
+          localStorage.setItem('cloe-chat-transparent', String(next));
+          return next;
+        });
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
+  // ── Chat pin shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-chat-pin-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        setPenetrate(prev => {
+          const next = !prev;
+          localStorage.setItem('cloe-chat-penetrate', String(next));
+          return next;
+        });
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   // Auto-scroll
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });

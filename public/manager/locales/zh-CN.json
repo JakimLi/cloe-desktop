@@ -218,7 +218,17 @@
     "chatShortcutDesc": "按此快捷键快速打开/关闭聊天窗口",
     "chatShortcutEmpty": "点击设置快捷键…",
     "chatShortcutHint": "点击输入框后按下想要的组合键",
-    "chatShortcutClear": "清除"
+    "chatShortcutClear": "清除",
+    "chatTransparencyShortcut": "透明度快捷键",
+    "chatTransparencyShortcutDesc": "按此快捷键切换聊天窗口透明/不透明",
+    "chatTransparencyShortcutEmpty": "点击设置快捷键…",
+    "chatTransparencyShortcutHint": "点击输入框后按下想要的组合键",
+    "chatTransparencyShortcutClear": "清除",
+    "chatPinShortcut": "全屏固定快捷键",
+    "chatPinShortcutDesc": "按此快捷键切换聊天窗口全屏固定模式",
+    "chatPinShortcutEmpty": "点击设置快捷键…",
+    "chatPinShortcutHint": "点击输入框后按下想要的组合键",
+    "chatPinShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",
