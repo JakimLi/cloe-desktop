@@ -2525,6 +2525,21 @@ ipcMain.on('chat-window-toggle', () => toggleChatWindow());
 ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
 ipcMain.handle('get-chat-nickname', () => loadConfig().chatNickname || '');
 
+// Chat window opacity toggle (transparent / opaque)
+const CHAT_TRANSPARENT_OPACITY = 0.6;
+const CHAT_OPAQUE_OPACITY = 1.0;
+ipcMain.on('chat-set-opacity', (_event, opacity) => {
+  if (chatWin && !chatWin.isDestroyed()) {
+    chatWin.setOpacity(opacity);
+  }
+});
+ipcMain.handle('chat-get-opacity', () => {
+  if (chatWin && !chatWin.isDestroyed()) {
+    return chatWin.getOpacity();
+  }
+  return CHAT_OPAQUE_OPACITY;
+});
+
 // ==================== Hermes API Proxy ====================
 // Proxies chat requests from the renderer to local Hermes API Server,
 // avoiding CORS issues (main process has no CORS restrictions).

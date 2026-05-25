@@ -97,6 +97,7 @@ function ChatApp() {
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
   const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
+  const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -131,6 +132,20 @@ function ChatApp() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, streamingTools]);
+
+  // Apply window opacity on mount and when transparent state changes
+  useEffect(() => {
+    const opacity = transparent ? 0.6 : 1.0;
+    window.electronAPI?.setChatOpacity?.(opacity);
+  }, [transparent]);
+
+  const toggleOpacity = useCallback(() => {
+    setTransparent(prev => {
+      const next = !prev;
+      localStorage.setItem('cloe-chat-transparent', String(next));
+      return next;
+    });
+  }, []);
 
   // Health check + load nickname
   useEffect(() => {
@@ -288,6 +303,16 @@ function ChatApp() {
         </div>
         <div className="chat-titlebar-right">
           <button className="chat-btn" onClick={newSession} title="New session">+</button>
+          <button
+            className={`chat-btn${transparent ? ' chat-btn-active' : ''}`}
+            onClick={toggleOpacity}
+            title={transparent ? 'Make opaque' : 'Make transparent'}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+              <path d="M12 2v20" opacity={transparent ? 0.4 : 1} />
+            </svg>
+          </button>
           <button className="chat-btn chat-btn-close" onClick={() => window.electronAPI?.closeWindow?.()} title="Close">✕</button>
         </div>
       </div>

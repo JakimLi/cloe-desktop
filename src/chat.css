@@ -111,6 +111,16 @@ html, body, #root {
   color: #ff5f57;
 }
 
+.chat-btn-active {
+  background: rgba(96, 165, 250, 0.2);
+  color: rgba(96, 165, 250, 0.9);
+}
+
+.chat-btn-active:hover {
+  background: rgba(96, 165, 250, 0.3);
+  color: rgba(96, 165, 250, 1);
+}
+
 /* ── Messages ── */
 .chat-messages {
   flex: 1;

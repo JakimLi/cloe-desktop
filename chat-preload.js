@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleChatWindow: () => ipcRenderer.send('chat-window-toggle'),
   // Config
   getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
+  // Opacity toggle
+  setChatOpacity: (opacity) => ipcRenderer.send('chat-set-opacity', opacity),
+  getChatOpacity: () => ipcRenderer.invoke('chat-get-opacity'),
   // External message injection (from Hermes via /chat/message)
   onExternalChatMessage: (cb) => {
     const h = (_e, msg) => cb(msg);
