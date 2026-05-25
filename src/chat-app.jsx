@@ -99,6 +99,7 @@ function ChatApp() {
   const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
   const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
   const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -160,6 +161,55 @@ function ChatApp() {
       return next;
     });
   }, []);
+
+  // Load avatar on mount
+  useEffect(() => {
+    window.electronAPI?.getChatAvatar?.().then((url) => {
+      if (url) setAvatarUrl(url);
+    }).catch(() => {});
+  }, []);
+
+  const handleAvatarClick = useCallback(async () => {
+    const url = await window.electronAPI?.selectChatAvatar?.();
+    if (url) setAvatarUrl(url);
+  }, []);
+
+  const handleAvatarContextMenu = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!avatarUrl) {
+      // No avatar yet — just open file picker
+      handleAvatarClick();
+      return;
+    }
+    // Show a simple confirm to remove
+    // Using a custom mini-menu approach since we're in renderer
+    const menu = document.createElement('div');
+    menu.className = 'chat-avatar-menu';
+    menu.innerHTML = `
+      <div class="chat-avatar-menu-item" data-action="change">Change avatar</div>
+      <div class="chat-avatar-menu-item chat-avatar-menu-danger" data-action="remove">Remove avatar</div>
+    `;
+    menu.style.position = 'fixed';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    document.body.appendChild(menu);
+
+    const handleClick = async (ev) => {
+      const action = ev.target.dataset.action;
+      menu.remove();
+      document.removeEventListener('click', handleClick);
+      if (action === 'change') {
+        const url = await window.electronAPI?.selectChatAvatar?.();
+        if (url) setAvatarUrl(url);
+      } else if (action === 'remove') {
+        await window.electronAPI?.removeChatAvatar?.();
+        setAvatarUrl(null);
+      }
+    };
+    // Close menu on outside click
+    setTimeout(() => document.addEventListener('click', handleClick), 0);
+  }, [avatarUrl, handleAvatarClick]);
 
   // Health check + load nickname
   useEffect(() => {
@@ -311,6 +361,22 @@ function ChatApp() {
       {/* Title bar — drag region */}
       <div className="chat-titlebar" data-tauri-drag-region>
         <div className="chat-titlebar-left">
+          <div
+            className={`chat-titlebar-avatar${avatarUrl ? '' : ' chat-titlebar-avatar-default'}`}
+            onClick={handleAvatarClick}
+            onContextMenu={handleAvatarContextMenu}
+            title={avatarUrl ? 'Right-click to change/remove avatar' : 'Click to set AI avatar'}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="AI" draggable={false} />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <circle cx="12" cy="5" r="2" />
+                <path d="M12 7v4" />
+              </svg>
+            )}
+          </div>
           <span className="chat-dot" style={{ background: dotColor }} />
           <span className="chat-title">{nickname}</span>
           {sessionId && <span className="chat-session-badge" title={sessionId}>Session</span>}
@@ -366,16 +432,51 @@ function ChatApp() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+            {m.role === 'assistant' && (
+              <div className="chat-msg-avatar">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="AI" draggable={false} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <circle cx="12" cy="5" r="2" />
+                    <path d="M12 7v4" />
+                  </svg>
+                )}
+              </div>
+            )}
             <MessageContent content={m.content} tools={m.tools} image={m.image} />
           </div>
         ))}
         {(streamingContent || streamingTools.length > 0) && (
           <div className="chat-msg chat-msg-assistant">
+            <div className="chat-msg-avatar">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="AI" draggable={false} />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <circle cx="12" cy="5" r="2" />
+                  <path d="M12 7v4" />
+                </svg>
+              )}
+            </div>
             <MessageContent content={streamingContent} tools={streamingTools} isStreaming />
           </div>
         )}
         {sending && !streamingContent && streamingTools.length === 0 && (
           <div className="chat-msg chat-msg-assistant">
+            <div className="chat-msg-avatar">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="AI" draggable={false} />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <circle cx="12" cy="5" r="2" />
+                  <path d="M12 7v4" />
+                </svg>
+              )}
+            </div>
             <div className="chat-typing"><span /><span /><span /></div>
           </div>
         )}

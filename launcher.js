@@ -8,7 +8,7 @@
  * 3. Handle window drag via IPC
  */
 
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const os = require('os');
@@ -2538,6 +2538,70 @@ ipcMain.handle('chat-get-opacity', () => {
     return chatWin.getOpacity();
   }
   return CHAT_OPAQUE_OPACITY;
+});
+
+// ==================== Chat Avatar ====================
+
+function getChatAvatarPath() {
+  return path.join(os.homedir(), '.cloe', 'chat-avatar.png');
+}
+
+ipcMain.handle('chat-select-avatar', async () => {
+  const result = await dialog.showOpenDialog(chatWin || win, {
+    title: 'Select AI Avatar',
+    filters: [
+      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] },
+    ],
+    properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+    return null;
+  }
+  const srcPath = result.filePaths[0];
+  try {
+    // Ensure ~/.cloe directory exists
+    const cloeDir = path.join(os.homedir(), '.cloe');
+    if (!fs.existsSync(cloeDir)) {
+      fs.mkdirSync(cloeDir, { recursive: true });
+    }
+    // Read, resize, and save as PNG
+    const nativeImg = nativeImage.createFromPath(srcPath);
+    if (nativeImg.isEmpty()) return null;
+    // Resize to 128x128 for performance
+    const resized = nativeImg.resize({ width: 128, height: 128 });
+    const pngBuf = resized.toPNG();
+    const avatarPath = getChatAvatarPath();
+    fs.writeFileSync(avatarPath, pngBuf);
+    // Return as base64 data URL for immediate display
+    const base64 = pngBuf.toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch (err) {
+    console.error('[Chat] Error saving avatar:', err);
+    return null;
+  }
+});
+
+ipcMain.handle('chat-get-avatar', () => {
+  const avatarPath = getChatAvatarPath();
+  try {
+    if (fs.existsSync(avatarPath)) {
+      const buf = fs.readFileSync(avatarPath);
+      return `data:image/png;base64,${buf.toString('base64')}`;
+    }
+  } catch {}
+  return null;
+});
+
+ipcMain.handle('chat-remove-avatar', () => {
+  const avatarPath = getChatAvatarPath();
+  try {
+    if (fs.existsSync(avatarPath)) {
+      fs.unlinkSync(avatarPath);
+    }
+    return true;
+  } catch {
+    return false;
+  }
 });
 
 // ==================== Chat Fullscreen Overlay (float over fullscreen) ====================

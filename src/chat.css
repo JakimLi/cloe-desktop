@@ -176,6 +176,12 @@ html, body, #root {
   color: rgba(255, 255, 255, 0.88);
   border-bottom-left-radius: 4px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 6px rgba(0, 0, 0, 0.3);
+  max-width: 92%;
+}
+
+.chat-msg-assistant .chat-msg-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .chat-msg-content { white-space: normal; }
@@ -542,5 +548,113 @@ html, body, #root {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+/* ── Titlebar avatar ── */
+.chat-titlebar-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(96, 165, 250, 0.15);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.chat-titlebar-avatar:hover {
+  background: rgba(96, 165, 250, 0.3);
+  box-shadow: 0 0 6px rgba(96, 165, 250, 0.2);
+}
+
+.chat-titlebar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.chat-titlebar-avatar-default {
+  color: rgba(96, 165, 250, 0.6);
+}
+
+.chat-titlebar-avatar-default svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Message avatar (per assistant message) ── */
+.chat-msg {
+  position: relative;
+}
+
+.chat-msg-assistant {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.chat-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(96, 165, 250, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(96, 165, 250, 0.5);
+  margin-top: 2px;
+}
+
+.chat-msg-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.chat-msg-avatar svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ── Avatar context menu ── */
+.chat-avatar-menu {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 140px;
+  z-index: 99999;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.chat-avatar-menu-item {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+}
+
+.chat-avatar-menu-item:hover {
+  background: rgba(96, 165, 250, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.chat-avatar-menu-danger {
+  color: rgba(255, 100, 100, 0.8);
+}
+
+.chat-avatar-menu-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 

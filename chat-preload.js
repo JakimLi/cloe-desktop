@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleChatWindow: () => ipcRenderer.send('chat-window-toggle'),
   // Config
   getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
+  // Avatar
+  selectChatAvatar: () => ipcRenderer.invoke('chat-select-avatar'),
+  getChatAvatar: () => ipcRenderer.invoke('chat-get-avatar'),
+  removeChatAvatar: () => ipcRenderer.invoke('chat-remove-avatar'),
   // Opacity toggle
   setChatOpacity: (opacity) => ipcRenderer.send('chat-set-opacity', opacity),
   getChatOpacity: () => ipcRenderer.invoke('chat-get-opacity'),
