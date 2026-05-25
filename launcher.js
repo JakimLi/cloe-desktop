@@ -2620,14 +2620,14 @@ function applyChatFullscreenOverlay(isFullscreen) {
     chatWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     // Float above the fullscreen app
     chatWin.setAlwaysOnTop(true, 'floating');
-    // Prevent chat from accidentally going fullscreen itself
-    chatWin.setFullScreenable(false);
+    // NOTE: Do NOT call setFullScreenable(false) on chatWin — on macOS it can
+    // interfere with the main window's ability to enter fullscreen.  The chat
+    // window is frameless so the user cannot accidentally fullscreen it anyway.
     console.log('[Chat] Fullscreen overlay enabled');
   } else {
     // Restore normal behaviour
     chatWin.setVisibleOnAllWorkspaces(false);
     chatWin.setAlwaysOnTop(true, 'normal');   // chat was always-on-top already
-    chatWin.setFullScreenable(true);
     console.log('[Chat] Fullscreen overlay disabled');
   }
 }
