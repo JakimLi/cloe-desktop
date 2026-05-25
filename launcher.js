@@ -8,7 +8,7 @@
  * 3. Handle window drag via IPC
  */
 
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog, WebContentsView } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const os = require('os');
@@ -2614,7 +2614,7 @@ ipcMain.handle('chat-remove-avatar', () => {
   }
 });
 
-// ==================== Chat Fullscreen Overlay (float over fullscreen) ====================
+// ==================== Chat Fullscreen Overlay (embed via WebContentsView) ====================
 
 /**
  * Whether the user has enabled fullscreen-penetration mode for the chat window.
@@ -2622,31 +2622,89 @@ ipcMain.handle('chat-remove-avatar', () => {
  */
 let chatFullscreenPenetrate = false;
 
+/** WebContentsView used to embed chat inside the main window during fullscreen */
+let chatEmbeddedView = null;
+
+const CHAT_EMBED_W = 400;
+const CHAT_EMBED_H = 520;
+
+/** Embed chat as a WebContentsView inside the main window (for fullscreen mode) */
+function embedChatInMainWindow() {
+  if (!win || win.isDestroyed() || chatEmbeddedView) return;
+
+  // Hide standalone chat window (keep it alive so state is preserved)
+  if (chatWin && !chatWin.isDestroyed()) {
+    chatWin.hide();
+  }
+
+  // Create embedded view with same webPreferences as chatWin
+  chatEmbeddedView = new WebContentsView({
+    webPreferences: {
+      preload: path.join(__dirname, 'chat-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+
+  // Load same URL as chatWin
+  if (!app.isPackaged) {
+    chatEmbeddedView.webContents.loadURL('http://localhost:5173/src/chat.html');
+  } else {
+    chatEmbeddedView.webContents.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
+  }
+
+  // Calculate position: bottom-right corner of main window
+  const bounds = win.getBounds();
+  chatEmbeddedView.setBounds({
+    x: bounds.width - CHAT_EMBED_W - 20,
+    y: bounds.height - CHAT_EMBED_H - 20,
+    width: CHAT_EMBED_W,
+    height: CHAT_EMBED_H,
+  });
+
+  win.contentView.addChildView(chatEmbeddedView);
+  console.log('[Chat] Embedded in main window (fullscreen mode)');
+}
+
+/** Detach embedded chat from main window and restore standalone chatWin */
+function detachChatFromMainWindow() {
+  if (!chatEmbeddedView) return;
+
+  // Remove from main window
+  win.contentView.removeChildView(chatEmbeddedView);
+  chatEmbeddedView.webContents.close();
+  chatEmbeddedView = null;
+
+  // Show standalone chat window again
+  if (chatWin && !chatWin.isDestroyed()) {
+    chatWin.show();
+  }
+  console.log('[Chat] Detached from main window');
+}
+
 /** Apply or remove chat overlay mode when main window goes fullscreen */
 function applyChatFullscreenOverlay(isFullscreen) {
-  if (!chatWin || chatWin.isDestroyed()) return;
-  if (isFullscreen && chatFullscreenPenetrate) {
-    // Make chat visible on all macOS Spaces (critical for fullscreen windows)
-    chatWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    // Float above the fullscreen app
-    chatWin.setAlwaysOnTop(true, 'floating');
-    // NOTE: Do NOT call setFullScreenable(false) on chatWin — on macOS it can
-    // interfere with the main window's ability to enter fullscreen.  The chat
-    // window is frameless so the user cannot accidentally fullscreen it anyway.
-    console.log('[Chat] Fullscreen overlay enabled');
+  if (!chatFullscreenPenetrate) return;
+
+  if (isFullscreen) {
+    embedChatInMainWindow();
   } else {
-    // Restore normal behaviour
-    chatWin.setVisibleOnAllWorkspaces(false);
-    chatWin.setAlwaysOnTop(true, 'normal');   // chat was always-on-top already
-    console.log('[Chat] Fullscreen overlay disabled');
+    detachChatFromMainWindow();
   }
 }
 
 ipcMain.on('chat-set-fullscreen-penetrate', (_event, enabled) => {
   chatFullscreenPenetrate = !!enabled;
-  // If currently fullscreen, apply immediately
-  if (win && !win.isDestroyed() && win.isFullScreen()) {
-    applyChatFullscreenOverlay(true);
+  if (win && !win.isDestroyed()) {
+    if (chatFullscreenPenetrate && win.isFullScreen()) {
+      applyChatFullscreenOverlay(true);
+    } else if (!chatFullscreenPenetrate) {
+      // User turned off pin — detach if embedded
+      if (chatEmbeddedView) {
+        detachChatFromMainWindow();
+      }
+    }
   }
 });
 
@@ -3027,6 +3085,18 @@ app.whenReady().then(async () => {
     if (!win || win.isDestroyed()) return;
     win.webContents.send('fullscreen-changed', false);
     applyChatFullscreenOverlay(false);
+  });
+  win.on('resize', () => {
+    // Keep embedded chat view positioned correctly when main window resizes
+    if (chatEmbeddedView && win.isFullScreen()) {
+      const bounds = win.getBounds();
+      chatEmbeddedView.setBounds({
+        x: bounds.width - CHAT_EMBED_W - 20,
+        y: bounds.height - CHAT_EMBED_H - 20,
+        width: CHAT_EMBED_W,
+        height: CHAT_EMBED_H,
+      });
+    }
   });
 });
 
