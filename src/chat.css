@@ -168,18 +168,19 @@ html, body, #root {
 
 .chat-msg-user {
   align-self: flex-end;
-  background: rgba(250, 204, 21, 0.15);
-  color: rgba(253, 230, 138, 0.95);
+  background: rgba(30, 58, 95, 0.92);
+  color: rgba(255, 255, 255, 0.95);
   border-bottom-right-radius: 4px;
-  border: 1px solid rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.18);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 6px rgba(0, 0, 0, 0.3);
 }
 
 .chat-msg-assistant {
   align-self: flex-start;
-  background: rgba(0, 0, 0, 0.25);
-  color: rgba(255, 255, 255, 0.88);
+  background: rgba(40, 40, 40, 0.92);
+  color: rgba(255, 255, 255, 0.92);
   border-bottom-left-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 6px rgba(0, 0, 0, 0.3);
   max-width: 92%;
 }
@@ -273,8 +274,8 @@ html, body, #root {
 }
 
 .chat-msg-user .chat-inline-code {
-  background: rgba(250, 204, 21, 0.2);
-  color: #fde68a;
+  background: rgba(96, 165, 250, 0.25);
+  color: #93c5fd;
 }
 
 /* ── Code blocks ── */
