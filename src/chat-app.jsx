@@ -357,7 +357,7 @@ function ChatApp() {
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
 
   return (
-    <div className="chat-root">
+    <div className={`chat-root${transparent ? ' chat-root-transparent' : ''}`}>
       {/* Title bar — drag region */}
       <div className="chat-titlebar" data-tauri-drag-region>
         <div className="chat-titlebar-left">
