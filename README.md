@@ -41,6 +41,8 @@ She's not just a static widget. Powered by an AI agent, she **chooses her own ex
 - 🎨 **Fully customizable** — bring your own character. Switch between different skins, or create an entirely new persona with your own reference art
 - 📚 **Learnable via skills** — Cloe can learn new expressions, new actions, and new scenarios through a skill system. No code changes needed — just describe and generate
 - 🔄 **Agent state integration** — connects to [Hermes](https://github.com/JakimLi/hermes) agent lifecycle: automatically shows `working` when the agent is busy, returns to `idle` when done, `wave` on session start, `kiss` on session end
+- 🎨 **Canvas whiteboard** — visual collaboration with Excalidraw overlay — draw, annotate, and guide attention together
+- 💬 **Built-in chat** — talk to the agent directly from the desktop, no terminal needed
 
 ---
 
@@ -55,6 +57,8 @@ She's not just a static widget. Powered by an AI agent, she **chooses her own ex
 - 🔄 **Agent lifecycle hooks** — mirrors Hermes agent state: `agent:start` → working, `agent:end` → idle, `session:start` → wave, `session:end` → kiss
 - 🤖 **Simple HTTP API** — one endpoint, one JSON field, no SDK needed
 - 📡 **Agent state awareness** — the character mirrors your AI agent's real-time state: working mode (typing animation) when the agent processes tasks, idle when done, wave on session start, kiss on session end. A context usage bar shows how much of the AI's memory window is consumed, so you know when a conversation is getting long.
+- 🎨 **Canvas whiteboard** — built-in Excalidraw overlay for visual collaboration. The agent draws diagrams, guides attention, and you can edit alongside it
+- 💬 **Built-in chat window** — standalone Hermes client with SSE streaming, tool progress, model switcher, and Markdown rendering. No terminal needed
 
 <p align="center">
   <img src="docs/context-usage-demo.png" alt="Agent state awareness — context usage bar shows 57% used (yellow) while Cloe is in working mode" width="280" />
@@ -345,7 +349,12 @@ New actions are immediately available to the agent — no code changes, no resta
 │  curl        │                 │  │ Bridge  │─▶│ Renderer │─▶│GIF │ │
 │  Android App │◀─── WebSocket ──│  │(embedded)│  │(crossfade)│  │Player│
 │  Scripts     │                 │  └─────────┘  └──────────┘  └────┘ │
-└─────────────┘                 └─────────────────────────────────────┘
+└─────────────┘                 │                                      │
+                                │  ┌──────────┐  ┌─────────────────┐  │
+                                │  │ Canvas   │  │ Chat Window     │  │
+                                │  │(Excalidraw)│  │(Hermes Client)  │  │
+                                │  └──────────┘  └─────────────────┘  │
+                                └─────────────────────────────────────┘
 ```
 
 - **Bridge** is embedded in the Electron app — no separate process needed
@@ -374,6 +383,109 @@ New actions are immediately available to the agent — no code changes, no resta
 - **JakimLi** (Human) — product vision, Electron framework, Android app, emotional direction
 
 Built together. 💖
+
+---
+
+## Canvas — Interactive Whiteboard
+
+Cloe Desktop includes a **built-in Excalidraw whiteboard** that overlays on the character window. The AI agent can draw diagrams, annotate ideas, and guide your attention in real time — turning conversations into visual collaborations.
+
+### Demo
+
+**Drawing together with Hermes — real-time visual collaboration**
+
+[🎬 Watch on Bilibili](https://b23.tv/YCy1Pis)
+
+### Quick Start
+
+```bash
+# Open the canvas overlay
+curl -s http://localhost:19851/canvas/show -d '{"mode":"canvas"}'
+
+# Draw a rectangle and text
+curl -s http://localhost:19851/canvas/excalidraw/draw -d '[
+  {"type":"rectangle","id":"box1","x":100,"y":100,"width":200,"height":80},
+  {"type":"text","id":"label1","x":130,"y":125,"width":140,"height":30,"text":"Hello!","containerId":"box1","boundElements":[{"id":"box1","type":"container"}]}
+]'
+
+# Focus on specific elements (zoom + pan + select)
+curl -s http://localhost:19851/canvas/excalidraw/focus -d '{"ids":["box1"]}'
+
+# Hide the canvas
+curl -s http://localhost:19851/canvas/hide
+```
+
+### Canvas API
+
+The canvas is powered by [Excalidraw](https://excalidraw.com/) with a full HTTP API for programmatic control:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/canvas/show` | POST | Show canvas overlay (`{ "mode": "canvas" }`) |
+| `/canvas/hide` | POST | Hide canvas overlay |
+| `/canvas/excalidraw/draw` | POST | Add/update elements (array of Excalidraw skeletons) |
+| `/canvas/excalidraw/scene` | GET | Read current scene elements |
+| `/canvas/excalidraw/scene` | DELETE | Clear the entire canvas |
+| `/canvas/excalidraw/zoom` | POST | Zoom to a specific level (`{ "level": 2 }`) |
+| `/canvas/excalidraw/pan` | POST | Pan so (x, y) is centered (`{ "x": 200, "y": 150 }`) |
+| `/canvas/excalidraw/select` | POST | Select/highlight elements by id |
+| `/canvas/excalidraw/deselect` | POST | Clear all selections |
+| `/canvas/excalidraw/focus` | POST | Zoom + pan to center on specific elements |
+| `/canvas/excalidraw/elements` | DELETE | Delete specific elements by id |
+| `/canvas/excalidraw/files` | POST | Register binary files (images) for image elements |
+
+### Use Cases
+
+- **Visual explanations** — the agent draws architecture diagrams, flowcharts, or math figures while explaining
+- **Collaborative planning** — sketch together, the agent adds and you annotate
+- **Attention guiding** — agent zooms/pans to highlight specific parts during discussion
+- **Hand-drawn aesthetic** — Excalidraw's signature sketch style, transparent background
+
+The canvas is also **user-editable** — you can draw, move, and resize elements manually. The agent's programmatic updates merge cleanly with your edits.
+
+---
+
+## Chat — Built-in Hermes Client
+
+Cloe Desktop comes with a **standalone chat window** that connects directly to the Hermes API Server. No terminal needed — just open the chat and talk.
+
+### Features
+
+- **SSE streaming** — responses appear in real time as they're generated, with a live cursor
+- **Session continuity** — maintains conversation context across messages via session tracking
+- **Tool progress indicators** — see which tools the agent is calling in real time (collapsible)
+- **LLM model switcher** — dropdown to switch models on the fly (updates config + restarts gateway)
+- **Markdown rendering** — full GFM support with syntax-highlighted code blocks
+- **Image support** — inline image display with click-to-zoom preview
+- **Draggable & resizable** — position it anywhere on screen
+- **Connection health** — live status indicator (green = connected, red = offline)
+
+### Opening the Chat
+
+```bash
+# Toggle chat window open/close
+curl -s http://localhost:19851/chat-toggle -X POST
+
+# Inject a message into the chat (e.g., from a script)
+curl -s http://localhost:19851/chat/message -d '{
+  "role": "assistant",
+  "content": "Hey! I just sent this from the API 🎉"
+}'
+```
+
+The chat window positions itself next to the character window. It's a separate `BrowserWindow` — you can move it independently, resize it, or close it without affecting the character.
+
+### How It Works
+
+```
+┌──────────────┐   IPC proxy    ┌─────────────┐   HTTP/SSE    ┌──────────────┐
+│ Chat Window  │ ─────────────▶ │ Main Process │ ────────────▶ │ Hermes API   │
+│ (BrowserWin) │  (no CORS)     │ (Electron)   │  /v1/chat     │ Server       │
+│              │ ◀──────────── │              │ ◀──────────── │ (localhost)  │
+└──────────────┘  stream deltas └─────────────┘  SSE chunks    └──────────────┘
+```
+
+The main process acts as an IPC proxy, forwarding chat requests to the Hermes API Server and streaming responses back. This avoids CORS restrictions while keeping the chat window lightweight.
 
 ---
 
