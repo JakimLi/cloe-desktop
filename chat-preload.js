@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hermesGetModels: () => ipcRenderer.invoke('hermes-chat-models'),
   hermesSwitchModel: (model) => ipcRenderer.invoke('hermes-switch-model', model),
   hermesSendMessage: (message, sessionId, model) => ipcRenderer.send('hermes-chat-send', { message, sessionId, model }),
+  hermesChatStop: () => ipcRenderer.send('hermes-chat-stop'),
   onHermesDelta: (cb) => {
     const h = (_e, d) => cb(d);
     ipcRenderer.on('hermes-stream-delta', h);
@@ -29,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window control
   closeWindow: () => ipcRenderer.send('chat-window-close'),
   minimizeWindow: () => ipcRenderer.send('chat-window-minimize'),
+  toggleChatWindow: () => ipcRenderer.send('chat-window-toggle'),
   // Config
   getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
   // External message injection (from Hermes via /chat/message)

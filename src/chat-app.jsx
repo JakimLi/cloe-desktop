@@ -103,6 +103,30 @@ function ChatApp() {
   const endRef = useRef(null);
   const textareaRef = useRef(null);
 
+  // ── Chat toggle shortcut (works when chat window is focused) ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-chat-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.electronAPI?.toggleChatWindow?.();
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   // Auto-scroll
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -196,6 +220,21 @@ function ChatApp() {
     }
     window.electronAPI?.hermesSendMessage?.(msg, sessionId, currentModel || undefined);
   }, [input, sending, connected, sessionId, currentModel]);
+
+  const stop = useCallback(() => {
+    window.electronAPI?.hermesChatStop?.();
+    // Finalize any already-streamed content into messages
+    const c = streamRef.current;
+    const t = toolsRef.current;
+    streamRef.current = '';
+    toolsRef.current = [];
+    setStreamingContent('');
+    setStreamingTools([]);
+    if (c || t.length > 0) {
+      setMessages(prev => [...prev, { role: 'assistant', content: c, tools: t }]);
+    }
+    setSending(false);
+  }, []);
 
   const onKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
