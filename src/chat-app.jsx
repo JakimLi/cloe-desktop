@@ -346,15 +346,21 @@ function ChatApp() {
           rows={1}
         />
         <button
-          className="chat-send-btn"
-          onClick={send}
-          disabled={connected === false || !input.trim()}
-          title="Send"
+          className={sending ? 'chat-stop-btn' : 'chat-send-btn'}
+          onClick={sending ? stop : send}
+          disabled={!sending && (connected === false || !input.trim())}
+          title={sending ? 'Stop' : 'Send'}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="19" x2="12" y2="5" />
-            <polyline points="5 12 12 5 19 12" />
-          </svg>
+          {sending ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
+          )}
         </button>
       </div>
     </div>

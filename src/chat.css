@@ -436,6 +436,30 @@ html, body, #root {
 .chat-send-btn:active:not(:disabled) { transform: translateY(0); }
 .chat-send-btn:disabled { opacity: 0.25; cursor: default; }
 
+/* Stop button — replaces send while streaming */
+.chat-stop-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+
+.chat-stop-btn:hover {
+  background: rgba(239, 68, 68, 0.45);
+  color: #fecaca;
+  transform: translateY(-1px);
+}
+
+.chat-stop-btn:active { transform: translateY(0); }
+
 /* ── Tool calls (collapsible) ── */
 .chat-tool-list {
   display: flex;

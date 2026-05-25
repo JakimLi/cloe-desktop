@@ -2637,6 +2637,15 @@ ipcMain.handle('hermes-switch-model', async (_event, newModel) => {
   }
 });
 
+let currentChatReq = null;
+
+ipcMain.on('hermes-chat-stop', () => {
+  if (currentChatReq) {
+    try { currentChatReq.destroy(); } catch {}
+    currentChatReq = null;
+  }
+});
+
 ipcMain.on('hermes-chat-send', (event, payload) => {
   const { message, sessionId, model } = payload || {};
   const { host, port, key } = getHermesApiConfig();
@@ -2726,6 +2735,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('end', () => {
         if (!ended) {
           ended = true;
+          currentChatReq = null;
           try { sendTo('hermes-stream-end', {}); } catch {}
         }
       });
@@ -2733,6 +2743,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('error', (err) => {
         if (!ended) {
           ended = true;
+          currentChatReq = null;
           try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
         }
       });
@@ -2740,6 +2751,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   );
 
   req.on('error', (err) => {
+    currentChatReq = null;
     try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
   });
 
@@ -2750,6 +2762,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   });
   req.write(body);
   req.end();
+  currentChatReq = req;
 });
 
 // ==================== Canvas Window ====================

@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Hermes API (main-process proxy to localhost:8642)
   hermesCheckHealth: () => ipcRenderer.invoke('hermes-check-health'),
   hermesSendMessage: (message, sessionId) => ipcRenderer.send('hermes-chat-send', { message, sessionId }),
+  hermesChatStop: () => ipcRenderer.send('hermes-chat-stop'),
   onHermesDelta: (cb) => {
     const h = (_e, d) => cb(d);
     ipcRenderer.on('hermes-stream-delta', h);
