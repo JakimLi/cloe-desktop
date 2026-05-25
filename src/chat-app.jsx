@@ -98,6 +98,7 @@ function ChatApp() {
   const [models, setModels] = useState([]);
   const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
   const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
+  const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -139,10 +140,23 @@ function ChatApp() {
     window.electronAPI?.setChatOpacity?.(opacity);
   }, [transparent]);
 
+  // Sync fullscreen-penetrate mode with main process
+  useEffect(() => {
+    window.electronAPI?.setFullscreenPenetrate?.(penetrate);
+  }, [penetrate]);
+
   const toggleOpacity = useCallback(() => {
     setTransparent(prev => {
       const next = !prev;
       localStorage.setItem('cloe-chat-transparent', String(next));
+      return next;
+    });
+  }, []);
+
+  const togglePenetrate = useCallback(() => {
+    setPenetrate(prev => {
+      const next = !prev;
+      localStorage.setItem('cloe-chat-penetrate', String(next));
       return next;
     });
   }, []);
@@ -311,6 +325,16 @@ function ChatApp() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
               <path d="M12 2v20" opacity={transparent ? 0.4 : 1} />
+            </svg>
+          </button>
+          <button
+            className={`chat-btn${penetrate ? ' chat-btn-active' : ''}`}
+            onClick={togglePenetrate}
+            title={penetrate ? 'Disable fullscreen overlay' : 'Float over fullscreen'}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill={penetrate ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 17v5" />
+              <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
             </svg>
           </button>
           <button className="chat-btn chat-btn-close" onClick={() => window.electronAPI?.closeWindow?.()} title="Close">✕</button>

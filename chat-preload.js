@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Opacity toggle
   setChatOpacity: (opacity) => ipcRenderer.send('chat-set-opacity', opacity),
   getChatOpacity: () => ipcRenderer.invoke('chat-get-opacity'),
+  // Fullscreen penetration (float over fullscreen)
+  setFullscreenPenetrate: (enabled) => ipcRenderer.send('chat-set-fullscreen-penetrate', enabled),
+  getFullscreenPenetrate: () => ipcRenderer.invoke('chat-get-fullscreen-penetrate'),
   // External message injection (from Hermes via /chat/message)
   onExternalChatMessage: (cb) => {
     const h = (_e, msg) => cb(msg);

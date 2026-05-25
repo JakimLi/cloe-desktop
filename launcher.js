@@ -2540,6 +2540,44 @@ ipcMain.handle('chat-get-opacity', () => {
   return CHAT_OPAQUE_OPACITY;
 });
 
+// ==================== Chat Fullscreen Overlay (float over fullscreen) ====================
+
+/**
+ * Whether the user has enabled fullscreen-penetration mode for the chat window.
+ * Persisted in localStorage (on the chat renderer side) and synced via IPC.
+ */
+let chatFullscreenPenetrate = false;
+
+/** Apply or remove chat overlay mode when main window goes fullscreen */
+function applyChatFullscreenOverlay(isFullscreen) {
+  if (!chatWin || chatWin.isDestroyed()) return;
+  if (isFullscreen && chatFullscreenPenetrate) {
+    // Make chat visible on all macOS Spaces (critical for fullscreen windows)
+    chatWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // Float above the fullscreen app
+    chatWin.setAlwaysOnTop(true, 'floating');
+    // Prevent chat from accidentally going fullscreen itself
+    chatWin.setFullScreenable(false);
+    console.log('[Chat] Fullscreen overlay enabled');
+  } else {
+    // Restore normal behaviour
+    chatWin.setVisibleOnAllWorkspaces(false);
+    chatWin.setAlwaysOnTop(true, 'normal');   // chat was always-on-top already
+    chatWin.setFullScreenable(true);
+    console.log('[Chat] Fullscreen overlay disabled');
+  }
+}
+
+ipcMain.on('chat-set-fullscreen-penetrate', (_event, enabled) => {
+  chatFullscreenPenetrate = !!enabled;
+  // If currently fullscreen, apply immediately
+  if (win && !win.isDestroyed() && win.isFullScreen()) {
+    applyChatFullscreenOverlay(true);
+  }
+});
+
+ipcMain.handle('chat-get-fullscreen-penetrate', () => chatFullscreenPenetrate);
+
 // ==================== Hermes API Proxy ====================
 // Proxies chat requests from the renderer to local Hermes API Server,
 // avoiding CORS issues (main process has no CORS restrictions).
@@ -2909,10 +2947,12 @@ app.whenReady().then(async () => {
   win.on('enter-full-screen', () => {
     if (!win || win.isDestroyed()) return;
     win.webContents.send('fullscreen-changed', true);
+    applyChatFullscreenOverlay(true);
   });
   win.on('leave-full-screen', () => {
     if (!win || win.isDestroyed()) return;
     win.webContents.send('fullscreen-changed', false);
+    applyChatFullscreenOverlay(false);
   });
 });
 
