@@ -525,7 +525,9 @@ function ChatApp() {
 
   const send = useCallback(() => {
     if (!input.trim() || connected === false) return;
-    const msg = input.trim();
+    // Convert single newlines to Markdown line breaks (two spaces + newline)
+    // so multi-line user input renders correctly via ReactMarkdown
+    const msg = input.trim().replace(/\n/g, '  \n');
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: msg }]);
     if (!sending) {
@@ -535,7 +537,10 @@ function ChatApp() {
       setStreamingContent('');
       setStreamingTools([]);
     }
-    window.electronAPI?.hermesSendMessage?.(msg, sessionId, currentModel || undefined);
+    // Send the original (trimmed) message to the API, not the markdown-converted version
+    window.electronAPI?.hermesSendMessage?.(input.trim(), sessionId, currentModel || undefined);
+    // Reset textarea height back to single line after sending
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }, [input, sending, connected, sessionId, currentModel]);
 
   const stop = useCallback(() => {
@@ -554,7 +559,10 @@ function ChatApp() {
   }, []);
 
   const onKeyDown = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      send();
+    }
   }, [send]);
 
   const onInputChange = useCallback((e) => {
