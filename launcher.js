@@ -2410,6 +2410,20 @@ ipcMain.handle('save-window-position', (_event, payload) => {
   return { ok: true };
 });
 
+// ==================== Character Position (Shift+drag offset) ====================
+ipcMain.on('get-character-position', (event) => {
+  const cfg = loadConfig();
+  event.returnValue = cfg.characterPosition || { x: 0.5, y: 1.0 };
+});
+
+ipcMain.on('save-character-position', (_e, pos) => {
+  if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
+  const cfg = loadConfig();
+  cfg.characterPosition = { x: pos.x, y: pos.y };
+  saveConfig(cfg);
+  console.log(`[Config] Saved characterPosition: ${JSON.stringify(cfg.characterPosition)}`);
+});
+
 // ==================== Manager Window ====================
 function createManagerWindow() {
   if (managerWin) {

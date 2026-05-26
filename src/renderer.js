@@ -376,24 +376,105 @@ let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
 
+// ==================== Character Position (Shift+drag) ====================
+let isPositionDragging = false;
+let posDragStartX = 0;
+let posDragStartY = 0;
+// characterPosition: {x: 0~1, y: 0~1} — ratio of container width/height
+let characterPosition = { x: 0.5, y: 1.0 };
+
+/**
+ * Apply character position to CSS variables on #gif-container.
+ * x: 0 = left, 0.5 = center, 1 = right
+ * y: 0 = top, 1 = bottom
+ */
+function applyCharacterPosition() {
+  const xPct = (characterPosition.x * 100).toFixed(1);
+  const yPct = (characterPosition.y * 100).toFixed(1);
+  container.style.setProperty('--character-position-x', `${xPct}%`);
+  container.style.setProperty('--character-position-y', `${yPct}%`);
+}
+
+/** Load saved position from config via preload */
+function loadCharacterPosition() {
+  try {
+    const saved = window.electronAPI?.getCharacterPosition?.();
+    if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+      characterPosition = { x: saved.x, y: saved.y };
+    }
+  } catch (e) {
+    console.warn('[CharacterPosition] Failed to load:', e);
+  }
+  applyCharacterPosition();
+}
+
+loadCharacterPosition();
+
 container.addEventListener('mousedown', (e) => {
   // No dragging when terminal overlay is visible (React handles this)
   if (document.body.classList.contains('terminal-mode')) return;
   // Skip window drag if clicking inside the chat panel (it has its own drag)
   if (e.target.closest('.chat-panel')) return;
+
+  // Shift+click: adjust character position within window
+  if (e.shiftKey) {
+    e.preventDefault();
+    isPositionDragging = true;
+    posDragStartX = e.clientX;
+    posDragStartY = e.clientY;
+    container.style.cursor = 'crosshair';
+    return;
+  }
+
   isDragging = true;
   dragStartX = e.screenX;
   dragStartY = e.screenY;
 });
 
 window.addEventListener('mousemove', (e) => {
+  // Character position adjustment (Shift+drag)
+  if (isPositionDragging) {
+    const containerRect = container.getBoundingClientRect();
+    if (containerRect.width === 0 || containerRect.height === 0) return;
+
+    const dx = e.clientX - posDragStartX;
+    const dy = e.clientY - posDragStartY;
+    posDragStartX = e.clientX;
+    posDragStartY = e.clientY;
+
+    // Convert pixel delta to ratio delta (0~1)
+    const ratioDx = dx / containerRect.width;
+    const ratioDy = dy / containerRect.height;
+
+    characterPosition.x = Math.max(0, Math.min(1, characterPosition.x + ratioDx));
+    characterPosition.y = Math.max(0, Math.min(1, characterPosition.y + ratioDy));
+
+    applyCharacterPosition();
+    return;
+  }
+
+  // Normal window drag
   if (!isDragging) return;
   window.electronAPI?.moveWindow(e.screenX - dragStartX, e.screenY - dragStartY);
   dragStartX = e.screenX;
   dragStartY = e.screenY;
 });
 
-window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mouseup', () => {
+  if (isPositionDragging) {
+    isPositionDragging = false;
+    container.style.cursor = '';
+    // Save position to config
+    try {
+      window.electronAPI?.saveCharacterPosition?.(characterPosition);
+      console.log(`[CharacterPosition] Saved: ${JSON.stringify(characterPosition)}`);
+    } catch (e) {
+      console.warn('[CharacterPosition] Failed to save:', e);
+    }
+    return;
+  }
+  isDragging = false;
+});
 
 // ==================== Terminal Effect Engine ====================
 // Works with xterm.js DOM renderer: clones actual DOM elements for pixel-perfect

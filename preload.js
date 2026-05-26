@@ -55,4 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('external-chat-message', h);
     return () => ipcRenderer.removeListener('external-chat-message', h);
   },
+  // Character position (Shift+drag offset)
+  getCharacterPosition: () => ipcRenderer.sendSync('get-character-position'),
+  saveCharacterPosition: (pos) => ipcRenderer.send('save-character-position', pos),
 });

@@ -34,7 +34,7 @@ html, body {
   max-width: 100%;
   margin: 0 auto;
   object-fit: contain;
-  object-position: bottom center;
+  object-position: var(--character-position-x, center) var(--character-position-y, bottom);
   pointer-events: none;
   image-rendering: auto;
   transition: opacity 0.3s ease-in-out;
