@@ -808,3 +808,54 @@ html, body, #root {
   transition: opacity 0.2s ease, max-height 0.25s ease, margin 0.2s ease, padding 0.2s ease;
 }
 
+/* ── Context usage circular indicator ── */
+.chat-context-ring {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 12px 4px;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+.chat-context-ring:hover {
+  opacity: 1;
+}
+.chat-context-svg {
+  width: 22px;
+  height: 22px;
+  transform: rotate(-90deg);
+}
+.chat-context-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 3;
+}
+.chat-context-fill {
+  fill: none;
+  stroke: #4cff88;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.6s ease, stroke 0.4s ease;
+}
+.chat-context-fill.warn {
+  stroke: #ffe04c;
+}
+.chat-context-fill.danger {
+  stroke: #ff8844;
+}
+.chat-context-fill.critical {
+  stroke: #ff4466;
+  animation: ctx-pulse 1.5s ease-in-out infinite;
+}
+@keyframes ctx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.chat-context-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+

@@ -50,4 +50,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('external-chat-message', h);
     return () => ipcRenderer.removeListener('external-chat-message', h);
   },
+  // Context usage HUD
+  onContextUsage: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('context-usage', h);
+    return () => ipcRenderer.removeListener('context-usage', h);
+  },
 });

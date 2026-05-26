@@ -233,6 +233,7 @@ function ChatApp() {
   const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [cropperSrc, setCropperSrc] = useState(null); // raw image data URL to crop
+  const [contextPct, setContextPct] = useState(0);
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
@@ -516,7 +517,10 @@ function ChatApp() {
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
       setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
     });
-    return () => { unsubDelta?.(); unsubTool?.(); unsubEnd?.(); unsubError?.(); unsubExternal?.(); };
+    const unsubCtxUsage = window.electronAPI?.onContextUsage?.((data) => {
+      if (typeof data.usage_pct === 'number') setContextPct(data.usage_pct);
+    });
+    return () => { unsubDelta?.(); unsubTool?.(); unsubEnd?.(); unsubError?.(); unsubExternal?.(); unsubCtxUsage?.(); };
   }, []);
 
   const send = useCallback(() => {
@@ -719,6 +723,17 @@ function ChatApp() {
           </div>
         )}
         <div ref={endRef} />
+      </div>
+
+      {/* Context usage circular indicator */}
+      <div className="chat-context-ring">
+        <svg viewBox="0 0 36 36" className="chat-context-svg">
+          <path className="chat-context-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path className={`chat-context-fill${contextPct >= 90 ? ' critical' : contextPct >= 75 ? ' danger' : contextPct >= 50 ? ' warn' : ''}`}
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`} />
+        </svg>
+        <span className="chat-context-label">{Math.round(contextPct)}%</span>
       </div>
 
       {/* Input */}

@@ -1171,12 +1171,15 @@ function createBridgeServers() {
         try {
           const data = JSON.parse(body || '{}');
           // Broadcast to all WS clients (renderer will handle the display)
-          broadcastToClients({
+          const usageData = {
             type: 'context-usage',
             usage_pct: data.usage_pct || 0,
             prompt_tokens: data.prompt_tokens || 0,
             context_limit: data.context_limit || 0,
-          });
+          };
+          broadcastToClients(usageData);
+          // Also forward to chat window via IPC
+          try { chatWin?.webContents?.send('context-usage', usageData); } catch {}
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true }));
         } catch (e) {
