@@ -645,18 +645,6 @@ function ChatApp() {
         </div>
       </div>
 
-      {/* LLM model selector */}
-      {models.length > 0 && (
-        <div className="chat-model-row">
-          <label className="chat-model-label">LLM</label>
-          <select className="chat-model-select" value={currentModel} onChange={onModelChange}>
-            {models.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
       {/* Messages */}
       <div className="chat-messages" onClick={(e) => { if (e.target === e.currentTarget) setFocusedIndex(null); }}>
         {messages.length === 0 && !sending && (
@@ -725,46 +713,55 @@ function ChatApp() {
         <div ref={endRef} />
       </div>
 
-      {/* Context usage circular indicator */}
-      <div className="chat-context-ring">
-        <svg viewBox="0 0 36 36" className="chat-context-svg">
-          <path className="chat-context-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-          <path className={`chat-context-fill${contextPct >= 90 ? ' critical' : contextPct >= 75 ? ' danger' : contextPct >= 50 ? ' warn' : ''}`}
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`} />
-        </svg>
-        <span className="chat-context-label">{Math.round(contextPct)}%</span>
-      </div>
-
-      {/* Input */}
-      <div className="chat-input-row">
+      {/* Input area — unified rounded container */}
+      <div className="chat-input-area">
         <textarea
           ref={textareaRef}
           className="chat-textarea"
           value={input}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder={connected === false ? 'Not connected' : `Message ${nickname}… (Enter to send)`}
+          placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`}
           disabled={connected === false}
           rows={1}
         />
-        <button
-          className={sending ? 'chat-stop-btn' : 'chat-send-btn'}
-          onClick={sending ? stop : send}
-          disabled={!sending && (connected === false || !input.trim())}
-          title={sending ? 'Stop' : 'Send'}
-        >
-          {sending ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="6" width="12" height="12" rx="2" />
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="5 12 12 5 19 12" />
-            </svg>
+        <div className="chat-input-actions">
+          {models.length > 1 && (
+            <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model">
+              {models.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           )}
-        </button>
+          <button
+            className={sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'}
+            onClick={sending ? stop : send}
+            disabled={!sending && (connected === false || !input.trim())}
+            title={sending ? 'Stop' : 'Send'}
+          >
+            {sending ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Context usage indicator — below input */}
+      <div className="chat-context-bar">
+        <svg viewBox="0 0 36 36" className="chat-context-svg">
+          <path className="chat-context-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path className={`chat-context-fill${contextPct >= 90 ? ' critical' : contextPct >= 75 ? ' danger' : contextPct >= 50 ? ' warn' : ''}`}
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`} />
+        </svg>
+        <span className="chat-context-text">{Math.round(contextPct)}% context</span>
       </div>
 
       {/* Avatar Cropper Modal */}

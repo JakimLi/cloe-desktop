@@ -2098,9 +2098,10 @@ function createBridgeServers() {
     }
 
     // GET /screenshot — capture window content as PNG (for debugging)
-    if (req.method === 'GET' && urlPath === '/screenshot') {
-      if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      win.webContents.capturePage().then(img => {
+    if (req.method === 'GET' && (urlPath === '/screenshot' || urlPath === '/chat-screenshot')) {
+      const targetWin = urlPath === '/chat-screenshot' ? chatWin : win;
+      if (!targetWin || targetWin.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      targetWin.webContents.capturePage().then(img => {
         res.writeHead(200, { 'Content-Type': 'image/png' });
         res.end(img.toPNG());
       }).catch(err => {
