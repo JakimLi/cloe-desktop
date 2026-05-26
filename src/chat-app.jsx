@@ -341,8 +341,35 @@ function ChatApp() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // Auto-scroll
+  // ── Scroll position: save/restore on focus mode enter/exit
+  const scrollRestoreRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
+  // Save scroll position when entering focus mode
   useEffect(() => {
+    if (focusedIndex !== null && messagesContainerRef.current && scrollRestoreRef.current === null) {
+      scrollRestoreRef.current = messagesContainerRef.current.scrollTop;
+    }
+    // Restore scroll position when exiting focus mode
+    if (focusedIndex === null && scrollRestoreRef.current !== null) {
+      const savedScroll = scrollRestoreRef.current;
+      scrollRestoreRef.current = null;
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = savedScroll;
+        }
+      });
+    }
+  }, [focusedIndex]);
+
+  // Auto-scroll (skip when exiting focus mode to avoid scroll jump)
+  const skipAutoScrollRef = useRef(false);
+  useEffect(() => {
+    if (focusedIndex === null && scrollRestoreRef.current !== null) {
+      skipAutoScrollRef.current = true;
+      requestAnimationFrame(() => { skipAutoScrollRef.current = false; });
+      return;
+    }
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, streamingTools]);
 
@@ -646,7 +673,7 @@ function ChatApp() {
       </div>
 
       {/* Messages */}
-      <div className="chat-messages" onClick={(e) => { if (e.target === e.currentTarget) setFocusedIndex(null); }}>
+      <div className="chat-messages" ref={messagesContainerRef} onClick={(e) => { if (e.target === e.currentTarget) setFocusedIndex(null); }}>
         {messages.length === 0 && !sending && (
           <div className="chat-empty">
             {connected === false
