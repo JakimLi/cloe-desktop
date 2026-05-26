@@ -719,3 +719,63 @@ html, body {
   0%, 100% { box-shadow: 0 0 0 0 rgba(100, 181, 246, 0); }
   50% { box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.3); }
 }
+
+/* ==================== Character Layout D-pad ==================== */
+.char-layout-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.char-layout-dpad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.char-layout-dpad-row {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+}
+
+.char-layout-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.char-layout-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.char-layout-btn:active {
+  transform: scale(0.92);
+}
+
+.char-layout-btn-center {
+  font-size: 16px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+}
+
+.char-layout-info {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  min-width: 80px;
+}

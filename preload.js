@@ -58,4 +58,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Character position (Shift+drag offset)
   getCharacterPosition: () => ipcRenderer.sendSync('get-character-position'),
   saveCharacterPosition: (pos) => ipcRenderer.send('save-character-position', pos),
+  // Character size (scale)
+  getCharacterSize: () => ipcRenderer.sendSync('get-character-size'),
+  saveCharacterSize: (size) => ipcRenderer.send('save-character-size', size),
+  // Real-time updates from chat window
+  onCharacterPositionUpdated: (cb) => {
+    const h = (_e, pos) => cb(pos);
+    ipcRenderer.on('character-position-updated', h);
+    return () => ipcRenderer.removeListener('character-position-updated', h);
+  },
+  onCharacterSizeUpdated: (cb) => {
+    const h = (_e, size) => cb(size);
+    ipcRenderer.on('character-size-updated', h);
+    return () => ipcRenderer.removeListener('character-size-updated', h);
+  },
 });

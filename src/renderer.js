@@ -383,16 +383,32 @@ let posDragStartY = 0;
 // characterPosition: {x: 0~1, y: 0~1} — ratio of container width/height
 let characterPosition = { x: 0.5, y: 1.0 };
 
+// ==================== Character Size (scale factor) ====================
+let characterScale = 1.0;
+
 /**
- * Apply character position to CSS variables on #gif-container.
+ * Apply character position via CSS translate variables on #gif-container.
  * x: 0 = left, 0.5 = center, 1 = right
- * y: 0 = top, 1 = bottom
+ * y: 0 = top, 1 = bottom (default bottom)
+ * Translates the GIF layers so the character moves within the window.
  */
 function applyCharacterPosition() {
-  const xPct = (characterPosition.x * 100).toFixed(1);
-  const yPct = (characterPosition.y * 100).toFixed(1);
-  container.style.setProperty('--character-position-x', `${xPct}%`);
-  container.style.setProperty('--character-position-y', `${yPct}%`);
+  const rect = container.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+  // x: 0→left edge, 0.5→center (no offset), 1→right edge
+  const tx = (characterPosition.x - 0.5) * rect.width;
+  // y: 0→top, 1→bottom (default, no offset)
+  const ty = (characterPosition.y - 1.0) * rect.height;
+  container.style.setProperty('--char-tx', `${tx.toFixed(1)}px`);
+  container.style.setProperty('--char-ty', `${ty.toFixed(1)}px`);
+}
+
+/**
+ * Apply character size (scale) to CSS variable on #gif-container.
+ * Affects the transform scale of the GIF layers.
+ */
+function applyCharacterScale() {
+  container.style.setProperty('--character-scale', characterScale);
 }
 
 /** Load saved position from config via preload */
@@ -408,7 +424,39 @@ function loadCharacterPosition() {
   applyCharacterPosition();
 }
 
+/** Load saved size from config via preload */
+function loadCharacterScale() {
+  try {
+    const saved = window.electronAPI?.getCharacterSize?.();
+    if (saved && typeof saved.scale === 'number') {
+      characterScale = saved.scale;
+    }
+  } catch (e) {
+    console.warn('[CharacterSize] Failed to load:', e);
+  }
+  applyCharacterScale();
+}
+
 loadCharacterPosition();
+loadCharacterScale();
+
+// Re-apply position on window resize (translate depends on container pixel size)
+window.addEventListener('resize', () => applyCharacterPosition());
+
+// Listen for real-time updates from chat window (via main process broadcast)
+window.electronAPI?.onCharacterPositionUpdated?.((pos) => {
+  if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+    characterPosition = { x: pos.x, y: pos.y };
+    applyCharacterPosition();
+  }
+});
+
+window.electronAPI?.onCharacterSizeUpdated?.((size) => {
+  if (size && typeof size.scale === 'number') {
+    characterScale = size.scale;
+    applyCharacterScale();
+  }
+});
 
 container.addEventListener('mousedown', (e) => {
   // No dragging when terminal overlay is visible (React handles this)

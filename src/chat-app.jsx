@@ -559,7 +559,27 @@ function ChatApp() {
   }, []);
 
   const onKeyDown = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey || e.altKey) {
+      // Shift+Enter or Alt/Option+Enter → insert a newline (don't send)
+      e.preventDefault();
+      const { selectionStart, selectionEnd } = e.target;
+      setInput(prev => {
+        const next = prev.substring(0, selectionStart) + '\n' + prev.substring(selectionEnd);
+        // Schedule cursor restore after React re-render
+        requestAnimationFrame(() => {
+          const ta = textareaRef.current;
+          if (ta) {
+            ta.selectionStart = ta.selectionEnd = selectionStart + 1;
+            // Auto-resize
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 100) + 'px';
+          }
+        });
+        return next;
+      });
+    } else {
+      // Plain Enter → send message
       e.preventDefault();
       send();
     }
@@ -623,7 +643,6 @@ function ChatApp() {
               </svg>
             )}
           </div>
-          <span className="chat-dot" style={{ background: dotColor }} />
           <span className="chat-title">{nickname}</span>
           {sessionId && <span className="chat-session-badge" title={sessionId}>Session</span>}
         </div>
@@ -729,21 +748,23 @@ function ChatApp() {
               <span className="chat-focus-modal-label">{messages[focusedIndex].role === 'user' ? 'You' : nickname}</span>
               <button className="chat-btn" onClick={() => setFocusedIndex(null)} title="Close (Esc)">✕</button>
             </div>
-            <div className={`chat-focus-modal-body chat-msg-${messages[focusedIndex].role}`}>
-              {messages[focusedIndex].role === 'assistant' && (
-                <div className="chat-msg-avatar">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="AI" draggable={false} />
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <circle cx="12" cy="5" r="2" />
-                      <path d="M12 7v4" />
-                    </svg>
-                  )}
-                </div>
-              )}
-              <MessageContent content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
+            <div className="chat-focus-modal-body">
+              <div className={`chat-focus-bubble chat-focus-bubble-${messages[focusedIndex].role}`}>
+                {messages[focusedIndex].role === 'assistant' && (
+                  <div className="chat-msg-avatar">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="AI" draggable={false} />
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <circle cx="12" cy="5" r="2" />
+                        <path d="M12 7v4" />
+                      </svg>
+                    )}
+                  </div>
+                )}
+                <MessageContent content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
+              </div>
             </div>
           </div>
         </div>
@@ -763,11 +784,17 @@ function ChatApp() {
         />
         <div className="chat-input-actions">
           {models.length > 1 && (
-            <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model">
-              {models.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+            <div className="chat-model-select-wrapper">
+              <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
+              <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model">
+                {models.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {models.length <= 1 && (
+            <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
           )}
           <button
             className={sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'}
@@ -808,6 +835,7 @@ function ChatApp() {
           onCancel={handleCropCancel}
         />
       )}
+
     </div>
   );
 }

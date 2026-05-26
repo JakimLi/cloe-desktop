@@ -110,6 +110,45 @@ function renderPreferences() {
         </div>
         <div class="pref-item">
           <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.characterPosition')}</div>
+            <div class="pref-desc">${I18n.t('prefs.characterPositionDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div class="char-layout-control">
+              <div class="char-layout-dpad">
+                <div class="char-layout-dpad-row">
+                  <button type="button" class="btn-icon char-layout-btn" data-dir="up" title="Up">▲</button>
+                </div>
+                <div class="char-layout-dpad-row">
+                  <button type="button" class="btn-icon char-layout-btn" data-dir="left" title="Left">◀</button>
+                  <button type="button" class="btn-icon char-layout-btn char-layout-btn-center" data-dir="reset" title="Reset">⊙</button>
+                  <button type="button" class="btn-icon char-layout-btn" data-dir="right" title="Right">▶</button>
+                </div>
+                <div class="char-layout-dpad-row">
+                  <button type="button" class="btn-icon char-layout-btn" data-dir="down" title="Down">▼</button>
+                </div>
+              </div>
+              <span id="char-layout-pos-info" class="char-layout-info"></span>
+            </div>
+          </div>
+        </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.characterScale')}</div>
+            <div class="pref-desc">${I18n.t('prefs.characterScaleDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:10px;min-width:200px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-char-scale-down" title="缩小">−</button>
+              <input type="range" id="pref-char-scale" min="0.2" max="3.0" step="0.05" value="1.0"
+                style="flex:1;accent-color:var(--accent);cursor:pointer;">
+              <button type="button" class="btn btn-secondary btn-sm" id="pref-char-scale-up" title="放大">+</button>
+              <span id="pref-char-scale-value" style="font-size:13px;font-weight:600;min-width:42px;text-align:right;color:var(--text);">1.00×</span>
+            </div>
+          </div>
+        </div>
+        <div class="pref-item">
+          <div class="pref-info">
             <div class="pref-label">${I18n.t('prefs.terminal')}</div>
             <div class="pref-desc">${I18n.t('prefs.terminalDesc')}</div>
           </div>
@@ -459,6 +498,87 @@ function renderPreferences() {
   });
 
   loadWindowScale();
+
+  // ── Character Layout (position + scale) ──
+  const charScaleSlider = document.getElementById('pref-char-scale');
+  const charScaleValue = document.getElementById('pref-char-scale-value');
+  const charScaleDown = document.getElementById('pref-char-scale-down');
+  const charScaleUp = document.getElementById('pref-char-scale-up');
+  const charPosInfo = document.getElementById('char-layout-pos-info');
+  let charLayout = { position: { x: 0.5, y: 1.0 }, size: { scale: 1.0 } };
+  let charLayoutDebounce;
+
+  function updateCharPosInfo() {
+    if (!charPosInfo) return;
+    const p = charLayout.position;
+    charPosInfo.textContent = `X: ${(p.x * 100).toFixed(0)}%  Y: ${(p.y * 100).toFixed(0)}%`;
+  }
+
+  function saveCharLayoutDebounced() {
+    clearTimeout(charLayoutDebounce);
+    charLayoutDebounce = setTimeout(() => {
+      fetch(`${API_CONFIG_BASE}/character-layout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(charLayout),
+      }).catch(() => {});
+    }, 80);
+  }
+
+  async function loadCharLayout() {
+    try {
+      const res = await fetch(`${API_CONFIG_BASE}/character-layout`);
+      if (!res.ok) return;
+      charLayout = await res.json();
+      charScaleSlider.value = charLayout.size.scale;
+      charScaleValue.textContent = charLayout.size.scale.toFixed(2) + '×';
+      updateCharPosInfo();
+    } catch (_) {}
+  }
+
+  // D-pad buttons
+  document.querySelectorAll('.char-layout-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const dir = btn.dataset.dir;
+      const step = 0.05;
+      if (dir === 'up') charLayout.position.y = Math.max(0, charLayout.position.y - step);
+      else if (dir === 'down') charLayout.position.y = Math.min(1, charLayout.position.y + step);
+      else if (dir === 'left') charLayout.position.x = Math.max(0, charLayout.position.x - step);
+      else if (dir === 'right') charLayout.position.x = Math.min(1, charLayout.position.x + step);
+      else if (dir === 'reset') charLayout.position = { x: 0.5, y: 1.0 };
+      updateCharPosInfo();
+      saveCharLayoutDebounced();
+    });
+  });
+
+  // Scale slider
+  charScaleSlider.addEventListener('input', () => {
+    const val = parseFloat(charScaleSlider.value);
+    charScaleValue.textContent = val.toFixed(2) + '×';
+    charLayout.size.scale = val;
+    saveCharLayoutDebounced();
+  });
+
+  // Scale +/- buttons
+  charScaleDown.addEventListener('click', () => {
+    let val = parseFloat(charScaleSlider.value) - 0.1;
+    val = Math.max(0.2, Math.round(val * 100) / 100);
+    charScaleSlider.value = val;
+    charScaleValue.textContent = val.toFixed(2) + '×';
+    charLayout.size.scale = val;
+    saveCharLayoutDebounced();
+  });
+
+  charScaleUp.addEventListener('click', () => {
+    let val = parseFloat(charScaleSlider.value) + 0.1;
+    val = Math.min(3.0, Math.round(val * 100) / 100);
+    charScaleSlider.value = val;
+    charScaleValue.textContent = val.toFixed(2) + '×';
+    charLayout.size.scale = val;
+    saveCharLayoutDebounced();
+  });
+
+  loadCharLayout();
 
   // Terminal toggle
   const terminalToggle = document.getElementById('pref-terminal-enabled');

@@ -1130,6 +1130,48 @@ function createBridgeServers() {
       return;
     }
 
+    // ── Character Layout (position + size within the window) ──
+
+    // GET /character-layout — get character position & size
+    if (req.method === 'GET' && urlPath === '/character-layout') {
+      const cfg = loadConfig();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        position: cfg.characterPosition || { x: 0.5, y: 1.0 },
+        size: cfg.characterSize || { scale: 1.0 },
+      }));
+      return;
+    }
+
+    // POST /character-layout — set character position and/or size
+    if (req.method === 'POST' && urlPath === '/character-layout') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const cfg = loadConfig();
+          if (payload.position && typeof payload.position.x === 'number' && typeof payload.position.y === 'number') {
+            cfg.characterPosition = { x: payload.position.x, y: payload.position.y };
+          }
+          if (payload.size && typeof payload.size.scale === 'number') {
+            cfg.characterSize = { scale: Math.max(0.2, Math.min(3.0, payload.size.scale)) };
+          }
+          saveConfig(cfg);
+          console.log(`[Config] Saved characterLayout: pos=${JSON.stringify(cfg.characterPosition)} size=${JSON.stringify(cfg.characterSize)}`);
+          // Broadcast to main window for real-time update
+          try { win?.webContents?.send('character-position-updated', cfg.characterPosition); } catch {}
+          try { win?.webContents?.send('character-size-updated', cfg.characterSize); } catch {}
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (_) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid JSON' }));
+        }
+      });
+      return;
+    }
+
     // GET /plugin-rules — read plugin-rules.json from dataDir
     if (req.method === 'GET' && urlPath === '/plugin-rules') {
       try {
@@ -2422,7 +2464,27 @@ ipcMain.on('save-character-position', (_e, pos) => {
   cfg.characterPosition = { x: pos.x, y: pos.y };
   saveConfig(cfg);
   console.log(`[Config] Saved characterPosition: ${JSON.stringify(cfg.characterPosition)}`);
+  // Broadcast to main window so it updates in real-time
+  try { win?.webContents?.send('character-position-updated', cfg.characterPosition); } catch {}
 });
+
+// ── Character Size (scale factor for GIF layers) ──
+ipcMain.on('get-character-size', (event) => {
+  const cfg = loadConfig();
+  event.returnValue = cfg.characterSize || { scale: 1.0 };
+});
+
+ipcMain.on('save-character-size', (_e, size) => {
+  if (!size || typeof size.scale !== 'number') return;
+  const cfg = loadConfig();
+  cfg.characterSize = { scale: Math.max(0.2, Math.min(3.0, size.scale)) };
+  saveConfig(cfg);
+  console.log(`[Config] Saved characterSize: ${JSON.stringify(cfg.characterSize)}`);
+  // Broadcast to main window so it updates in real-time
+  try { win?.webContents?.send('character-size-updated', cfg.characterSize); } catch {}
+});
+
+
 
 // ==================== Manager Window ====================
 function createManagerWindow() {

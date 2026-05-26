@@ -19,6 +19,7 @@ html, body {
   justify-content: center;
   cursor: grab;
   -webkit-app-region: no-drag;
+  --character-scale: 1;
 }
 
 #gif-container:active {
@@ -34,7 +35,9 @@ html, body {
   max-width: 100%;
   margin: 0 auto;
   object-fit: contain;
-  object-position: var(--character-position-x, center) var(--character-position-y, bottom);
+  /* Character position inherits --char-tx/--char-ty from #gif-container */
+  transform: translate(var(--char-tx, 0px), var(--char-ty, 0px)) scale(var(--character-scale, 1));
+  transform-origin: center bottom;
   pointer-events: none;
   image-rendering: auto;
   transition: opacity 0.3s ease-in-out;
