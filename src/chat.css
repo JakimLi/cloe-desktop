@@ -117,13 +117,12 @@ html, body, #root {
 }
 
 .chat-btn-active {
-  background: rgba(96, 165, 250, 0.2);
-  color: rgba(96, 165, 250, 0.9);
+  background: rgba(250, 204, 21, 0.2);
+  color: rgba(253, 230, 138, 0.6);
 }
-
 .chat-btn-active:hover {
-  background: rgba(96, 165, 250, 0.3);
-  color: rgba(96, 165, 250, 1);
+  background: rgba(250, 204, 21, 0.4);
+  color: #fde68a;
 }
 
 /* ── Messages ── */
