@@ -341,35 +341,8 @@ function ChatApp() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // ── Scroll position: save/restore on focus mode enter/exit
-  const scrollRestoreRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-
-  // Save scroll position when entering focus mode
+  // Auto-scroll
   useEffect(() => {
-    if (focusedIndex !== null && messagesContainerRef.current && scrollRestoreRef.current === null) {
-      scrollRestoreRef.current = messagesContainerRef.current.scrollTop;
-    }
-    // Restore scroll position when exiting focus mode
-    if (focusedIndex === null && scrollRestoreRef.current !== null) {
-      const savedScroll = scrollRestoreRef.current;
-      scrollRestoreRef.current = null;
-      requestAnimationFrame(() => {
-        if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTop = savedScroll;
-        }
-      });
-    }
-  }, [focusedIndex]);
-
-  // Auto-scroll (skip when exiting focus mode to avoid scroll jump)
-  const skipAutoScrollRef = useRef(false);
-  useEffect(() => {
-    if (focusedIndex === null && scrollRestoreRef.current !== null) {
-      skipAutoScrollRef.current = true;
-      requestAnimationFrame(() => { skipAutoScrollRef.current = false; });
-      return;
-    }
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, streamingTools]);
 
@@ -673,7 +646,7 @@ function ChatApp() {
       </div>
 
       {/* Messages */}
-      <div className="chat-messages" ref={messagesContainerRef} onClick={(e) => { if (e.target === e.currentTarget) setFocusedIndex(null); }}>
+      <div className="chat-messages">
         {messages.length === 0 && !sending && (
           <div className="chat-empty">
             {connected === false
@@ -686,7 +659,7 @@ function ChatApp() {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`chat-msg chat-msg-${m.role}${focusedIndex === i ? ' chat-msg-focused' : ''}${focusedIndex !== null && focusedIndex !== i ? ' chat-msg-hidden' : ''}`}
+            className={`chat-msg chat-msg-${m.role}`}
             onClick={() => setFocusedIndex(i)}
           >
             {m.role === 'assistant' && (
@@ -739,6 +712,34 @@ function ChatApp() {
         )}
         <div ref={endRef} />
       </div>
+
+      {/* Focus modal overlay */}
+      {focusedIndex !== null && messages[focusedIndex] && (
+        <div className="chat-focus-overlay" onClick={() => setFocusedIndex(null)}>
+          <div className="chat-focus-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-focus-modal-header">
+              <span className="chat-focus-modal-label">{messages[focusedIndex].role === 'user' ? 'You' : nickname}</span>
+              <button className="chat-btn" onClick={() => setFocusedIndex(null)} title="Close (Esc)">✕</button>
+            </div>
+            <div className={`chat-focus-modal-body chat-msg-${messages[focusedIndex].role}`}>
+              {messages[focusedIndex].role === 'assistant' && (
+                <div className="chat-msg-avatar">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="AI" draggable={false} />
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <circle cx="12" cy="5" r="2" />
+                      <path d="M12 7v4" />
+                    </svg>
+                  )}
+                </div>
+              )}
+              <MessageContent content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input area — unified rounded container */}
       <div className="chat-input-area">
