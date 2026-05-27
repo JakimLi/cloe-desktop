@@ -1,10 +1,9 @@
 // ==================== Cloe Settings — Shortcuts Tab ====================
-
-const API_CONFIG_BASE = 'http://127.0.0.1:19851';
+// (API_CONFIG_BASE 已在 preferences.js 中定义)
 
 // ── Shortcut definition list ──
 // Each entry: { id, lsKey, labelKey, descKey, emptyKey, hintKey, clearKey }
-const SHORTCUT_DEFS = [
+var SHORTCUT_DEFS = [
   // Window Controls
   { id: 'terminal', lsKey: 'cloe-terminal-shortcut', section: 'window' },
   { id: 'canvas', lsKey: 'cloe-canvas-shortcut', section: 'window' },
