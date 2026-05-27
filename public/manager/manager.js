@@ -43,6 +43,9 @@ function updateAllText() {
   document.getElementById('sidebar-preferences').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.preferences');
   document.getElementById('sidebar-plugin-rules').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.pluginRules');
   document.getElementById('sidebar-idle-playlist').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.idlePlaylist');
+  if (document.getElementById('sidebar-shortcuts')) {
+    document.getElementById('sidebar-shortcuts').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.shortcuts');
+  }
 
   // Update actions tab text
   const actionsTitle = document.getElementById('actions-title');
@@ -55,6 +58,11 @@ function updateAllText() {
 
   // Update preferences tab text
   updatePreferencesText();
+
+  // Update shortcuts tab text
+  if (typeof updateShortcutsText === 'function') {
+    updateShortcutsText();
+  }
 
   // Update plugin rules tab text
   updatePluginRulesText();
@@ -74,6 +82,9 @@ window.onLocaleChange = function () {
   initReferenceModal();
   initActionsTab();
   initPreferencesTab();
+  if (typeof initShortcutsTab === 'function') {
+    initShortcutsTab();
+  }
   await loadPluginRules();
   initPluginRulesTab();
   updateAllText();
