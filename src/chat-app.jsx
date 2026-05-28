@@ -267,7 +267,7 @@ function ChatApp() {
   // ── Chat transparency shortcut ──
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-chat-transparency-shortcut') || '';
+      const stored = localStorage.getItem('cloe-transparency-shortcut') || '';
       if (!stored) return;
       const parts = stored.toLowerCase().split('+');
       const key = parts[parts.length - 1];

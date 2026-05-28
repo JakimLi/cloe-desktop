@@ -149,7 +149,12 @@ html, body {
   right: 0;
   bottom: 0;
   z-index: 5; /* above gif-container (z-index auto), below ws-status (10) */
-  background: rgba(10, 10, 20, 0.72); /* semi-transparent dark — visible but see-through */
+  background: rgba(10, 10, 20, 0.85); /* opaque — solid dark background */
+  transition: background 0.3s ease;
+}
+
+.terminal-overlay.overlay-transparent {
+  background: rgba(10, 10, 20, 0.15); /* semi-transparent — see-through to desktop */
 }
 
 .terminal-overlay.hidden {
@@ -317,7 +322,11 @@ body.canvas-mode #gif-container {
   pointer-events: none;
 }
 body.canvas-mode .terminal-overlay {
-  background: rgba(10, 10, 20, 0.72);
+  background: rgba(10, 10, 20, 0.85);
+}
+
+body.canvas-mode .terminal-overlay.overlay-transparent {
+  background: rgba(10, 10, 20, 0.15);
 }
 
 /* ==================== Titlebar Mode Switcher ==================== */

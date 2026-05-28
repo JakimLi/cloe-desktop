@@ -17,6 +17,9 @@ export default function App() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
   const [chatOpen, setChatOpen] = useState(false);
+  const [overlayTransparent, setOverlayTransparent] = useState(
+    () => localStorage.getItem('cloe-overlay-transparent') === 'true'
+  );
 
   // ── Show/hide overlay ──
   const show = useCallback((mode) => {
@@ -201,6 +204,38 @@ export default function App() {
     window.electronAPI?.toggleChatWindow?.();
   }, []);
 
+  // ── Overlay transparency toggle (mouse + shortcut) ──
+  const toggleOverlayTransparent = useCallback(() => {
+    setOverlayTransparent(prev => {
+      const next = !prev;
+      localStorage.setItem('cloe-overlay-transparent', String(next));
+      return next;
+    });
+  }, []);
+
+  // ── Overlay transparency shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-transparency-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleOverlayTransparent();
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [toggleOverlayTransparent]);
+
   // ── Settings button click ──
   useEffect(() => {
     const btn = document.getElementById('settings-btn');
@@ -332,13 +367,15 @@ export default function App() {
   }
 
   return (
-    <div className="terminal-overlay">
+    <div className={`terminal-overlay${overlayTransparent ? ' overlay-transparent' : ''}`}>
       <OverlayTitlebar
         onClose={() => { hide(); localStorage.setItem('cloe-terminal-visible', 'false'); }}
         mode={mode}
         onModeChange={setMode}
         onChatToggle={toggleChat}
         chatVisible={chatOpen}
+        overlayTransparent={overlayTransparent}
+        onToggleTransparent={toggleOverlayTransparent}
       />
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>
         <div style={{ display: mode === 'terminal' ? 'block' : 'none', position: 'absolute', inset: 0 }}>

@@ -1,11 +1,11 @@
 /**
  * OverlayTitlebar — macOS-style titlebar for the terminal/canvas overlay.
- * Traffic lights (hover reveal), mode switcher, drag region.
+ * Traffic lights (hover reveal), mode switcher, drag region, opacity toggle (right).
  */
 
 import React from 'react';
 
-export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible }) {
+export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparent, onToggleTransparent }) {
   return (
     <div className="terminal-titlebar">
       {/* Traffic lights (hover reveal) */}
@@ -61,8 +61,20 @@ export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatTog
         </button>
       </div>
 
-      {/* Drag region */}
+      {/* Drag region fills the middle */}
       <div className="terminal-drag-region" />
+
+      {/* Opacity toggle — top-right corner */}
+      <button
+        className={`mode-btn opacity-toggle${overlayTransparent ? ' active' : ''}`}
+        onClick={onToggleTransparent}
+        title={overlayTransparent ? '不透明' : '半透明'}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2v20" opacity={overlayTransparent ? 0.3 : 1} />
+        </svg>
+      </button>
     </div>
   );
 }

@@ -7,9 +7,9 @@ var SHORTCUT_DEFS = [
   // Window Controls
   { id: 'terminal', lsKey: 'cloe-terminal-shortcut', section: 'window' },
   { id: 'canvas', lsKey: 'cloe-canvas-shortcut', section: 'window' },
+  { id: 'transparency', lsKey: 'cloe-transparency-shortcut', section: 'window' },
   // Chat Controls
   { id: 'chat', lsKey: 'cloe-chat-shortcut', section: 'chat' },
-  { id: 'chat-transparency', lsKey: 'cloe-chat-transparency-shortcut', section: 'chat' },
   { id: 'chat-pin', lsKey: 'cloe-chat-pin-shortcut', section: 'chat' },
   { id: 'chat-focus', lsKey: 'cloe-chat-focus-shortcut', section: 'chat' },
   // Character Controls
@@ -24,8 +24,8 @@ function shortcutLabelKey(id) {
   const map = {
     'terminal': 'terminalShortcut',
     'canvas': 'canvasShortcut',
+    'transparency': 'transparencyShortcut',
     'chat': 'chatShortcut',
-    'chat-transparency': 'chatTransparencyShortcut',
     'chat-pin': 'chatPinShortcut',
     'chat-focus': 'chatFocusShortcut',
     'char-move-up': 'charMoveUpShortcut',
