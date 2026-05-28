@@ -856,16 +856,16 @@ html, body, #root {
 }
 .chat-focus-modal {
   width: 100%;
-  max-height: 100%;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 .chat-focus-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 4px 8px;
+  flex-shrink: 0;
 }
 .chat-focus-modal-label {
   font-size: 11px;
@@ -873,10 +873,9 @@ html, body, #root {
   font-weight: 500;
 }
 .chat-focus-modal-body {
-  flex: 1;
   overflow-y: auto;
-  display: flex;
-  justify-content: center;
+  flex-shrink: 1;
+  min-height: 0;
 }
 .chat-focus-bubble {
   width: 100%;
@@ -886,6 +885,7 @@ html, body, #root {
   font-size: 18px;
   line-height: 1.7;
   word-break: break-word;
+  box-sizing: border-box;
 }
 .chat-focus-bubble-user {
   background: rgba(250, 204, 21, 0.15);
