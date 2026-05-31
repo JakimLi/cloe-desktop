@@ -4,14 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cloe Desktop</title>
-  <script type="module" crossorigin src="./assets/index-Bgb949AE.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/jsx-runtime-D6aaK9E8.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-J3yzMNid.css">
+  <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
   <!-- Character layer (bottom) — managed by renderer.js (Vanilla JS) -->
   <div id="gif-container">
-    <img id="cloe-gif-a" class="cloe-gif-layer" src="./gifs/blink.gif" alt="">
+    <img id="cloe-gif-a" class="cloe-gif-layer" src="/gifs/blink.gif" alt="">
     <img id="cloe-gif-b" class="cloe-gif-layer" src="" alt="">
     <!-- Context usage HUD bar -->
     <div id="context-bar" class="context-bar">
@@ -27,6 +25,8 @@
   <button id="settings-btn" title="设置">⚙</button>
 
   <!-- renderer.js: GIF animations, audio, WebSocket, idle loop, drag -->
+  <script type="module" src="/src/renderer.js"></script>
   <!-- React app: terminal (xterm), canvas (Excalidraw), titlebar -->
+  <script type="module" src="/src/react/main.jsx"></script>
 </body>
 </html>

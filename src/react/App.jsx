@@ -371,6 +371,73 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // ── Character scale shortcuts ──
+  const CHAR_SCALE_STEP = 0.1;
+  const CHAR_SCALE_MIN = 0.3;
+  const CHAR_SCALE_MAX = 3.0;
+
+  function scaleCharacter(direction) {
+    fetch('http://127.0.0.1:19851/character-layout')
+      .then(r => r.json())
+      .then(layout => {
+        const scale = direction === 'up'
+          ? Math.min(CHAR_SCALE_MAX, (layout.size?.scale ?? 1) + CHAR_SCALE_STEP)
+          : Math.max(CHAR_SCALE_MIN, (layout.size?.scale ?? 1) - CHAR_SCALE_STEP);
+        return fetch('http://127.0.0.1:19851/character-layout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ size: { scale } }),
+        });
+      })
+      .catch(() => {});
+  }
+
+  // Character scale up
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-char-scale-up-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        scaleCharacter('up');
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
+  // Character scale down
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-char-scale-down-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        scaleCharacter('down');
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   if (!visible) {
     return null;
   }
