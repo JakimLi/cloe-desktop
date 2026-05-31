@@ -277,8 +277,9 @@ export default function App() {
   // Character move up
   useEffect(() => {
     const handler = (e) => {
-      // Skip if user is typing in chat input
-      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') return;
+      // Skip if user is typing in chat input (but not xterm helper textarea)
+      const ae = document.activeElement;
+      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
       const stored = localStorage.getItem('cloe-char-move-up-shortcut') || '';
       if (!stored) return;
       const parts = stored.toLowerCase().split('+');
@@ -302,7 +303,8 @@ export default function App() {
   // Character move down
   useEffect(() => {
     const handler = (e) => {
-      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') return;
+      const ae = document.activeElement;
+      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
       const stored = localStorage.getItem('cloe-char-move-down-shortcut') || '';
       if (!stored) return;
       const parts = stored.toLowerCase().split('+');
@@ -326,7 +328,8 @@ export default function App() {
   // Character move left
   useEffect(() => {
     const handler = (e) => {
-      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') return;
+      const ae = document.activeElement;
+      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
       const stored = localStorage.getItem('cloe-char-move-left-shortcut') || '';
       if (!stored) return;
       const parts = stored.toLowerCase().split('+');
@@ -350,7 +353,8 @@ export default function App() {
   // Character move right
   useEffect(() => {
     const handler = (e) => {
-      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') return;
+      const ae = document.activeElement;
+      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
       const stored = localStorage.getItem('cloe-char-move-right-shortcut') || '';
       if (!stored) return;
       const parts = stored.toLowerCase().split('+');

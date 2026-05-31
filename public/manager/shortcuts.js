@@ -17,6 +17,8 @@ var SHORTCUT_DEFS = [
   { id: 'char-move-down', lsKey: 'cloe-char-move-down-shortcut', section: 'character' },
   { id: 'char-move-left', lsKey: 'cloe-char-move-left-shortcut', section: 'character' },
   { id: 'char-move-right', lsKey: 'cloe-char-move-right-shortcut', section: 'character' },
+  { id: 'char-scale-up', lsKey: 'cloe-char-scale-up-shortcut', section: 'character' },
+  { id: 'char-scale-down', lsKey: 'cloe-char-scale-down-shortcut', section: 'character' },
 ];
 
 function shortcutLabelKey(id) {
@@ -32,6 +34,8 @@ function shortcutLabelKey(id) {
     'char-move-down': 'charMoveDownShortcut',
     'char-move-left': 'charMoveLeftShortcut',
     'char-move-right': 'charMoveRightShortcut',
+    'char-scale-up': 'charScaleUpShortcut',
+    'char-scale-down': 'charScaleDownShortcut',
   };
   return map[id];
 }
