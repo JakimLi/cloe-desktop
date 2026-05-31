@@ -249,6 +249,10 @@ html, body {
   height: 100%;
 }
 
+.opacity-toggle {
+  -webkit-app-region: no-drag;
+}
+
 .terminal-container {
   position: absolute;
   top: 32px;
