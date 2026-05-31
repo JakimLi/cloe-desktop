@@ -149,12 +149,21 @@ html, body {
   right: 0;
   bottom: 0;
   z-index: 5; /* above gif-container (z-index auto), below ws-status (10) */
-  background: rgba(10, 10, 20, 0.85); /* opaque — solid dark background */
+  background: rgba(10, 10, 20, 0.85); /* default (no class) — solid dark background */
   transition: background 0.3s ease;
 }
 
+/* 3-level transparency for main window */
+.terminal-overlay.overlay-semi {
+  background: rgba(10, 10, 20, 0.85); /* semi-transparent — original default, see character through overlay */
+}
+
 .terminal-overlay.overlay-transparent {
-  background: rgba(10, 10, 20, 0.15); /* semi-transparent — see-through to desktop */
+  background: transparent; /* fully transparent — character + terminal/canvas all visible */
+}
+
+.terminal-overlay.overlay-opaque {
+  background: rgba(0, 0, 0, 1.0); /* fully opaque black — character hidden, only terminal/canvas content visible */
 }
 
 .terminal-overlay.hidden {
@@ -321,12 +330,16 @@ body.canvas-mode #gif-container {
   z-index: 1;
   pointer-events: none;
 }
-body.canvas-mode .terminal-overlay {
+body.canvas-mode .terminal-overlay.overlay-semi {
   background: rgba(10, 10, 20, 0.85);
 }
 
 body.canvas-mode .terminal-overlay.overlay-transparent {
-  background: rgba(10, 10, 20, 0.15);
+  background: transparent;
+}
+
+body.canvas-mode .terminal-overlay.overlay-opaque {
+  background: rgba(0, 0, 0, 1.0);
 }
 
 /* ==================== Titlebar Mode Switcher ==================== */

@@ -17,8 +17,16 @@ export default function App() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
   const [chatOpen, setChatOpen] = useState(false);
-  const [overlayTransparent, setOverlayTransparent] = useState(
-    () => localStorage.getItem('cloe-overlay-transparent') === 'true'
+  // 3-level transparency: 'semi' (0.15) → 'full' (transparent) → 'opaque' (1.0 black)
+  const [overlayTransparency, setOverlayTransparency] = useState(
+    () => {
+      // Migrate old boolean key
+      const old = localStorage.getItem('cloe-overlay-transparent');
+      const val = localStorage.getItem('cloe-overlay-transparency');
+      if (val && ['semi', 'full', 'opaque'].includes(val)) return val;
+      if (old === 'true') { localStorage.setItem('cloe-overlay-transparency', 'full'); return 'full'; }
+      return 'semi';
+    }
   );
 
   // ── Show/hide overlay ──
@@ -204,11 +212,12 @@ export default function App() {
     window.electronAPI?.toggleChatWindow?.();
   }, []);
 
-  // ── Overlay transparency toggle (mouse + shortcut) ──
+  // ── Overlay transparency toggle: cycle semi → full → opaque ──
   const toggleOverlayTransparent = useCallback(() => {
-    setOverlayTransparent(prev => {
-      const next = !prev;
-      localStorage.setItem('cloe-overlay-transparent', String(next));
+    setOverlayTransparency(prev => {
+      const cycle = { semi: 'full', full: 'opaque', opaque: 'semi' };
+      const next = cycle[prev] || 'semi';
+      localStorage.setItem('cloe-overlay-transparency', next);
       return next;
     });
   }, []);
@@ -367,14 +376,14 @@ export default function App() {
   }
 
   return (
-    <div className={`terminal-overlay${overlayTransparent ? ' overlay-transparent' : ''}`}>
+    <div className={`terminal-overlay${overlayTransparency === 'full' ? ' overlay-transparent' : overlayTransparency === 'opaque' ? ' overlay-opaque' : ' overlay-semi'}`}>
       <OverlayTitlebar
         onClose={() => { hide(); localStorage.setItem('cloe-terminal-visible', 'false'); }}
         mode={mode}
         onModeChange={setMode}
         onChatToggle={toggleChat}
         chatVisible={chatOpen}
-        overlayTransparent={overlayTransparent}
+        overlayTransparency={overlayTransparency}
         onToggleTransparent={toggleOverlayTransparent}
       />
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>

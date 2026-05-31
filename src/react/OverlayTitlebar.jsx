@@ -5,7 +5,13 @@
 
 import React from 'react';
 
-export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparent, onToggleTransparent }) {
+const TRANSPARENCY_LABELS = {
+  semi: '半透明 → 完全透明',
+  full: '完全透明 → 不透明',
+  opaque: '不透明 → 半透明',
+};
+
+export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparency, onToggleTransparent }) {
   return (
     <div className="terminal-titlebar">
       {/* Traffic lights (hover reveal) */}
@@ -64,15 +70,15 @@ export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatTog
       {/* Drag region fills the middle */}
       <div className="terminal-drag-region" />
 
-      {/* Opacity toggle — top-right corner */}
+      {/* Opacity toggle — top-right corner, 3-state cycle */}
       <button
-        className={`mode-btn opacity-toggle${overlayTransparent ? ' active' : ''}`}
+        className={`mode-btn opacity-toggle${overlayTransparency !== 'semi' ? ' active' : ''}`}
         onClick={onToggleTransparent}
-        title={overlayTransparent ? '不透明' : '半透明'}
+        title={TRANSPARENCY_LABELS[overlayTransparency] || '切换透明度'}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
-          <path d="M12 2v20" opacity={overlayTransparent ? 0.3 : 1} />
+          <path d="M12 2v20" opacity={overlayTransparency === 'full' ? 0.15 : overlayTransparency === 'semi' ? 0.4 : 1} />
         </svg>
       </button>
     </div>
