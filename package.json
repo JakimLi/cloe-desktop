@@ -1,6 +1,6 @@
 {
   "name": "cloe-desktop",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Cloe - AI Desktop Companion with Expressions and Voice",
   "main": "launcher.js",
   "author": {
