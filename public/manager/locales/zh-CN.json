@@ -9,7 +9,8 @@
     "preferences": "偏好设置",
     "pluginRules": "插件规则",
     "idlePlaylist": "待机播放",
-    "shortcuts": "快捷键"
+    "shortcuts": "快捷键",
+    "voiceInput": "语音输入"
   },
   "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
@@ -262,7 +263,22 @@
     "shortcutsTitle": "快捷键设置",
     "shortcutsWindow": "窗口控制",
     "shortcutsChat": "聊天控制",
-    "shortcutsCharacter": "角色控制"
+    "shortcutsCharacter": "角色控制",
+    "voiceInput": "语音输入",
+    "voiceEngine": "识别引擎",
+    "voiceEngineDesc": "选择语音识别引擎，需下载对应模型",
+    "voiceEngineNone": "未选择",
+    "voiceLanguage": "识别语言",
+    "voiceLanguageDesc": "设置语音识别的目标语言，自动检测可识别多语言",
+    "voiceLangAuto": "自动检测",
+    "voiceModelManagement": "模型管理",
+    "voiceModelManagementDesc": "下载和管理本地语音识别模型，下载后即可离线使用",
+    "voiceLoading": "加载模型列表...",
+    "voiceDownloaded": "已下载",
+    "voiceDownload": "下载",
+    "voiceDownloading": "下载中...",
+    "voiceDelete": "删除",
+    "voiceDeleteConfirm": "确定要删除此模型吗？下次使用需重新下载。"
   },
   "pluginRules": {
     "throttle": "触发节流",

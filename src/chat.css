@@ -475,6 +475,43 @@ html, body, #root {
 }
 .chat-stop-btn:active { transform: scale(1); }
 
+/* Microphone / Voice input */
+.chat-mic-btn {
+  background: rgba(148, 163, 184, 0.15);
+  color: rgba(148, 163, 184, 0.7);
+}
+.chat-mic-btn:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+  transform: scale(1.08);
+}
+.chat-mic-btn:active:not(:disabled) { transform: scale(1); }
+.chat-mic-btn:disabled { opacity: 0.2; cursor: default; }
+.chat-mic-btn-recording {
+  background: rgba(239, 68, 68, 0.3) !important;
+  color: #fca5a5 !important;
+  animation: chat-mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes chat-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+.chat-mic-btn-recording:hover {
+  background: rgba(239, 68, 68, 0.5) !important;
+  color: #fecaca !important;
+}
+
+/* Voice transcript overlay */
+.chat-voice-transcript {
+  padding: 2px 12px 4px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.6);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Context usage indicator ── */
 .chat-context-bar {
   display: inline-flex;

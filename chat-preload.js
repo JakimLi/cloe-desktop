@@ -56,4 +56,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-usage', h);
     return () => ipcRenderer.removeListener('context-usage', h);
   },
+  // Voice input
+  voiceStartRecord: () => ipcRenderer.send('voice-start-record'),
+  voiceStopRecord: () => ipcRenderer.send('voice-stop-record'),
+  voiceAudioChunk: (pcm) => ipcRenderer.send('voice-audio-chunk', pcm),
+  onVoiceResult: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('voice-result', h);
+    return () => ipcRenderer.removeListener('voice-result', h);
+  },
+  onVoicePartial: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('voice-partial', h);
+    return () => ipcRenderer.removeListener('voice-partial', h);
+  },
 });

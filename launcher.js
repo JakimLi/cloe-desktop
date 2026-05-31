@@ -1130,6 +1130,97 @@ function createBridgeServers() {
       return;
     }
 
+    // ── Voice Input API ──
+
+    // GET /voice/status — get voice engine status
+    if (req.method === 'GET' && urlPath === '/voice/status') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(voiceManager.getStatus()));
+      return;
+    }
+
+    // GET /voice/models — list available models with download status
+    if (req.method === 'GET' && urlPath === '/voice/models') {
+      const modelManager = require('./src/voice/model-manager');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(modelManager.listModels()));
+      return;
+    }
+
+    // GET /voice/config — get voice config
+    if (req.method === 'GET' && urlPath === '/voice/config') {
+      const modelManager = require('./src/voice/model-manager');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(modelManager.getVoiceConfig()));
+      return;
+    }
+
+    // POST /voice/config — save voice config (engine, model, language)
+    if (req.method === 'POST' && urlPath === '/voice/config') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', async () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const modelManager = require('./src/voice/model-manager');
+          modelManager.saveVoiceConfig(payload);
+          // If engine+model specified, try to load it
+          if (payload.engine && payload.model) {
+            try {
+              await voiceManager.loadEngine(payload.engine, payload.model);
+            } catch (err) {
+              // Config saved but engine load failed (model may not be downloaded yet)
+              console.warn('[Voice] Engine load failed:', err.message);
+            }
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    // POST /voice/models/download — download a model
+    if (req.method === 'POST' && urlPath === '/voice/models/download') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', async () => {
+        try {
+          const { modelId } = JSON.parse(body || '{}');
+          if (!modelId) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'modelId required' }));
+            return;
+          }
+          const modelManager = require('./src/voice/model-manager');
+          // Start download (non-blocking for large files)
+          await modelManager.downloadModel(modelId, (progress) => {
+            // Could broadcast progress via WS for live UI updates
+            broadcastToClients({ type: 'voice-download-progress', ...progress });
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, modelId }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    // DELETE /voice/models/:id — delete a downloaded model
+    if (req.method === 'DELETE' && urlPath.startsWith('/voice/models/')) {
+      const modelId = decodeURIComponent(urlPath.replace('/voice/models/', ''));
+      const modelManager = require('./src/voice/model-manager');
+      const ok = modelManager.deleteModel(modelId);
+      res.writeHead(ok ? 200 : 404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok }));
+      return;
+    }
+
     // ── Character Layout (position + size within the window) ──
 
     // GET /character-layout — get character position & size
@@ -2158,6 +2249,106 @@ function createBridgeServers() {
       return;
     }
 
+    // GET /open-manager — open settings/manager window (for testing)
+    if (req.method === 'GET' && urlPath === '/open-manager') {
+      createManagerWindow();
+      jsonRes(res, 200, { ok: true });
+      return;
+    }
+
+    // ── Voice Input API ──────────────────────────────────────────
+    // GET /voice/status — engine readiness status
+    if (req.method === 'GET' && urlPath === '/voice/status') {
+      try {
+        const status = voiceManager.getStatus();
+        jsonRes(res, 200, status);
+      } catch (err) {
+        jsonRes(res, 500, { error: err.message });
+      }
+      return;
+    }
+
+    // GET /voice/models — list available models (registry + download status)
+    if (req.method === 'GET' && urlPath === '/voice/models') {
+      try {
+        const { listModels } = require('./src/voice/model-manager');
+        const models = listModels();
+        jsonRes(res, 200, models);
+      } catch (err) {
+        jsonRes(res, 500, { error: err.message });
+      }
+      return;
+    }
+
+    // GET /voice/config — get current voice configuration
+    if (req.method === 'GET' && urlPath === '/voice/config') {
+      try {
+        const { getVoiceConfig } = require('./src/voice/model-manager');
+        const config = getVoiceConfig();
+        jsonRes(res, 200, config);
+      } catch (err) {
+        jsonRes(res, 500, { error: err.message });
+      }
+      return;
+    }
+
+    // POST /voice/config — save voice configuration (engine, language)
+    if (req.method === 'POST' && urlPath === '/voice/config') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const patch = JSON.parse(body || '{}');
+          const { saveVoiceConfig, getVoiceConfig } = require('./src/voice/model-manager');
+          const current = getVoiceConfig();
+          const merged = { ...current, ...patch };
+          saveVoiceConfig(merged);
+          jsonRes(res, 200, merged);
+        } catch (e) {
+          jsonRes(res, 400, { error: 'invalid JSON' });
+        }
+      });
+      return;
+    }
+
+    // POST /voice/models/download — download a model by id
+    if (req.method === 'POST' && urlPath === '/voice/models/download') {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', async () => {
+        try {
+          const { modelId } = JSON.parse(body || '{}');
+          if (!modelId) { jsonRes(res, 400, { error: 'modelId required' }); return; }
+          const { downloadModel } = require('./src/voice/model-manager');
+          // Download is async — respond immediately, progress via SSE/WS if needed
+          jsonRes(res, 200, { ok: true, message: 'Download started', modelId });
+          // Start download in background
+          downloadModel(modelId).then(() => {
+            console.log(`[Voice] Model ${modelId} downloaded successfully`);
+          }).catch((err) => {
+            console.warn(`[Voice] Model ${modelId} download failed:`, err.message);
+          });
+        } catch (e) {
+          jsonRes(res, 400, { error: 'invalid JSON' });
+        }
+      });
+      return;
+    }
+
+    // DELETE /voice/models/:id — delete a downloaded model
+    if (req.method === 'DELETE' && urlPath.startsWith('/voice/models/')) {
+      const modelId = decodeURIComponent(urlPath.slice('/voice/models/'.length));
+      if (!modelId) { jsonRes(res, 400, { error: 'model id required' }); return; }
+      try {
+        const { deleteModel } = require('./src/voice/model-manager');
+        deleteModel(modelId);
+        jsonRes(res, 200, { ok: true });
+      } catch (err) {
+        jsonRes(res, 500, { error: err.message });
+      }
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });
@@ -2720,6 +2911,63 @@ ipcMain.on('chat-set-fullscreen-penetrate', (_event, enabled) => {
 });
 
 ipcMain.handle('chat-get-fullscreen-penetrate', () => chatFullscreenPenetrate);
+
+// ==================== Voice Input ====================
+
+const { getVoiceManager } = require('./src/voice/voice-manager');
+const voiceManager = getVoiceManager();
+
+// Initialize voice engines on startup (async, non-blocking)
+voiceManager.initialize().then((results) => {
+  console.log('[Voice] Engine init results:', results);
+}).catch((err) => {
+  console.warn('[Voice] Init failed:', err.message);
+});
+
+// Send voice data back to chat window
+function sendVoiceToChat(channel, data) {
+  if (chatWin && !chatWin.isDestroyed()) {
+    chatWin.webContents.send(channel, data);
+  }
+}
+
+// Start recording
+ipcMain.on('voice-start-record', () => {
+  try {
+    voiceManager.startRecording();
+    console.log('[Voice] Recording started');
+  } catch (err) {
+    sendVoiceToChat('voice-result', { text: '', error: err.message });
+  }
+});
+
+// Stop recording → get transcription
+ipcMain.on('voice-stop-record', async () => {
+  try {
+    const text = await voiceManager.stopRecording();
+    sendVoiceToChat('voice-result', { text });
+    console.log('[Voice] Recording stopped, result:', text.slice(0, 50));
+  } catch (err) {
+    sendVoiceToChat('voice-result', { text: '', error: err.message });
+    console.warn('[Voice] Stop error:', err.message);
+  }
+});
+
+// Receive audio PCM chunk from renderer
+ipcMain.on('voice-audio-chunk', (_event, pcmArray) => {
+  try {
+    if (!voiceManager.isRecording) return;
+    // Convert plain array back to Float32Array
+    const samples = new Float32Array(pcmArray);
+    const result = voiceManager.feedAudioChunk(samples);
+    // For streaming engines, send partial results back
+    if (result && result.text) {
+      sendVoiceToChat('voice-partial', { text: result.text, isFinal: result.isFinal });
+    }
+  } catch (err) {
+    console.warn('[Voice] Audio chunk error:', err.message);
+  }
+});
 
 // ==================== Hermes API Proxy ====================
 // Proxies chat requests from the renderer to local Hermes API Server,

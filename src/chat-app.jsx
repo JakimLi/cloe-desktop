@@ -235,10 +235,19 @@ function ChatApp() {
   const [cropperSrc, setCropperSrc] = useState(null); // raw image data URL to crop
   const [contextPct, setContextPct] = useState(0);
 
+  // Voice recording state
+  const [recording, setRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+
   const streamRef = useRef('');
   const toolsRef = useRef([]);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
+
+  // Voice recording refs
+  const audioContextRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const processorRef = useRef(null);
 
   // ── Chat toggle shortcut (works when chat window is focused) ──
   useEffect(() => {
@@ -558,6 +567,82 @@ function ChatApp() {
     setSending(false);
   }, []);
 
+  // ── Voice recording ──
+  const startVoiceRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
+      });
+      mediaStreamRef.current = stream;
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      audioContextRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        const pcm = e.inputBuffer.getChannelData(0); // Float32 mono
+        window.electronAPI?.voiceAudioChunk?.(pcm);
+      };
+
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+
+      // Notify main process to start listening
+      window.electronAPI?.voiceStartRecord?.();
+      setRecording(true);
+      setVoiceTranscript('');
+    } catch (err) {
+      console.error('Voice recording failed to start:', err);
+    }
+  }, []);
+
+  const stopVoiceRecording = useCallback(() => {
+    try {
+      if (processorRef.current) {
+        processorRef.current.disconnect();
+        processorRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+    } catch (err) {
+      console.error('Error stopping voice recording:', err);
+    }
+    // Notify main process to stop and finalize
+    window.electronAPI?.voiceStopRecord?.();
+    setRecording(false);
+  }, []);
+
+  // ── IPC listeners for voice recognition results ──
+  useEffect(() => {
+    const unsubResult = window.electronAPI?.onVoiceResult?.((data) => {
+      setRecording(false); // Always reset recording state on result
+      if (data?.error) {
+        // Show error message — NO_ENGINE means no model configured
+        const msg = data.error.startsWith('NO_ENGINE:')
+          ? '🎤 请先在设置中配置语音识别引擎'
+          : `🎤 ${data.error}`;
+        setInput(msg);
+        setVoiceTranscript('');
+      } else if (data?.text) {
+        setInput(data.text);
+        setVoiceTranscript('');
+      }
+    });
+    const unsubPartial = window.electronAPI?.onVoicePartial?.((data) => {
+      if (data?.text) setVoiceTranscript(data.text);
+    });
+    return () => { unsubResult?.(); unsubPartial?.(); };
+  }, []);
+
   const onKeyDown = useCallback((e) => {
     if (e.key !== 'Enter') return;
     if (e.shiftKey || e.altKey) {
@@ -778,10 +863,13 @@ function ChatApp() {
           value={input}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`}
+          placeholder={recording && voiceTranscript ? voiceTranscript : connected === false ? 'Not connected' : `Message ${nickname}…`}
           disabled={connected === false}
           rows={1}
         />
+        {recording && voiceTranscript && (
+          <div className="chat-voice-transcript">{voiceTranscript}</div>
+        )}
         <div className="chat-input-actions">
           {models.length > 1 && (
             <div className="chat-model-select-wrapper">
@@ -796,6 +884,25 @@ function ChatApp() {
           {models.length <= 1 && (
             <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
           )}
+          <button
+            className={`chat-action-btn chat-mic-btn${recording ? ' chat-mic-btn-recording' : ''}`}
+            onClick={recording ? stopVoiceRecording : startVoiceRecording}
+            disabled={connected === false}
+            title={recording ? 'Stop recording' : 'Voice input'}
+          >
+            {recording ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            )}
+          </button>
           <button
             className={sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'}
             onClick={sending ? stop : send}

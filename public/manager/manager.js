@@ -29,6 +29,11 @@ function switchTab(tabId) {
   if (tabId === 'idle-playlist' && typeof loadIdlePlaylistTab === 'function') {
     loadIdlePlaylistTab();
   }
+
+  // Lazy-load voice settings tab
+  if (tabId === 'voice' && typeof initVoiceSettingsTab === 'function') {
+    initVoiceSettingsTab();
+  }
 }
 
 // ==================== i18n Update ====================
@@ -45,6 +50,9 @@ function updateAllText() {
   document.getElementById('sidebar-idle-playlist').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.idlePlaylist');
   if (document.getElementById('sidebar-shortcuts')) {
     document.getElementById('sidebar-shortcuts').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.shortcuts');
+  }
+  if (document.getElementById('sidebar-voice')) {
+    document.getElementById('sidebar-voice').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.voiceInput');
   }
 
   // Update actions tab text
