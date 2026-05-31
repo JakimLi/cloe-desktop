@@ -2754,6 +2754,17 @@ function createChatWindow() {
     },
   });
 
+  // Handle media permission for voice input (audio capture)
+  chatWin.webContents.session.setPermissionRequestHandler((_wc, permission, callback) => {
+    const allowed = ['media', 'audioCapture'];
+    callback(allowed.includes(permission));
+  });
+
+  // Log renderer crashes for debugging
+  chatWin.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[Chat] Renderer gone:', details.reason, details.exitCode);
+  });
+
   if (!app.isPackaged) {
     chatWin.loadURL('http://localhost:5173/src/chat.html');
   } else {

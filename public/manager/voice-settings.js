@@ -127,7 +127,6 @@ function renderVoiceStatus() {
   const engineLabels = {
     '': window.I18n.t('prefs.voiceEngineNone'),
     whisper: 'Whisper.cpp (Offline)',
-    sherpa: 'Sherpa-ONNX (Streaming)',
     macos: 'macOS 系统语音',
   };
 
@@ -176,7 +175,6 @@ function renderVoiceSettings() {
             <select id="pref-voice-engine" class="form-input form-select" style="width:220px;">
               <option value="">${window.I18n.t('prefs.voiceEngineNone')}</option>
               <option value="whisper" ${engine === 'whisper' ? 'selected' : ''}>Whisper.cpp (Offline)</option>
-              <option value="sherpa" ${engine === 'sherpa' ? 'selected' : ''}>Sherpa-ONNX (Streaming)</option>
               <option value="macos" ${engine === 'macos' ? 'selected' : ''}>macOS 系统语音</option>
             </select>
           </div>

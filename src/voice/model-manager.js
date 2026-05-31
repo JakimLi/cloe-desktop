@@ -16,110 +16,75 @@ const BIN_DIR = path.join(os.homedir(), '.cloe', 'voice-bin');
 // sizeLabel, urls (files to download), languages, type ('online' | 'offline')
 
 const MODEL_REGISTRY = {
-  // ── sherpa-onnx streaming models ──
-  'sherpa-zipformer-bilingual-zh-en': {
-    id: 'sherpa-zipformer-bilingual-zh-en',
-    name: '中英双语流式 (Zipformer)',
-    engine: 'sherpa',
-    size: 200 * 1024 * 1024,
-    sizeLabel: '~200MB',
-    languages: ['zh', 'en'],
-    type: 'online',
-    urls: [
-      'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-bilingual-zh-en.tar.bz2',
-    ],
-    // After extraction, these files are needed:
-    extractSubdir: 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-bilingual-zh-en',
-    files: [
-      'encoder-epoch-99-avg-1.onnx',
-      'decoder-epoch-99-avg-1.onnx',
-      'joiner-epoch-99-avg-1.onnx',
-      'tokens.txt',
-    ],
-  },
-  'sherpa-zipformer-en': {
-    id: 'sherpa-zipformer-en',
-    name: '英文流式 (Zipformer)',
-    engine: 'sherpa',
-    size: 100 * 1024 * 1024,
-    sizeLabel: '~100MB',
-    languages: ['en'],
-    type: 'online',
-    urls: [
-      'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2',
-    ],
-    extractSubdir: 'sherpa-onnx-streaming-zipformer-en-2023-06-26',
-    files: [
-      'encoder-epoch-99-avg-1.onnx',
-      'decoder-epoch-99-avg-1.onnx',
-      'joiner-epoch-99-avg-1.onnx',
-      'tokens.txt',
-    ],
-  },
-
   // ── Whisper batch models (GGML format for whisper.cpp) ──
+  // Using hf-mirror.com (China-friendly CDN for HuggingFace)
   'whisper-tiny': {
     id: 'whisper-tiny',
-    name: 'Whisper Tiny',
+    name: 'Whisper Tiny (多语言)',
+    desc: '最小模型，速度快，精度一般',
     engine: 'whisper',
     size: 75 * 1024 * 1024,
     sizeLabel: '~75MB',
     languages: ['multilingual'],
     type: 'offline',
     urls: [
-      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
+      'https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
     ],
     files: ['ggml-tiny.bin'],
   },
   'whisper-base': {
     id: 'whisper-base',
-    name: 'Whisper Base',
+    name: 'Whisper Base (多语言)',
+    desc: '推荐入门选择，速度与精度平衡',
     engine: 'whisper',
     size: 150 * 1024 * 1024,
     sizeLabel: '~150MB',
     languages: ['multilingual'],
     type: 'offline',
     urls: [
-      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
+      'https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
     ],
     files: ['ggml-base.bin'],
   },
   'whisper-small': {
     id: 'whisper-small',
-    name: 'Whisper Small',
+    name: 'Whisper Small (多语言)',
+    desc: '精度较好，适合中文场景',
     engine: 'whisper',
     size: 500 * 1024 * 1024,
     sizeLabel: '~500MB',
     languages: ['multilingual'],
     type: 'offline',
     urls: [
-      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
+      'https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
     ],
     files: ['ggml-small.bin'],
   },
   'whisper-medium': {
     id: 'whisper-medium',
-    name: 'Whisper Medium',
+    name: 'Whisper Medium (多语言)',
+    desc: '高精度，需要更多内存',
     engine: 'whisper',
     size: 1536 * 1024 * 1024,
     sizeLabel: '~1.5GB',
     languages: ['multilingual'],
     type: 'offline',
     urls: [
-      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin',
+      'https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin',
     ],
     files: ['ggml-medium.bin'],
   },
   'whisper-large-v3-turbo': {
     id: 'whisper-large-v3-turbo',
-    name: 'Whisper Large V3 Turbo',
+    name: 'Whisper Large V3 Turbo (多语言)',
+    desc: '最强模型，最佳精度',
     engine: 'whisper',
     size: 1536 * 1024 * 1024,
     sizeLabel: '~1.5GB',
     languages: ['multilingual'],
     type: 'offline',
     urls: [
-      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin',
+      'https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin',
     ],
     files: ['ggml-large-v3-turbo.bin'],
   },
