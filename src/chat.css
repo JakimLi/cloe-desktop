@@ -859,6 +859,7 @@ html, body, #root {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .chat-focus-modal-header {
   display: flex;
@@ -874,6 +875,7 @@ html, body, #root {
 }
 .chat-focus-modal-body {
   overflow-y: auto;
+  overflow-x: hidden;
   flex-shrink: 1;
   min-height: 0;
 }
@@ -886,6 +888,7 @@ html, body, #root {
   line-height: 1.7;
   word-break: break-word;
   box-sizing: border-box;
+  overflow: hidden;
 }
 .chat-focus-bubble-user {
   background: rgba(250, 204, 21, 0.15);
