@@ -1940,6 +1940,143 @@ function createBridgeServers() {
       return;
     }
 
+    // ==================== Code Walkthrough ====================
+    // POST /terminal/walk — interactive code walkthrough in xterm terminal
+    // Uses bat for syntax highlighting, renders ANSI directly in xterm.
+    if (req.method === 'POST' && urlPath === '/terminal/walk') {
+      readJsonBody(req, function(err, body) {
+        if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+        if (!win || win.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+
+        var action = body && body.action;
+
+        if (action === 'start') {
+          // Pre-render all steps with bat, then send to renderer
+          var steps = body.steps || [];
+          var execFile = require('child_process').execFile;
+          var batPromises = steps.map(function(step) {
+            return new Promise(function(resolve) {
+              var expandedPath = (step.file || '').replace(/^~/, process.env.HOME || '/Users/lijian');
+              var args = ['--color=always', '--style=numbers', '--wrap=never'];
+              if (step.start && step.end) {
+                args.push('--line-range', step.start + ':' + step.end);
+              }
+              if (step.highlight && step.highlight.length > 0) {
+                args.push('--highlight-line', step.highlight.join(','));
+              }
+              args.push('--terminal-width', '120');
+              args.push(expandedPath);
+              execFile('bat', args, { encoding: 'utf-8', maxBuffer: 1024 * 1024 }, function(batErr, stdout) {
+                if (batErr) {
+                  // Fallback: read raw file
+                  try {
+                    var fs = require('fs');
+                    var content = fs.readFileSync(expandedPath, 'utf-8');
+                    var lines = content.split('\n');
+                    var s = step.start || 1;
+                    var e = step.end || lines.length;
+                    var range = lines.slice(s - 1, e).map(function(l, i) {
+                      var n = String(s + i).padStart(4, ' ');
+                      return '\x1b[90m' + n + ' │\x1b[0m ' + l;
+                    }).join('\n');
+                    resolve({ file: step.file, start: step.start, end: step.end, title: step.title, note: step.note, ansi: range });
+                  } catch (fsErr) {
+                    resolve({ file: step.file, start: step.start, end: step.end, title: step.title, note: step.note, ansi: 'Error: ' + fsErr.message });
+                  }
+                  return;
+                }
+                resolve({ file: step.file, start: step.start, end: step.end, title: step.title, note: step.note, ansi: stdout });
+              });
+            });
+          });
+
+          Promise.all(batPromises).then(function(rendered) {
+            // 1. Ensure terminal mode is visible
+            var showCode = [
+              '(function() {',
+              "  window.dispatchEvent(new CustomEvent('cloe-bridge', {",
+              "    detail: { action: 'show', mode: 'terminal' }",
+              "  }));",
+              '})()',
+            ].join('\n');
+            win.webContents.executeJavaScript(showCode, true).then(function() {
+              // 2. Wait for terminal to be visible, then inject data via base64
+              setTimeout(function() {
+                var b64 = Buffer.from(JSON.stringify(rendered)).toString('base64');
+                var walkCode = [
+                  '(function() {',
+                  '  try {',
+                  '    var d = JSON.parse(atob("' + b64 + '"));',
+                  '    if (window.cloeCodeWalk) window.cloeCodeWalk.start(d);',
+                  '    return "ok";',
+                  '  } catch(e) { return "err:" + e.message; }',
+                  '})()',
+                ].join('\n');
+                win.webContents.executeJavaScript(walkCode, true).then(function(result) {
+                  jsonRes(res, 200, { ok: true, steps: rendered.length, result: result });
+                }).catch(function(jsErr) {
+                  jsonRes(res, 200, { ok: true, steps: rendered.length, warning: jsErr.message });
+                });
+              }, 500);
+            }).catch(function(showErr) {
+              jsonRes(res, 500, { error: 'Failed to show terminal: ' + showErr.message });
+            });
+          });
+          return;
+        }
+
+        if (action === 'stop') {
+          var stopCode = [
+            '(function() {',
+            '  if (window.cloeCodeWalk) {',
+            '    window.cloeCodeWalk.stop();',
+            '  }',
+            '  return "ok";',
+            '})()',
+          ].join('\n');
+          win.webContents.executeJavaScript(stopCode, true).then(function() {
+            jsonRes(res, 200, { ok: true });
+          }).catch(function(jsErr) {
+            jsonRes(res, 200, { ok: true, warning: jsErr.message });
+          });
+          return;
+        }
+
+        if (action === 'next') {
+          var nextCode = [
+            '(function() {',
+            '  if (window.cloeCodeWalk && window.cloeCodeWalk.active) {',
+            '    window.cloeCodeWalk.next();',
+            '  }',
+            '  return "ok";',
+            '})()',
+          ].join('\n');
+          win.webContents.executeJavaScript(nextCode, true).then(function() {
+            jsonRes(res, 200, { ok: true });
+          });
+          return;
+        }
+
+        if (action === 'prev') {
+          var prevCode = [
+            '(function() {',
+            '  if (window.cloeCodeWalk && window.cloeCodeWalk.active) {',
+            '    window.cloeCodeWalk.prev();',
+            '  }',
+            '  return "ok";',
+            '})()',
+          ].join('\n');
+          win.webContents.executeJavaScript(prevCode, true).then(function() {
+            jsonRes(res, 200, { ok: true });
+          });
+          return;
+        }
+
+        jsonRes(res, 400, { error: 'unknown action: ' + action });
+      });
+      return;
+    }
+
     // ==================== Excalidraw Direct Bridge ====================
     // These endpoints bypass the old IPC canvas mechanism and directly
     // call window.cloeExcalidraw in the renderer via executeJavaScript.
