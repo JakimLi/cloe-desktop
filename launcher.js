@@ -2006,7 +2006,10 @@ function createBridgeServers() {
                 var walkCode = [
                   '(function() {',
                   '  try {',
-                  '    var d = JSON.parse(atob("' + b64 + '"));',
+                  '    var s = atob("' + b64 + '");',
+                  '    var u8 = new Uint8Array(s.length);',
+                  '    for (var i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i);',
+                  '    var d = JSON.parse(new TextDecoder().decode(u8));',
                   '    if (window.cloeCodeWalk) window.cloeCodeWalk.start(d);',
                   '    return "ok";',
                   '  } catch(e) { return "err:" + e.message; }',
