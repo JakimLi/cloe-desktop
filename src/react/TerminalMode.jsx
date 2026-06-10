@@ -109,7 +109,8 @@ export default function TerminalMode() {
 
           // Code content (pre-rendered ANSI from bat)
           if (step.ansi) {
-            xterm.write(step.ansi);
+            // bat outputs \n but xterm needs \r\n for proper carriage return
+            xterm.write(step.ansi.replace(/\r?\n/g, '\r\n'));
           }
 
           // Note
