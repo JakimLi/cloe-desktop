@@ -5,13 +5,33 @@
  * Includes Code Walk mode for interactive code walkthroughs with comments.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 export default function TerminalMode() {
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
   const initialized = useRef(false);
-  const xtermRef = useRef(null);
-  const fitRef = useRef(null);
+
+  // Comment input overlay state
+  const [showInput, setShowInput] = useState(false);
+  const codeWalkRef = useRef(null);
+
+  const handleCommentSubmit = useCallback((text) => {
+    if (codeWalkRef.current) {
+      codeWalkRef.current.submitComment(text);
+    }
+    setShowInput(false);
+  }, []);
+
+  const handleCommentCancel = useCallback(() => {
+    setShowInput(false);
+  }, []);
+
+  useEffect(() => {
+    if (showInput && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showInput]);
 
   useEffect(() => {
     if (initialized.current || !containerRef.current) return;
@@ -20,7 +40,6 @@ export default function TerminalMode() {
     let destroyed = false;
 
     (async () => {
-      // Dynamic import — xterm is heavy, load on demand
       const { Terminal } = await import('xterm');
       const { FitAddon } = await import('@xterm/addon-fit');
       await import('xterm/css/xterm.css');
@@ -66,10 +85,6 @@ export default function TerminalMode() {
       xterm.loadAddon(fit);
       xterm.open(containerRef.current);
 
-      xtermRef.current = xterm;
-      fitRef.current = fit;
-
-      // Expose to window for DevTools and effect engine
       window.xtermInstance = xterm;
 
       // ── Code Walk Mode ────────────────────────────────────────────
@@ -77,25 +92,22 @@ export default function TerminalMode() {
         active: false,
         steps: [],
         current: 0,
-        comments: [],      // { stepIndex, stepTitle, file, lines, text, timestamp }
-        inputMode: false,   // true when user is typing a comment
-        commentBuffer: '',  // current input text
-        summaryShown: false, // true when summary is displayed
+        comments: [],       // { stepIndex, stepTitle, file, lines, text }
+        summaryShown: false,
+        _onCommentDone: null, // callback after comment submitted/cancelled
 
         start(renderedSteps) {
           codeWalk.active = true;
           codeWalk.steps = renderedSteps;
           codeWalk.current = 0;
           codeWalk.comments = [];
-          codeWalk.inputMode = false;
-          codeWalk.commentBuffer = '';
           codeWalk.summaryShown = false;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l'); // clear scrollback + screen + hide cursor
+          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
           codeWalk.render(0);
         },
 
         stop(forceQuit) {
-          // If there are comments and user presses q/Esc, show summary first
+          // If comments exist and not yet shown summary, show it first
           if (!forceQuit && codeWalk.comments.length > 0 && !codeWalk.summaryShown) {
             codeWalk.showSummary();
             return;
@@ -104,11 +116,8 @@ export default function TerminalMode() {
           codeWalk.steps = [];
           codeWalk.current = 0;
           codeWalk.comments = [];
-          codeWalk.inputMode = false;
-          codeWalk.commentBuffer = '';
           codeWalk.summaryShown = false;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25h'); // clear scrollback + screen + show cursor
-          // Ctrl+L to redraw shell prompt
+          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25h');
           window.electronAPI.ptyWrite('\x0c');
         },
 
@@ -116,22 +125,17 @@ export default function TerminalMode() {
           const step = codeWalk.steps[index];
           if (!step) return;
           const total = codeWalk.steps.length;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H');
-          xterm.write('\x1b[?25l'); // hide cursor during display
+          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
 
-          // Header: step title with accent
           const header = step.title || ('Step ' + (index + 1));
           xterm.write('\x1b[1;36m╔═══ ' + header + ' ═══╗\x1b[0m\r\n');
           xterm.write('\x1b[90m  ' + (step.file || '') + ':' + (step.start || '') + '-' + (step.end || '') + '\x1b[0m\r\n');
           xterm.write('\r\n');
 
-          // Code content (pre-rendered ANSI from bat)
           if (step.ansi) {
-            // bat outputs \n but xterm needs \r\n for proper carriage return
             xterm.write(step.ansi.replace(/\r?\n/g, '\r\n'));
           }
 
-          // Note
           if (step.note) {
             xterm.write('\r\n\x1b[33m💡 ' + step.note + '\x1b[0m\r\n');
           }
@@ -145,95 +149,52 @@ export default function TerminalMode() {
             }
           }
 
-          // Footer: navigation hints + progress
           const commentCount = codeWalk.comments.length;
-          const commentBadge = commentCount > 0 ? ' \x1b[33m[' + commentCount + ' comment' + (commentCount > 1 ? 's' : '') + ']\x1b[0m' : '';
-          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [↑↓] scroll  [q/Esc] quit ── ' + (index + 1) + '/' + total + commentBadge + ' ──\x1b[0m');
+          const badge = commentCount > 0
+            ? ' \x1b[33m[' + commentCount + ' comment' + (commentCount > 1 ? 's' : '') + ']\x1b[0m'
+            : '';
+          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [↑↓] scroll  [q/Esc] quit ── '
+            + (index + 1) + '/' + total + badge + ' ──\x1b[0m');
           xterm.scrollToTop();
         },
 
-        enterCommentMode() {
-          codeWalk.inputMode = true;
-          codeWalk.commentBuffer = '';
-          // Show input prompt at bottom area
-          xterm.write('\x1b[?25h'); // show cursor for typing
-          xterm.write('\r\n\x1b[1;36m💬 Comment (Enter to submit, Esc to cancel):\x1b[0m\r\n');
-          xterm.write('\x1b[36m> \x1b[0m');
+        next() {
+          if (codeWalk.current < codeWalk.steps.length - 1) {
+            codeWalk.current++;
+            codeWalk.render(codeWalk.current);
+          } else {
+            xterm.write('\x1b[s\x1b[999;1H\r\n\x1b[90m── already at last step ──\x1b[0m\x1b[u');
+          }
         },
 
-        submitComment() {
-          const text = codeWalk.commentBuffer.trim();
-          if (text) {
+        prev() {
+          if (codeWalk.current > 0) {
+            codeWalk.current--;
+            codeWalk.render(codeWalk.current);
+          } else {
+            xterm.write('\x1b[s\x1b[999;1H\r\n\x1b[90m── already at first step ──\x1b[0m\x1b[u');
+          }
+        },
+
+        submitComment(text) {
+          const trimmed = (text || '').trim();
+          if (trimmed) {
             const step = codeWalk.steps[codeWalk.current];
             codeWalk.comments.push({
               stepIndex: codeWalk.current,
               stepTitle: step?.title || '',
               file: step?.file || '',
               lines: (step?.start || '') + '-' + (step?.end || ''),
-              text,
+              text: trimmed,
               timestamp: new Date().toISOString(),
             });
           }
-          codeWalk.inputMode = false;
-          codeWalk.commentBuffer = '';
-          codeWalk.render(codeWalk.current); // re-render to show the new comment
-        },
-
-        cancelComment() {
-          codeWalk.inputMode = false;
-          codeWalk.commentBuffer = '';
           codeWalk.render(codeWalk.current);
-        },
-
-        handleCommentInput(data) {
-          // Enter → submit comment (but not during IME composition)
-          if (data === '\r' || data === '\n') {
-            // If we just received IME text, this Enter might be the IME confirm
-            // Skip submit — user can press Enter again to actually submit
-            if (codeWalk._imeJustComposed) {
-              codeWalk._imeJustComposed = false;
-              return true;
-            }
-            codeWalk.submitComment();
-            return true;
-          }
-          if (data === '\x1b') { // Escape
-            codeWalk.cancelComment();
-            return true;
-          }
-          if (data === '\x7f' || data === '\b') { // Backspace
-            if (codeWalk.commentBuffer.length > 0) {
-              const lastChar = codeWalk.commentBuffer.slice(-1);
-              codeWalk.commentBuffer = codeWalk.commentBuffer.slice(0, -1);
-              // Wide chars (CJK) take 2 columns, need to erase 2
-              const w = lastChar.match(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef\u2e80-\u2eff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/) ? 2 : 1;
-              xterm.write('\b \b'.repeat(w > 1 ? 2 : 1));
-            }
-            return true;
-          }
-          // Ctrl+C cancel
-          if (data === '\x03') {
-            codeWalk.cancelComment();
-            return true;
-          }
-          // Printable text (single char or IME-composed string like 中文)
-          // Filter out control sequences (ESC[...) but allow printable text
-          if (!/^\x1b/.test(data)) {
-            codeWalk.commentBuffer += data;
-            xterm.write(data);
-            // Mark that IME text just arrived — next Enter is likely IME confirm, not submit
-            if (data.length > 1 || /[\u4e00-\u9fff]/.test(data)) {
-              codeWalk._imeJustComposed = true;
-            }
-            return true;
-          }
-          return true; // consume all input during comment mode
         },
 
         showSummary() {
           codeWalk.summaryShown = true;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H');
-          xterm.write('\x1b[?25l'); // hide cursor
+          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
           xterm.write('\x1b[1;36m╔══════════════════════════════════════╗\x1b[0m\r\n');
           xterm.write('\x1b[1;36m║      📋 Code Review Summary          ║\x1b[0m\r\n');
           xterm.write('\x1b[1;36m╚══════════════════════════════════════╝\x1b[0m\r\n\r\n');
@@ -242,8 +203,7 @@ export default function TerminalMode() {
             xterm.write('\x1b[90m  No comments submitted.\x1b[0m\r\n');
           } else {
             let prevStep = -1;
-            for (let i = 0; i < codeWalk.comments.length; i++) {
-              const c = codeWalk.comments[i];
+            for (const c of codeWalk.comments) {
               if (c.stepIndex !== prevStep) {
                 if (prevStep >= 0) xterm.write('\r\n');
                 xterm.write('\x1b[33m  Step ' + (c.stepIndex + 1) + ': ' + c.stepTitle + '\x1b[0m\r\n');
@@ -252,7 +212,8 @@ export default function TerminalMode() {
               }
               xterm.write('\x1b[36m  💬 \x1b[0m' + c.text + '\r\n');
             }
-            xterm.write('\r\n\x1b[90m  ── Total: ' + codeWalk.comments.length + ' comment' + (codeWalk.comments.length > 1 ? 's' : '') + ' ──\x1b[0m\r\n');
+            xterm.write('\r\n\x1b[90m  ── Total: ' + codeWalk.comments.length + ' comment'
+              + (codeWalk.comments.length > 1 ? 's' : '') + ' ──\x1b[0m\r\n');
           }
 
           xterm.write('\r\n\x1b[90m── [Enter/q] close & submit  [p] go back to review ──\x1b[0m');
@@ -260,6 +221,7 @@ export default function TerminalMode() {
       };
 
       window.cloeCodeWalk = codeWalk;
+      codeWalkRef.current = codeWalk;
 
       // ── PTY output → xterm (filtered during codeWalk) ─────────────
       window.electronAPI.onPtyData((data) => {
@@ -270,7 +232,7 @@ export default function TerminalMode() {
       xterm.onData((data) => {
         if (destroyed) return;
 
-        // Code Walk mode: intercept all keyboard input
+        // Code Walk mode
         if (codeWalk.active) {
           // Summary view
           if (codeWalk.summaryShown) {
@@ -286,18 +248,16 @@ export default function TerminalMode() {
             return;
           }
 
-          // Comment input mode — intercept everything
-          if (codeWalk.inputMode) {
-            codeWalk.handleCommentInput(data);
-            return;
-          }
-
-          // Normal walkthrough navigation
+          // Normal walkthrough navigation (comment input handled by HTML overlay)
           if (data === '\x1b') { codeWalk.stop(); return; }
           if (data === 'n' || data === 'N' || data === ' ') { codeWalk.next(); return; }
           if (data === 'p' || data === 'P') { codeWalk.prev(); return; }
           if (data === 'q' || data === 'Q') { codeWalk.stop(); return; }
-          if (data === 'c' || data === 'C') { codeWalk.enterCommentMode(); return; }
+          if (data === 'c' || data === 'C') {
+            // Trigger React state to show HTML input overlay
+            setShowInput(true);
+            return;
+          }
           if (data === '\x1b[A') { xterm.scrollLines(-3); return; }
           if (data === '\x1b[B') { xterm.scrollLines(3); return; }
           if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }
@@ -333,5 +293,63 @@ export default function TerminalMode() {
     };
   }, []);
 
-  return <div ref={containerRef} className="terminal-container" />;
+  return (
+    <div className="terminal-container" style={{ position: 'relative' }}>
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {showInput && (
+        <div style={{
+          position: 'absolute',
+          bottom: '40px',
+          left: '10px',
+          right: '10px',
+          zIndex: 100,
+        }}>
+          <div style={{
+            background: 'rgba(26, 26, 46, 0.95)',
+            border: '1px solid #26c6da',
+            borderRadius: '6px',
+            padding: '10px 14px',
+          }}>
+            <div style={{ color: '#26c6da', fontSize: '13px', marginBottom: '6px' }}>
+              💬 Comment — Enter 提交 · Esc 取消
+            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              style={{
+                width: '100%',
+                background: 'rgba(0,0,0,0.4)',
+                border: 'none',
+                outline: 'none',
+                color: '#e0e0e0',
+                fontSize: '14px',
+                fontFamily: "'SF Mono', 'Menlo', monospace",
+                padding: '6px 10px',
+                borderRadius: '4px',
+                caretColor: '#26c6da',
+              }}
+              placeholder="输入评论..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleCommentSubmit(e.target.value);
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  handleCommentCancel();
+                }
+              }}
+              onBlur={() => {
+                // Small delay to allow Enter/Esc to fire first
+                setTimeout(() => {
+                  if (codeWalkRef.current && codeWalkRef.current.active) {
+                    handleCommentCancel();
+                  }
+                }, 150);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
