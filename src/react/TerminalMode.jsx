@@ -186,7 +186,14 @@ export default function TerminalMode() {
         },
 
         handleCommentInput(data) {
-          if (data === '\r') { // Enter
+          // Enter → submit comment (but not during IME composition)
+          if (data === '\r' || data === '\n') {
+            // If we just received IME text, this Enter might be the IME confirm
+            // Skip submit — user can press Enter again to actually submit
+            if (codeWalk._imeJustComposed) {
+              codeWalk._imeJustComposed = false;
+              return true;
+            }
             codeWalk.submitComment();
             return true;
           }
@@ -196,8 +203,11 @@ export default function TerminalMode() {
           }
           if (data === '\x7f' || data === '\b') { // Backspace
             if (codeWalk.commentBuffer.length > 0) {
+              const lastChar = codeWalk.commentBuffer.slice(-1);
               codeWalk.commentBuffer = codeWalk.commentBuffer.slice(0, -1);
-              xterm.write('\b \b'); // erase char visually
+              // Wide chars (CJK) take 2 columns, need to erase 2
+              const w = lastChar.match(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef\u2e80-\u2eff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/) ? 2 : 1;
+              xterm.write('\b \b'.repeat(w > 1 ? 2 : 1));
             }
             return true;
           }
@@ -211,6 +221,10 @@ export default function TerminalMode() {
           if (!/^\x1b/.test(data)) {
             codeWalk.commentBuffer += data;
             xterm.write(data);
+            // Mark that IME text just arrived — next Enter is likely IME confirm, not submit
+            if (data.length > 1 || /[\u4e00-\u9fff]/.test(data)) {
+              codeWalk._imeJustComposed = true;
+            }
             return true;
           }
           return true; // consume all input during comment mode
