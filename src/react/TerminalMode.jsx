@@ -206,8 +206,9 @@ export default function TerminalMode() {
             codeWalk.cancelComment();
             return true;
           }
-          // Normal printable char
-          if (data.length === 1 && data.charCodeAt(0) >= 32) {
+          // Printable text (single char or IME-composed string like 中文)
+          // Filter out control sequences (ESC[...) but allow printable text
+          if (!/^\x1b/.test(data)) {
             codeWalk.commentBuffer += data;
             xterm.write(data);
             return true;
