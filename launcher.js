@@ -2075,6 +2075,26 @@ function createBridgeServers() {
           return;
         }
 
+        if (action === 'get-comments') {
+          var commentCode = [
+            '(function() {',
+            '  if (!window.cloeCodeWalk) return JSON.stringify({comments:[]});',
+            '  return JSON.stringify({comments: window.cloeCodeWalk.comments || []});',
+            '})()',
+          ].join('\n');
+          win.webContents.executeJavaScript(commentCode, true).then(function(result) {
+            try {
+              var parsed = JSON.parse(result);
+              jsonRes(res, 200, { ok: true, comments: parsed.comments || [] });
+            } catch(e) {
+              jsonRes(res, 200, { ok: true, comments: [] });
+            }
+          }).catch(function(jsErr) {
+            jsonRes(res, 200, { ok: true, comments: [], warning: jsErr.message });
+          });
+          return;
+        }
+
         jsonRes(res, 400, { error: 'unknown action: ' + action });
       });
       return;
