@@ -17,14 +17,21 @@ export default function TerminalMode() {
   const codeWalkRef = useRef(null);
 
   const handleCommentSubmit = useCallback((text) => {
+    setShowInput(false);
+    // Must refocus xterm after input overlay disappears
+    setTimeout(() => {
+      if (codeWalkRef.current) codeWalkRef.current.refocus();
+    }, 0);
     if (codeWalkRef.current) {
       codeWalkRef.current.submitComment(text);
     }
-    setShowInput(false);
   }, []);
 
   const handleCommentCancel = useCallback(() => {
     setShowInput(false);
+    setTimeout(() => {
+      if (codeWalkRef.current) codeWalkRef.current.refocus();
+    }, 0);
   }, []);
 
   useEffect(() => {
@@ -190,6 +197,10 @@ export default function TerminalMode() {
             });
           }
           codeWalk.render(codeWalk.current);
+        },
+
+        refocus() {
+          xterm.focus();
         },
 
         showSummary() {
