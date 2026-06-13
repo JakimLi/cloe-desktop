@@ -82,7 +82,7 @@ export default function TerminalMode() {
           codeWalk.active = true;
           codeWalk.steps = renderedSteps;
           codeWalk.current = 0;
-          xterm.write('\x1b[2J\x1b[H\x1b[?25l'); // clear screen + hide cursor
+          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l'); // clear scrollback + screen + hide cursor
           codeWalk.render(0);
         },
 
@@ -90,7 +90,7 @@ export default function TerminalMode() {
           codeWalk.active = false;
           codeWalk.steps = [];
           codeWalk.current = 0;
-          xterm.write('\x1b[2J\x1b[H\x1b[?25h'); // clear screen + show cursor
+          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25h'); // clear scrollback + screen + show cursor
           // Ctrl+L to redraw shell prompt
           window.electronAPI.ptyWrite('\x0c');
         },
@@ -99,7 +99,7 @@ export default function TerminalMode() {
           const step = codeWalk.steps[index];
           if (!step) return;
           const total = codeWalk.steps.length;
-          xterm.write('\x1b[2J\x1b[H');
+          xterm.write('\x1b[3J\x1b[2J\x1b[H');
 
           // Header: step title with accent
           const header = step.title || ('Step ' + (index + 1));
