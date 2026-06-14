@@ -2474,7 +2474,7 @@ function createWindow() {
     fullscreenable: true,
     alwaysOnTop: true,
     resizable: true,
-    skipTaskbar: true,
+    skipTaskbar: false,
     hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
