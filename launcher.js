@@ -2737,7 +2737,6 @@ function createChatWindow() {
     resizable: true,
     minWidth: 300,
     minHeight: 250,
-    skipTaskbar: true,
     hasShadow: true,
     show: false,
     webPreferences: {
@@ -3263,6 +3262,11 @@ async function fixPath() {
 }
 
 app.whenReady().then(async () => {
+  // Explicitly set regular activation policy so the app always appears in
+  // cmd+tab / Dock, even when transparent frameless windows have focus.
+  if (process.platform === 'darwin') {
+    app.setActivationPolicy('regular');
+  }
   await fixPath();
   ensureCloeConfigDirAndMigrateConfig();
   if (app.isPackaged) {
@@ -3284,6 +3288,27 @@ app.whenReady().then(async () => {
     if (!win || win.isDestroyed()) return;
     win.webContents.send('fullscreen-changed', false);
   });
+});
+
+// On macOS, an app whose key window is at floating level (alwaysOnTop)
+// gets treated as an "accessory" app and disappears from cmd+tab.
+// When the app is reactivated (dock click, etc.), bring main window forward.
+app.on('activate', () => {
+  if (process.platform === 'darwin') {
+    app.dock?.show();
+    if (win && !win.isDestroyed()) {
+      win.show();
+      win.focus();
+    }
+  }
+});
+
+// Ensure chat window creation doesn't cause the app to vanish from cmd+tab.
+// Explicitly show dock icon whenever any new window is created.
+app.on('browser-window-created', () => {
+  if (process.platform === 'darwin') {
+    app.dock?.show();
+  }
 });
 
 app.on('window-all-closed', () => {
