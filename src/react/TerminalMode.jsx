@@ -176,7 +176,7 @@ export default function TerminalMode() {
             ? ' \x1b[33m[' + commentCount + ' comment' + (commentCount > 1 ? 's' : '') + ']\x1b[0m'
             : '';
           const diffBadge = codeWalk.diffMode ? ' \x1b[1;32m[DIFF]\x1b[0m' : '';
-          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [d] diff  [↑↓] scroll  [q/Esc] quit ── '
+          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [d] diff  [j/k] scroll  [↑↓] scroll  [q/Esc] quit ── '
             + (index + 1) + '/' + total + badge + diffBadge + ' ──\x1b[0m');
           xterm.scrollToTop();
         },
@@ -293,6 +293,8 @@ export default function TerminalMode() {
             return;
           }
           if (data === 'd' || data === 'D') { codeWalk.toggleDiff(); return; }
+          if (data === 'j') { xterm.scrollLines(3); return; }           // vim: j — 向下滚动3行
+          if (data === 'k') { xterm.scrollLines(-3); return; }          // vim: k — 向上滚动3行
           if (data === '\x1b[A') { xterm.scrollLines(-3); return; }      // ArrowUp 键 — 向上滚动3行
           if (data === '\x1b[B') { xterm.scrollLines(3); return; }       // ArrowDown 键 — 向下滚动3行
           if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }     // PageUp 键 — 向上翻1页
