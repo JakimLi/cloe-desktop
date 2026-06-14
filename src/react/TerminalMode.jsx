@@ -101,6 +101,7 @@ export default function TerminalMode() {
         current: 0,
         comments: [],       // { stepIndex, stepTitle, file, lines, text }
         summaryShown: false,
+        diffMode: false,    // toggle git diff view
         _onCommentDone: null, // callback after comment submitted/cancelled
 
         start(renderedSteps) {
@@ -109,6 +110,7 @@ export default function TerminalMode() {
           codeWalk.current = 0;
           codeWalk.comments = [];
           codeWalk.summaryShown = false;
+          codeWalk.diffMode = false;
           xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
           codeWalk.render(0);
         },
@@ -124,6 +126,7 @@ export default function TerminalMode() {
           codeWalk.current = 0;
           codeWalk.comments = [];
           codeWalk.summaryShown = false;
+          codeWalk.diffMode = false;
           xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25h');
           window.electronAPI.ptyWrite('\x0c');
         },
@@ -137,14 +140,26 @@ export default function TerminalMode() {
           const header = step.title || ('Step ' + (index + 1));
           xterm.write('\x1b[1;36m╔═══ ' + header + ' ═══╗\x1b[0m\r\n');
           xterm.write('\x1b[90m  ' + (step.file || '') + ':' + (step.start || '') + '-' + (step.end || '') + '\x1b[0m\r\n');
-          xterm.write('\r\n');
 
-          if (step.ansi) {
-            xterm.write(step.ansi.replace(/\r?\n/g, '\r\n'));
-          }
+          if (codeWalk.diffMode) {
+            // ── Diff view ──
+            xterm.write('\r\n\x1b[1;33m📊 Diff (HEAD → working tree)\x1b[0m\r\n');
+            if (step.diffAnsi) {
+              xterm.write('\r\n');
+              xterm.write(step.diffAnsi.replace(/\r?\n/g, '\r\n'));
+            } else {
+              xterm.write('\r\n\x1b[90m  (no uncommitted changes for this file)\x1b[0m\r\n');
+            }
+          } else {
+            // ── Normal code view ──
+            xterm.write('\r\n');
+            if (step.ansi) {
+              xterm.write(step.ansi.replace(/\r?\n/g, '\r\n'));
+            }
 
-          if (step.note) {
-            xterm.write('\r\n\x1b[33m💡 ' + step.note + '\x1b[0m\r\n');
+            if (step.note) {
+              xterm.write('\r\n\x1b[33m💡 ' + step.note + '\x1b[0m\r\n');
+            }
           }
 
           // Show existing comments for this step
@@ -160,8 +175,9 @@ export default function TerminalMode() {
           const badge = commentCount > 0
             ? ' \x1b[33m[' + commentCount + ' comment' + (commentCount > 1 ? 's' : '') + ']\x1b[0m'
             : '';
-          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [↑↓] scroll  [q/Esc] quit ── '
-            + (index + 1) + '/' + total + badge + ' ──\x1b[0m');
+          const diffBadge = codeWalk.diffMode ? ' \x1b[1;32m[DIFF]\x1b[0m' : '';
+          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [d] diff  [↑↓] scroll  [q/Esc] quit ── '
+            + (index + 1) + '/' + total + badge + diffBadge + ' ──\x1b[0m');
           xterm.scrollToTop();
         },
 
@@ -201,6 +217,11 @@ export default function TerminalMode() {
 
         refocus() {
           xterm.focus();
+        },
+
+        toggleDiff() {
+          codeWalk.diffMode = !codeWalk.diffMode;
+          codeWalk.render(codeWalk.current);
         },
 
         showSummary() {
@@ -260,7 +281,9 @@ export default function TerminalMode() {
           }
 
           // Normal walkthrough navigation (comment input handled by HTML overlay)
-          if (data === '\x1b') { codeWalk.stop(); return; }
+          // xterm.onData 收到的是终端协议字符串，不是键盘事件。
+          // \x1b = ESC (ASCII 27)，后面跟 [ + 字母/数字组成 ANSI escape sequence。
+          if (data === '\x1b') { codeWalk.stop(); return; }              // Esc → 退出
           if (data === 'n' || data === 'N' || data === ' ') { codeWalk.next(); return; }
           if (data === 'p' || data === 'P') { codeWalk.prev(); return; }
           if (data === 'q' || data === 'Q') { codeWalk.stop(); return; }
@@ -269,12 +292,13 @@ export default function TerminalMode() {
             setShowInput(true);
             return;
           }
-          if (data === '\x1b[A') { xterm.scrollLines(-3); return; }
-          if (data === '\x1b[B') { xterm.scrollLines(3); return; }
-          if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }
-          if (data === '\x1b[6~') { xterm.scrollPages(1); return; }
-          if (data === '\x1b[H') { xterm.scrollToTop(); return; }
-          if (data === '\x1b[F') { xterm.scrollToBottom(); return; }
+          if (data === 'd' || data === 'D') { codeWalk.toggleDiff(); return; }
+          if (data === '\x1b[A') { xterm.scrollLines(-3); return; }      // ArrowUp 键 — 向上滚动3行
+          if (data === '\x1b[B') { xterm.scrollLines(3); return; }       // ArrowDown 键 — 向下滚动3行
+          if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }     // PageUp 键 — 向上翻1页
+          if (data === '\x1b[6~') { xterm.scrollPages(1); return; }      // PageDown 键 — 向下翻1页
+          if (data === '\x1b[H') { xterm.scrollToTop(); return; }        // Home 键 — 滚动到顶部
+          if (data === '\x1b[F') { xterm.scrollToBottom(); return; }     // End 键 — 滚动到底部
           return;
         }
 

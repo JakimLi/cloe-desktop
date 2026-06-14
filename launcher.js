@@ -1954,9 +1954,14 @@ function createBridgeServers() {
           // Pre-render all steps with bat, then send to renderer
           var steps = body.steps || [];
           var execFile = require('child_process').execFile;
+          var nodePath = require('path');
           var batPromises = steps.map(function(step) {
-            return new Promise(function(resolve) {
-              var expandedPath = (step.file || '').replace(/^~/, process.env.HOME || '/Users/lijian');
+            var expandedPath = (step.file || '').replace(/^~/, process.env.HOME || '/Users/lijian');
+            var fileDir = nodePath.dirname(expandedPath);
+            var fileName = nodePath.basename(expandedPath);
+
+            // bat syntax-highlighted code rendering
+            var renderPromise = new Promise(function(resolveRender) {
               var args = ['--color=always', '--style=numbers', '--wrap=never'];
               if (step.start && step.end) {
                 args.push('--line-range', step.start + ':' + step.end);
@@ -1979,14 +1984,34 @@ function createBridgeServers() {
                       var n = String(s + i).padStart(4, ' ');
                       return '\x1b[90m' + n + ' │\x1b[0m ' + l;
                     }).join('\n');
-                    resolve({ file: step.file, start: step.start, end: step.end, title: step.title, note: step.note, ansi: range });
+                    resolveRender(range);
                   } catch (fsErr) {
-                    resolve({ file: step.file, start: step.start, end: step.end, title: step.title, note: step.note, ansi: 'Error: ' + fsErr.message });
+                    resolveRender('Error: ' + fsErr.message);
                   }
                   return;
                 }
-                resolve({ file: step.file, start: step.start, end: step.end, title: step.title, note: step.note, ansi: stdout });
+                resolveRender(stdout);
               });
+            });
+
+            // git diff HEAD for this file
+            var diffPromise = new Promise(function(resolveDiff) {
+              execFile('git', ['-C', fileDir, 'diff', 'HEAD', '--color=always', '--', fileName],
+                { encoding: 'utf-8', maxBuffer: 1024 * 1024 }, function(diffErr, diffStdout) {
+                  resolveDiff(diffStdout && diffStdout.trim() ? diffStdout : '');
+                });
+            });
+
+            return Promise.all([renderPromise, diffPromise]).then(function(results) {
+              return {
+                file: step.file,
+                start: step.start,
+                end: step.end,
+                title: step.title,
+                note: step.note,
+                ansi: results[0],
+                diffAnsi: results[1]
+              };
             });
           });
 
