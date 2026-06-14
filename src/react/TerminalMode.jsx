@@ -111,7 +111,9 @@ export default function TerminalMode() {
           codeWalk.comments = [];
           codeWalk.summaryShown = false;
           codeWalk.diffMode = false;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
+          // Reset terminal to normal mode (in case shell enabled application cursor keys)
+          xterm.write('\x1b[?1l\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
+          try { fit.fit(); } catch {}
           codeWalk.render(0);
         },
 
@@ -295,12 +297,12 @@ export default function TerminalMode() {
           if (data === 'd' || data === 'D') { codeWalk.toggleDiff(); return; }
           if (data === 'j') { xterm.scrollLines(3); return; }           // vim: j — 向下滚动3行
           if (data === 'k') { xterm.scrollLines(-3); return; }          // vim: k — 向上滚动3行
-          if (data === '\x1b[A') { xterm.scrollLines(-3); return; }      // ArrowUp 键 — 向上滚动3行
-          if (data === '\x1b[B') { xterm.scrollLines(3); return; }       // ArrowDown 键 — 向下滚动3行
+          if (data === '\x1b[A' || data === '\x1bOA') { xterm.scrollLines(-3); return; }  // ArrowUp 键 — 向上滚动3行
+          if (data === '\x1b[B' || data === '\x1bOB') { xterm.scrollLines(3); return; }   // ArrowDown 键 — 向下滚动3行
           if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }     // PageUp 键 — 向上翻1页
           if (data === '\x1b[6~') { xterm.scrollPages(1); return; }      // PageDown 键 — 向下翻1页
-          if (data === '\x1b[H') { xterm.scrollToTop(); return; }        // Home 键 — 滚动到顶部
-          if (data === '\x1b[F') { xterm.scrollToBottom(); return; }     // End 键 — 滚动到底部
+          if (data === '\x1b[H' || data === '\x1bOH') { xterm.scrollToTop(); return; }    // Home 键 — 滚动到顶部
+          if (data === '\x1b[F' || data === '\x1bOF') { xterm.scrollToBottom(); return; } // End 键 — 滚动到底部
           return;
         }
 
@@ -331,7 +333,7 @@ export default function TerminalMode() {
   }, []);
 
   return (
-    <div className="terminal-container" style={{ position: 'relative' }}>
+    <div className="terminal-container" style={{ position: 'absolute', inset: 0 }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       {showInput && (
         <div style={{
