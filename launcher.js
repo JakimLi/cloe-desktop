@@ -2933,7 +2933,7 @@ ipcMain.handle('hermes-chat-models', async () => {
     for (const line of lines) {
       const trimmed = line.trim();
       if (/^default:\s*(.+)/.test(trimmed) && !base_url) currentModel = trimmed.replace(/^default:\s*/, '');
-      if (/^base_url:\s*(.+)/.test(trimmed)) base_url = trimmed.replace(/^base_url:\s*/, '');
+      if (/^base_url:\s*(.+)/.test(trimmed) && !base_url) base_url = trimmed.replace(/^base_url:\s*/, '');
       if (/^api_key:\s*(.+)/.test(trimmed) && !api_key) api_key = trimmed.replace(/^api_key:\s*/, '');
     }
     // Query provider's /models endpoint to get available LLM models
@@ -2951,7 +2951,11 @@ ipcMain.handle('hermes-chat-models', async () => {
             res.on('end', () => {
               try {
                 const data = JSON.parse(body);
-                const models = (data.data || []).map((m) => m.id);
+                let models = (data.data || []).map((m) => m.id);
+                // Ensure the current model is always in the list (provider /models may lag behind)
+                if (currentModel && !models.includes(currentModel)) {
+                  models.unshift(currentModel);
+                }
                 // Return models with current model info
                 resolve({ models, current: currentModel });
               } catch {
