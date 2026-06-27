@@ -95,7 +95,7 @@ export default function TerminalMode() {
 
       const xterm = new Terminal({
         cursorBlink: true,
-        cursorStyle: 'bar',
+        cursorStyle: 'block',
         fontSize: 14,
         lineHeight: 1.3,
         fontFamily: "'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
