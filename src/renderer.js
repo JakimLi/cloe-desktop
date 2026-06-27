@@ -82,7 +82,12 @@ function preloadGif(src) {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load: ${src}`));
-    img.src = src;
+    // Cache-bust: Chromium caches file:// images by URL, so when GIF files
+    // are replaced on disk the old version is still served. Append a
+    // version param that changes on every set-config update.
+    const v = window._gifVersion || 0;
+    const sep = src.includes('?') ? '&' : '?';
+    img.src = `${src}${sep}v=${v}`;
   });
 }
 
@@ -693,6 +698,10 @@ function connectWebSocket() {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === 'set-config') {
+          // Bump GIF cache version so Chromium reloads from disk instead of
+          // serving stale file:// cached images.
+          window._gifVersion = (window._gifVersion || 0) + 1;
+
           // Dynamic config update from action set switch
           const newAnims = {};
           for (const [key, val] of Object.entries(msg.animations || {})) {

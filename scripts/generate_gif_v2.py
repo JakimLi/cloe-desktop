@@ -107,15 +107,60 @@ def compress_image(path, max_size_mb=4):
     return tmp_path, True
 
 
-def generate_video(first_frame_path, prompt, duration=5, action_name="action"):
+def pad_reference_to_wider(img_path, target_ratio=0.75, chroma="green"):
+    """将竖屏参考图两侧填充色幕，变成更宽的画面，给角色动作留出空间。
+    
+    target_ratio: 目标 width/height 比例。0.75 = 3:4（比原图 0.52 宽很多）。
+    返回 padded image path（临时文件）。
+    """
+    img = Image.open(img_path).convert("RGB")
+    w, h = img.size
+    current_ratio = w / h
+
+    if current_ratio >= target_ratio:
+        # 已经够宽，不需要 pad
+        return img_path, False
+
+    # 计算目标宽度
+    target_w = int(h * target_ratio)
+    pad_total = target_w - w
+    pad_each = pad_total // 2
+
+    # 色幕颜色
+    pad_color = (0, 255, 0) if chroma == "green" else (0, 0, 255)
+
+    # 创建宽幅画布，居中粘贴原图
+    canvas = Image.new("RGB", (target_w, h), pad_color)
+    canvas.paste(img, (pad_each, 0))
+
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    canvas.save(tmp.name, "PNG", optimize=True)
+
+    print(f"  参考图加宽: {w}x{h} → {target_w}x{h} (两侧各填充 {pad_each}px {chroma}幕)")
+    return tmp.name, True
+
+
+def generate_video(first_frame_path, prompt, duration=5, action_name="action", chroma="green"):
     """用 wan2.7-i2v 生成视频，返回本地视频路径。"""
-    compressed_path, is_temp = compress_image(first_frame_path)
+    # 先把参考图加宽，给角色动作留空间
+    padded_path, pad_temp = pad_reference_to_wider(first_frame_path, target_ratio=1.0, chroma=chroma)
+
+    compressed_path, is_temp = compress_image(padded_path)
+
+    if pad_temp and os.path.abspath(padded_path) != os.path.abspath(first_frame_path):
+        os.unlink(padded_path)
 
     with open(compressed_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
     if is_temp:
         os.unlink(compressed_path)
+
+    # 更新 prompt，提醒 AI 角色有空间活动
+    if pad_temp:
+        prompt = prompt.rstrip("。") + "。确保人物完整在画面内，不要超出边界。"
 
     api_key = get_env("BAILIAN_API_KEY")
 
@@ -309,17 +354,28 @@ args = parser.parse_args()
 if args.reference:
     reference_path = os.path.expanduser(args.reference)
 else:
-    if args.chromakey == "blue":
-        reference_path = os.path.join(PROJECT_DIR, "reference_upperbody_bluebg.png")
+    # Auto-detect from active action set in ~/.cloe/action-sets.json
+    _as_path = os.path.join(PROJECT_DIR, "action-sets.json")
+    if os.path.exists(_as_path):
+        with open(_as_path) as _f:
+            _as_data = json.load(_f)
+        _active = next(
+            (s for s in _as_data.get("sets", []) if s["id"] == _as_data.get("activeSetId", "default")),
+            _as_data["sets"][0] if _as_data.get("sets") else None,
+        )
+        if _active:
+            reference_path = os.path.join(PROJECT_DIR, _active.get("reference", "references/default.png"))
+        else:
+            reference_path = os.path.join(PROJECT_DIR, "references/default.png")
     else:
-        reference_path = os.path.join(PROJECT_DIR, "public/gifs/_work_idle/01_green_bg_sitting.png")
+        reference_path = os.path.join(PROJECT_DIR, "references/default.png")
 
 if not os.path.exists(reference_path):
     print(f"Error: reference image not found: {reference_path}")
     sys.exit(1)
 
 # 工作目录
-work_dir = args.work_dir or os.path.join(PROJECT_DIR, f"public/gifs/_work_{args.action}")
+work_dir = args.work_dir or os.path.join(PROJECT_DIR, f"gifs/_work_{args.action}")
 os.makedirs(work_dir, exist_ok=True)
 
 gif_path = args.output or os.path.join(work_dir, f"{args.action}.gif")
@@ -331,7 +387,7 @@ print(f"  色幕: {args.chromakey}")
 
 # Step 1: 生成视频
 print(f"\n[1/3] 生成视频 (wan2.7-i2v)...")
-video_bytes = generate_video(reference_path, args.prompt, args.duration, args.action)
+video_bytes = generate_video(reference_path, args.prompt, args.duration, args.action, args.chromakey)
 print(f"  视频下载完成 ({len(video_bytes)} bytes)")
 
 # 保存视频到工作目录
@@ -345,7 +401,7 @@ video_to_transparent_gif(video_bytes, gif_path, args.action, args.chromakey)
 
 # Step 4: 复制到 public/gifs/
 if not args.no_copy:
-    public_dir = os.path.join(PROJECT_DIR, "public/gifs")
+    public_dir = os.path.join(PROJECT_DIR, "gifs")
     public_path = os.path.join(public_dir, f"{args.action}.gif")
     shutil.copy(gif_path, public_path)
     print(f"\n[3/3] 已复制到 {public_path}")
@@ -353,8 +409,6 @@ if not args.no_copy:
 print(f"\n=== 完成! ===")
 print(f"  GIF: {gif_path}")
 if not args.no_copy:
-    print(f"  已部署: public/gifs/{args.action}.gif")
+    print(f"  已部署: ~/.cloe/gifs/{args.action}.gif")
 print(f"\n下一步:")
-print(f'  1. renderer.js GIF_ANIMATIONS 加: {args.action}: \'./gifs/{args.action}.gif\',')
-print(f'  2. ACTION_MAP 加对应映射')
-print(f'  3. curl -s http://localhost:19851/action -d \'{{"action":"{args.action}"}}\' 测试')
+print(f'  curl -s http://localhost:19851/action -d \'{{"action":"{args.action}"}}\' 测试')

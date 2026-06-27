@@ -2430,7 +2430,7 @@ function getInitialMainWindowXY(windowWidth, windowHeight) {
 }
 
 // ==================== Window ====================
-const BASE_WIDTH = 380;
+const BASE_WIDTH = 640;  // was 380, then 560 — wider transparent area so GIF + scale + position offset don't clip
 const BASE_HEIGHT = 520;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 2.0;

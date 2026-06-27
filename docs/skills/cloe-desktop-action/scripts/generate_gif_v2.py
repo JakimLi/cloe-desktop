@@ -107,15 +107,60 @@ def compress_image(path, max_size_mb=4):
     return tmp_path, True
 
 
-def generate_video(first_frame_path, prompt, duration=5, action_name="action"):
+def pad_reference_to_wider(img_path, target_ratio=0.75, chroma="green"):
+    """将竖屏参考图两侧填充色幕，变成更宽的画面，给角色动作留出空间。
+    
+    target_ratio: 目标 width/height 比例。0.75 = 3:4（比原图 0.52 宽很多）。
+    返回 padded image path（临时文件）。
+    """
+    img = Image.open(img_path).convert("RGB")
+    w, h = img.size
+    current_ratio = w / h
+
+    if current_ratio >= target_ratio:
+        # 已经够宽，不需要 pad
+        return img_path, False
+
+    # 计算目标宽度
+    target_w = int(h * target_ratio)
+    pad_total = target_w - w
+    pad_each = pad_total // 2
+
+    # 色幕颜色
+    pad_color = (0, 255, 0) if chroma == "green" else (0, 0, 255)
+
+    # 创建宽幅画布，居中粘贴原图
+    canvas = Image.new("RGB", (target_w, h), pad_color)
+    canvas.paste(img, (pad_each, 0))
+
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    canvas.save(tmp.name, "PNG", optimize=True)
+
+    print(f"  参考图加宽: {w}x{h} → {target_w}x{h} (两侧各填充 {pad_each}px {chroma}幕)")
+    return tmp.name, True
+
+
+def generate_video(first_frame_path, prompt, duration=5, action_name="action", chroma="green"):
     """用 wan2.7-i2v 生成视频，返回本地视频路径。"""
-    compressed_path, is_temp = compress_image(first_frame_path)
+    # 先把参考图加宽，给角色动作留空间
+    padded_path, pad_temp = pad_reference_to_wider(first_frame_path, target_ratio=1.0, chroma=chroma)
+
+    compressed_path, is_temp = compress_image(padded_path)
+
+    if pad_temp and os.path.abspath(padded_path) != os.path.abspath(first_frame_path):
+        os.unlink(padded_path)
 
     with open(compressed_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
     if is_temp:
         os.unlink(compressed_path)
+
+    # 更新 prompt，提醒 AI 角色有空间活动
+    if pad_temp:
+        prompt = prompt.rstrip("。") + "。确保人物完整在画面内，不要超出边界。"
 
     api_key = get_env("BAILIAN_API_KEY")
 
@@ -342,7 +387,7 @@ print(f"  色幕: {args.chromakey}")
 
 # Step 1: 生成视频
 print(f"\n[1/3] 生成视频 (wan2.7-i2v)...")
-video_bytes = generate_video(reference_path, args.prompt, args.duration, args.action)
+video_bytes = generate_video(reference_path, args.prompt, args.duration, args.action, args.chromakey)
 print(f"  视频下载完成 ({len(video_bytes)} bytes)")
 
 # 保存视频到工作目录

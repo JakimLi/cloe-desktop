@@ -32,7 +32,9 @@ curl -s http://localhost:19851/action -d '{"action":"<ACTION_NAME>"}'
 
 ## 语音动作（speak）
 
-> ⚠️ **禁止使用 Hermes 内置的 `text_to_speech` 工具。** 所有 TTS 必须使用 `~/.cloe/tts-config.json` 配置的 provider。
+> **Hermes 语音对话模式下的 TTS 策略**：Hermes 自带 TTS（前端/后端）会导致重复播放——前端按句子拆分调用多次 TTS，后端每 turn 调一次。**语音输出统一用 `generate_tts.py --speak`**（走 Cloe Desktop bridge），不依赖 Hermes 内置 TTS。详见 `hermes-voice-setup` skill 的"三重播放坑"章节。
+>
+> **语音对话节奏**：用户用 Ctrl+B 语音输入 → Whisper 转文字 → Agent 回复 → Agent 手动调 `--speak` 播放语音。每轮对话只调一次 `--speak`，不要同时触发 Hermes 的自动 TTS。
 
 ### 方式一：TTS 动态语音（推荐）
 
@@ -143,26 +145,51 @@ python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py
 
 ### 生成后注册动作（脚本不会自动注册！）
 
-1. 编辑 `~/.cloe/action-sets.json`，在活跃 set 的 `animations` 中添加：
+在活跃 set（通常是 `default`）中需要更新 **三个** 地方：
+
+1. **`animations`** — 动作名映射到 GIF 路径：
    ```json
    "pout": "gifs/pout.gif"
    ```
-2. 在同一 set 的 `actionInfo` 中添加描述：
+2. **`actionInfo`** — 动作描述元数据：
    ```json
    "pout": { "description": "嘟嘴", "descriptionEn": "Pout" }
    ```
-3. Cloe 自动监听文件变化重载，无需重启
-4. 验证：`curl -s http://localhost:19851/actions` 检查新动作
-5. 测试：`curl -s http://localhost:19851/action -d '{"action":"pout"}'`
+3. **`actionMap`** — hook 名映射到动作名（**hook 触发的动作必须加，否则不会响应触发！**）：
+   ```json
+   "pout": "pout"
+   ```
+   > 如果省略 `actionMap` 条目，动作虽然出现在 `/actions` 列表中但 hook 触发时不会播放。
 
-> ⚠️ 只复制 GIF 到 `~/.cloe/gifs/` 不够——必须同时更新 action-sets.json。
+注册完成后：
+- Cloe 自动监听文件变化重载，无需重启
+- 验证：`curl -s http://localhost:19851/actions` 检查新动作
+- 测试：`curl -s http://localhost:19851/action -d '{"action":"pout"}'`
+
+> ⚠️ 只复制 GIF 到 `~/.cloe/gifs/` 不够——必须同时更新 action-sets.json 的三个字段。
+
+**推荐用脚本自动注册**（避免手动编辑 JSON 出错）：
+```bash
+python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/register_action.py \
+  --action pout \
+  --description "嘟嘴" \
+  --description-en "Pout" \
+  --trigger hook   # hook 或 idle
+```
+脚本会自动添加 animations + actionInfo + actionMap 三项，并处理 `idlePlaylist`（trigger=idle 时加入）。
 
 ### Prompt 写法要点
 
-- **身体保持不动**：只描述头部/上半身微动作
-- **纯色背景**：末尾加"纯绿色背景"或"纯蓝色背景"
+- **身体保持不动**：只描述头部/上半身微动作（大幅度动作如跳舞除外）
+- **确保人物完整在画面内**：动作帧中角色会身体展开（抬手、叉腰、跳舞）。脚本已内置 `pad_reference_to_wider()` 自动把竖屏参考图（1482×2829）两侧填充色幕变成 1:1 正方形（2829×2829），角色动作有空间展开，最终 GIF 输出 400×400。prompt 中仍建议明确描述动作幅度
+- **色幕一致性**：pad 填充的颜色与 `--chromakey` 参数一致。参考图绿幕 → `--chromakey green`，参考图蓝幕 → `--chromakey blue`。**不要混用**（绿幕参考图 + blue pad → ffmpeg 只去掉两侧蓝色，中间绿色残留）
+- **不要在 prompt 里写"纯绿色背景"**：会触发 wan2.7-i2v 内容审查（`Green net check failed`）。脚本已自动 pad 色幕，prompt 只需描述动作即可
 - **电影质感，高清**：提高生成质量
 - 时长一般 3-5 秒
+
+### 窗口尺寸与 GIF 裁切
+
+GIF 尺寸为 400×400（新版 1:1 比例，`pad_reference_to_wider` 生成）。窗口 `BASE_WIDTH` 必须 ≥ 560（给 `characterPosition` 偏移和 `characterScale` 留余量），`BASE_HEIGHT` 保持 520。详细排查见 `cloe-desktop-dev` skill 的 pitfalls.md "GIF 边缘被裁切" 章节。
 
 ### 管理界面 API（需 bridge 服务运行）
 
@@ -214,6 +241,27 @@ for w in windows:
 ```
 
 > ⚠️ 必须用 `kCGWindowListOptionOnScreenOnly`，`kCGWindowListOptionIncludingWindow` 对透明窗口=空白。
+
+## Chat 消息注入
+
+通过 `/chat/message` 向聊天窗口注入消息（文本 + 图片），注入的消息显示在聊天框中。
+
+```bash
+# 图片太大（~6MB base64）无法用命令行参数传，用 python 构造 JSON 文件再 curl -d @file
+base64 -i /path/to/photo.png > /tmp/img_b64.txt
+python3 -c "
+import json
+with open('/tmp/img_b64.txt','r') as f: b64=f.read().strip()
+json.dump({'role':'assistant','content':'描述文字','image':b64}, open('/tmp/inject.json','w'))
+"
+curl -s -X POST http://localhost:19851/chat/message \
+  -H 'Content-Type: application/json' \
+  -d @/tmp/inject.json
+# 返回 {"ok":true}
+```
+
+- 图片点击后用 `window.open` 弹出系统新窗口（黑底居中），直接看图
+- **不要用自定义模态框**——不要实现 `previewImage` state、`chat-image-modal` overlay 等，之前试过被否决
 
 ## 注意事项
 
