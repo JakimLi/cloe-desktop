@@ -128,12 +128,12 @@ base64 编码后传 `data:audio/mpeg;base64,...`，curl 上限约 128KB。
 # 单个生成（默认绿幕，输出到 ~/.cloe/gifs/{action}.gif）
 python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py \
   --action pout \
-  --prompt "她微微嘟起嘴唇，表情可爱委屈，身体保持不动。纯绿色背景。电影质感，高清。"
+  --prompt "她微微嘟起嘴唇，表情可爱委屈，身体保持不动。电影质感，高清。"
 
 # 蓝幕模式（对黑发效果更好）
 python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py \
   --action pout \
-  --prompt "...纯蓝色背景..." --chromakey blue
+  --prompt "..." --chromakey blue
 
 # 指定参考图
 python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py \
@@ -141,7 +141,7 @@ python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/generate_gif_v2.py
   --prompt "..." --reference ~/.cloe/references/default.png
 ```
 
-脚本自动完成：压缩参考图 → 百炼 wan2.7-i2v 生成视频 → ffmpeg chromakey → 去色晕 → 透明 GIF → 复制到 `~/.cloe/gifs/`。
+脚本自动完成：压缩参考图 → pad 加宽 → 百炼 wan2.7-i2v 生成视频 → ffmpeg chromakey → 去色晕 → 透明 GIF → 复制到 `~/.cloe/gifs/`。
 
 ### 生成后注册动作（脚本不会自动注册！）
 
@@ -181,15 +181,99 @@ python3 ~/.hermes/skills/creative/cloe-desktop-action/scripts/register_action.py
 ### Prompt 写法要点
 
 - **身体保持不动**：只描述头部/上半身微动作（大幅度动作如跳舞除外）
-- **确保人物完整在画面内**：动作帧中角色会身体展开（抬手、叉腰、跳舞）。脚本已内置 `pad_reference_to_wider()` 自动把竖屏参考图（1482×2829）两侧填充色幕变成 1:1 正方形（2829×2829），角色动作有空间展开，最终 GIF 输出 400×400。prompt 中仍建议明确描述动作幅度
-- **色幕一致性**：pad 填充的颜色与 `--chromakey` 参数一致。参考图绿幕 → `--chromakey green`，参考图蓝幕 → `--chromakey blue`。**不要混用**（绿幕参考图 + blue pad → ffmpeg 只去掉两侧蓝色，中间绿色残留）
-- **不要在 prompt 里写"纯绿色背景"**：会触发 wan2.7-i2v 内容审查（`Green net check failed`）。脚本已自动 pad 色幕，prompt 只需描述动作即可
+- **确保人物完整在画面内**：脚本已内置 `pad_reference_to_wider()` 自动将竖屏参考图两侧填充色幕变成 0.75 宽幅（1482×2829→2121×2829），最终 GIF 输出 400×534
+- **色幕一致性**：pad 填充的颜色与 `--chromakey` 一致。用 `--chromakey blue` 时脚本自动调 `convert_chroma_color()` 将绿幕参考图转成蓝幕再 pad
+- **避开百炼审查**：不要在 prompt 写"纯绿色背景"（触发 `Green net check`）。`prompt_extend=False` 已关闭。prompt 避开"胸前""双手"等敏感词
 - **电影质感，高清**：提高生成质量
 - 时长一般 3-5 秒
 
+### 清晰度优化要点
+
+GIF 模糊的根因是**参考图被压缩太多 + 视频分辨率太低**。生成链路中的关键参数：
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `compress_image` 长边上限 | **1920px** | pad 后参考图更大（1482→2121px宽），压缩到 1280 会让角色只剩 670px，模糊 |
+| 视频分辨率 | **1080P** | 720P 输出的角色像素不足，1080P 下 GIF 清晰度显著提升 |
+| pad target_ratio | **0.75** | 1.0 正方形面积太大导致角色像素被稀释；0.75 在留空间和保持清晰度间取得平衡 |
+| ffmpeg scale | `400:-1` | 固定 400px 宽，高度自适应比例（0.75 → 533px） |
+
+> ⚠️ **三参数联动**：改 pad 比例必须同时考虑 compress 上限和视频分辨率。pad 面积越大 → 压缩后角色越小 → 视频分辨率越重要。
+
+> ⚠️ **临时文件清理顺序**：`generate_video()` 中必须先 `open(compressed_path)` 读到内存 base64，再 `os.unlink()` 删临时文件。反过来会导致 FileNotFoundError。
+
 ### 窗口尺寸与 GIF 裁切
 
-GIF 尺寸为 400×400（新版 1:1 比例，`pad_reference_to_wider` 生成）。窗口 `BASE_WIDTH` 必须 ≥ 560（给 `characterPosition` 偏移和 `characterScale` 留余量），`BASE_HEIGHT` 保持 520。详细排查见 `cloe-desktop-dev` skill 的 pitfalls.md "GIF 边缘被裁切" 章节。
+GIF 尺寸随生成比例变化（旧竖屏 400×764，新 0.75 比例 400×534）。窗口 `BASE_WIDTH` 和 `BASE_HEIGHT` 必须考虑三个因素：
+
+1. **GIF 像素尺寸**（宽度 400px 是基准）
+2. **characterPosition.x**（角色偏右时右侧空间 = width × (1-x)，需 > GIF显示宽度）
+3. **characterSize.scale**（scale=1.2 时角色实际宽度 = 400×1.2=480px）
+
+当前配置：`BASE_WIDTH=640, position.x=0.65, scale=1.2` → 右侧空间 = 640×0.35=224px > 480px（不够！实际靠 GIF 比例变窄补足）。
+
+### GIF 缓存问题（Chromium file:// 缓存）
+
+打包版通过 `file://` 协议加载 GIF。Chromium 按完整 URL 缓存图片，当 `~/.cloe/gifs/xxx.gif` 文件被替换后，URL 不变，Chromium 返回缓存的旧版。
+
+**解决方案**（已在 renderer.js 实现）：`preloadGif()` 给 URL 加 `?v=N` 版本号，每次 `set-config`（action-sets 热加载）时 `_gifVersion++`，强制重新从磁盘加载。
+
+### 生成脚本踩坑记录
+
+**1. 百炼内容审查（"Green net check failed"）**
+- 绿幕参考图 + prompt 含"胸前""双手"等词 → 触发文本审查
+- 解法：用 `--chromakey blue`（脚本自动将绿幕参考图转成蓝幕），`prompt_extend=False`（关闭自动扩写避免引入敏感词），prompt 避开敏感描述
+
+**2. 绿幕→蓝幕转换**
+- `default.png` 是绿幕背景。用 `--chromakey blue` 时脚本自动调 `convert_chroma_color()` 将绿色背景转成蓝色，再 pad 蓝色两侧，保证整张图色幕统一
+- chromakey 不在 ffmpeg 阶段做（会误删白衣服），完全交给 Python 后处理
+
+**3. 清晰度优化**
+- `compress_image` 长边上限 1280→1920（pad 后图更大，1280 会让角色只有 670px）
+- 视频分辨率 720P→1080P（720P 生成的角色太模糊）
+- pad 比例 0.75（不是 1.0，1.0 正方形浪费太多面积导致角色有效像素太少）
+- `prompt_extend=False`（关闭百炼自动扩写，避免引入敏感词触发审查）
+
+**4. 参考图 pad（防止角色动作超出画面）**
+- 原始参考图 1482×2829（ratio 0.52，竖屏），角色一抬手就出画
+- pad 到 0.75 比例（2121×2829），两侧填充色幕，角色有空间活动
+- chromakey 时两侧色幕一并去掉
+
+**5. 临时文件清理顺序**
+- pad → compress → 读 base64 → 然后才删临时文件
+- 先读进内存再清理，避免文件被提前删除导致 FileNotFoundError
+
+**6. ⚠️ AI 视频背景漂移（最隐蔽的问题）**
+- wan2.7-i2v 第一帧保留参考图的色幕背景，但后续帧模型会**自由发挥**把背景换成其他场景（如夕阳、室内等）
+- 症状：视频前几帧蓝色背景正常，第 20 帧后背景变成暖色橙红 → chromakey 去不掉 → GIF 背景残留
+- 根因：prompt 里没有明确约束背景保持纯色，模型认为色幕"不合理"就帮你换了
+- **解法**：脚本自动在 prompt 末尾追加背景约束词（蓝幕加"纯蓝色背景"，绿幕加"纯色单色背景"避开审查）
+- 验证方法：提取视频第 1/25/49 帧，检查色幕颜色占比是否稳定（>70% 表示背景没漂移）
+
+### Chromium `file://` 图片缓存（打包版 GIF 不更新）
+
+打包版用 `file://` 协议加载 GIF。Chromium 按完整 URL 缓存图片，磁盘上文件被替换后 URL 没变就返回缓存的旧图。`src/renderer.js` 已内置 cache-busting：`preloadGif()` 加 `?v=N` 参数，`set-config` 时 `_gifVersion++`。
+
+重新生成 GIF 后需要同时更新 `public/gifs/` 和 `dist/gifs/` 的旧文件，否则全新安装时 `seedPackagedDataDir` 拷贝旧版。
+
+### chromakey 误删白色衣服（最棘手的抠图问题）
+
+**症状**：GIF 背景透明了，但角色白色衣服上出现大面积透明孔洞。
+
+**根因**：AI 视频中色幕背景的光照会溢出到角色身上，白色衣服被蓝色/绿色光线污染，变成偏蓝/偏白的浅色。ffmpeg chromakey 基于颜色匹配，无法区分"被光照污染的白色衣服"和"背景色"——similarity 调高去干净背景但误删白衣服，调低保留白衣服但背景残留。
+
+**关键数据**（蓝幕 heart 动作测试）：
+| similarity | 总透明 | 角色区域透明 | 说明 |
+|-----------|--------|-----------|------|
+| 0.30 | 85% | **62%** | 白衣服几乎全没了 |
+| 0.20 | 69% | 22% | 背景残留多 |
+| 0.15 | 69% | 22% | 同上 |
+
+绿幕测试更严重——sim=0.12 时角色区域 99.8% 透明。
+
+**当前方案**：ffmpeg 阶段不做 chromakey（只做 palettegen + paletteuse），背景去除完全交给 Python 后处理（已有色幕检测 + 去色晕逻辑）。Python 后处理的色幕检测阈值更精确，能区分纯色幕和被光照污染的衣服区域。
+
+> ⚠️ 如果 Python 后处理仍有白衣服误删，可能需要改为基于参考图的 mask 方案：用第一帧（纯参考图）生成精确 mask，后续帧只处理 mask 外的背景区域。
 
 ### 管理界面 API（需 bridge 服务运行）
 

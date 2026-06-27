@@ -85,7 +85,7 @@ CLOE_DATA_DIR = os.path.expanduser("~/.cloe")
 
 
 def compress_image(path, max_size_mb=4):
-    """如果图片大于 max_size_mb，压缩为 JPEG 质量 85，返回(路径, 是否临时文件)。"""
+    """如果图片大于 max_size_mb，压缩并缩放长边到1920px（保持角色清晰度），返回(路径, 是否临时文件)。"""
     size_mb = os.path.getsize(path) / 1024 / 1024
     if size_mb <= max_size_mb:
         return path, False
@@ -96,15 +96,48 @@ def compress_image(path, max_size_mb=4):
     tmp.close()
 
     img = Image.open(path)
-    # 缩放到长边 1280
+    # 缩放到长边 1920（pad后图更大，需要更高分辨率保持角色清晰）
     w, h = img.size
-    if max(w, h) > 1280:
-        ratio = 1280 / max(w, h)
+    if max(w, h) > 1920:
+        ratio = 1920 / max(w, h)
         img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
     img.save(tmp_path, "PNG", optimize=True)
     new_size = os.path.getsize(tmp_path) / 1024 / 1024
     print(f"  压缩: {size_mb:.1f}MB → {new_size:.1f}MB ({tmp_path})")
     return tmp_path, True
+
+
+def convert_chroma_color(img_path, from_chroma="green", to_chroma="blue"):
+    """将参考图的背景色幕从一种颜色转换成另一种（如绿幕→蓝幕）。
+    解决：参考图是绿幕但需要用蓝幕生成（绿幕触发百炼内容审查）。
+    返回转换后的图片路径（临时文件）。
+    """
+    if from_chroma == to_chroma:
+        return img_path, False
+
+    import numpy as np
+
+    img = Image.open(img_path).convert("RGB")
+    arr = np.array(img, dtype=np.uint8)
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+
+    if from_chroma == "green":
+        # 检测绿色背景：g 明显大于 r 和 b
+        mask = (g > 80) & (g - r > 30) & (g - b > 30)
+        target = np.array([0, 0, 255], dtype=np.uint8)  # 纯蓝
+    else:  # blue → green
+        mask = (b > 80) & (b - r > 30) & (b - g > 30)
+        target = np.array([0, 255, 0], dtype=np.uint8)  # 纯绿
+
+    arr[mask] = target
+
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    Image.fromarray(arr).save(tmp.name, "PNG", optimize=True)
+    converted = int(mask.sum() / 3)
+    print(f"  色幕转换: {from_chroma}→{to_chroma} ({converted}px 替换)")
+    return tmp.name, True
 
 
 def pad_reference_to_wider(img_path, target_ratio=0.75, chroma="green"):
@@ -144,23 +177,38 @@ def pad_reference_to_wider(img_path, target_ratio=0.75, chroma="green"):
 
 def generate_video(first_frame_path, prompt, duration=5, action_name="action", chroma="green"):
     """用 wan2.7-i2v 生成视频，返回本地视频路径。"""
+    # 如果用蓝幕，但参考图是绿幕，先转换背景色
+    conv_temp = None
+    if chroma == "blue":
+        conv_path, conv_done = convert_chroma_color(first_frame_path, "green", "blue")
+        if conv_done:
+            first_frame_path = conv_path
+            conv_temp = conv_path
+
     # 先把参考图加宽，给角色动作留空间
-    padded_path, pad_temp = pad_reference_to_wider(first_frame_path, target_ratio=1.0, chroma=chroma)
+    padded_path, pad_temp = pad_reference_to_wider(first_frame_path, target_ratio=0.75, chroma=chroma)
 
     compressed_path, is_temp = compress_image(padded_path)
 
-    if pad_temp and os.path.abspath(padded_path) != os.path.abspath(first_frame_path):
-        os.unlink(padded_path)
-
+    # Read image into memory first, THEN clean up temp files
     with open(compressed_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
     if is_temp:
         os.unlink(compressed_path)
+    if pad_temp and os.path.abspath(padded_path) != os.path.abspath(first_frame_path):
+        os.unlink(padded_path)
+    if conv_temp and os.path.exists(conv_temp):
+        os.unlink(conv_temp)
 
-    # 更新 prompt，提醒 AI 角色有空间活动
+    # 更新 prompt，确保角色完整 + 背景保持纯色（防止模型自由发挥换背景）
     if pad_temp:
-        prompt = prompt.rstrip("。") + "。确保人物完整在画面内，不要超出边界。"
+        bg_word = "纯蓝色背景" if chroma == "blue" else "纯绿色背景"
+        prompt = prompt.rstrip("。") + f"。{bg_word}。确保人物完整在画面内，不要超出边界。"
+
+    # 绿幕 prompt 容易触发百炼审查，提交前检测并自动切换描述
+    if chroma == "green" and "绿色" in prompt:
+        prompt = prompt.replace("纯绿色背景", "纯色单色背景")
 
     api_key = get_env("BAILIAN_API_KEY")
 
@@ -169,9 +217,9 @@ def generate_video(first_frame_path, prompt, duration=5, action_name="action", c
         "model": "wan2.7-i2v",
         "input": {"prompt": prompt, "media": media},
         "parameters": {
-            "resolution": "720P",
+            "resolution": "1080P",
             "duration": duration,
-            "prompt_extend": True,
+            "prompt_extend": False,
             "watermark": False,
         },
     }
@@ -231,22 +279,27 @@ def video_to_transparent_gif(video_bytes, output_path, action_name="action", chr
     raw_gif = os.path.join(os.path.dirname(output_path), f"{action_name}_raw.gif")
     palette = os.path.join(os.path.dirname(output_path), f"palette_{action_name}.png")
 
-    # Step 1: 生成调色板
+    # chromakey 参数：保守设置（只去纯色背景），残余背景由 Python 后处理清理
+    # 避免高 similarity 误删角色衣服（白衣服被色幕光照污染）
+    ck_sim = "0.15" if chroma == "blue" else "0.08"
+    ck_blend = "0.05" if chroma == "blue" else "0.02"
+
+    # Step 1: 生成调色板（不做 chromakey，保留全色域）
     subprocess.run(
         [
             "ffmpeg", "-y", "-i", video_tmp.name,
-            "-vf", f"chromakey={ck_hex}:0.15:0.05,fps=10,scale=400:-1:flags=lanczos,palettegen=stats_mode=diff",
+            "-vf", f"fps=10,scale=400:-1:flags=lanczos,palettegen=stats_mode=diff",
             palette,
         ],
         capture_output=True,
         timeout=60,
     )
 
-    # Step 2: 用调色板生成 GIF
+    # Step 2: 用调色板生成 GIF（不做 chromakey，留给 Python 处理）
     subprocess.run(
         [
             "ffmpeg", "-y", "-i", video_tmp.name, "-i", palette,
-            "-lavfi", f"[0:v]chromakey={ck_hex}:0.15:0.05,fps=10,scale=400:-1:flags=lanczos[x];[x][1:v]paletteuse",
+            "-lavfi", f"[0:v]fps=10,scale=400:-1:flags=lanczos[x];[x][1:v]paletteuse",
             "-loop", "0", raw_gif,
         ],
         capture_output=True,
