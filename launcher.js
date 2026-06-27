@@ -2430,7 +2430,7 @@ function getInitialMainWindowXY(windowWidth, windowHeight) {
 }
 
 // ==================== Window ====================
-const BASE_WIDTH = 640;  // was 380, then 560 — wider transparent area so GIF + scale + position offset don't clip
+const BASE_WIDTH = 500;  // GIF 400px + 边距
 const BASE_HEIGHT = 520;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 2.0;
@@ -2680,15 +2680,20 @@ function createManagerWindow() {
   }
 
   managerWin = new BrowserWindow({
-    width: 800,
-    height: 600,
-    title: 'Cloe Settings',
+    width: 880,
+    height: 620,
+    title: 'Cloe',
     transparent: false,
     frame: true,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 18 },
     alwaysOnTop: false,
     resizable: true,
     skipTaskbar: false,
     hasShadow: true,
+    vibrancy: 'under-window',
+    visualEffectState: 'active',
+    backgroundColor: '#1c1c1e',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
