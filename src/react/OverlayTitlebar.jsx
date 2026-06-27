@@ -1,15 +1,90 @@
 /**
  * OverlayTitlebar — macOS-style titlebar for the terminal/canvas overlay.
  * Traffic lights (hover reveal), mode switcher, drag region, opacity toggle (right).
+ * Theme picker dropdown.
  */
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { TERMINAL_THEMES } from './terminalThemes';
 
 const TRANSPARENCY_LABELS = {
   semi: '半透明 → 完全透明',
   full: '完全透明 → 不透明',
   opaque: '不透明 → 半透明',
 };
+
+function ThemePicker({ mode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const currentTheme = localStorage.getItem('cloe-terminal-theme') || 'cloe';
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Don't show theme picker in canvas mode
+  if (mode === 'canvas') return null;
+
+  const current = TERMINAL_THEMES.find(t => t.id === currentTheme) || TERMINAL_THEMES[0];
+
+  return (
+    <div className="theme-picker" ref={ref}>
+      <button
+        className="mode-btn theme-btn"
+        title="Terminal Theme"
+        onClick={() => setOpen(!open)}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+          <circle cx="8" cy="8" r="6.5" />
+          <path d="M8 1.5a6.5 6.5 0 0 0 0 13z" fill="currentColor" opacity="0.4" />
+        </svg>
+        <span className="theme-swatch-row">
+          {current.swatch.slice(0, 4).map((c, i) => (
+            <span key={i} className="theme-swatch-dot" style={{ background: c }} />
+          ))}
+        </span>
+      </button>
+      {open && (
+        <div className="theme-dropdown">
+          <div className="theme-dropdown-header">Color Themes</div>
+          <div className="theme-dropdown-list">
+            {TERMINAL_THEMES.map(t => (
+              <button
+                key={t.id}
+                className={`theme-option ${t.id === currentTheme ? 'active' : ''}`}
+                onClick={() => {
+                  window.cloeSetTerminalTheme?.(t.id);
+                  setOpen(false);
+                }}
+              >
+                <span className="theme-option-swatch">
+                  {t.swatch.map((c, i) => (
+                    <span key={i} className="theme-swatch-dot" style={{ background: c }} />
+                  ))}
+                </span>
+                <span className="theme-option-info">
+                  <span className="theme-option-name">{t.name}</span>
+                  <span className="theme-option-desc">{t.desc}</span>
+                </span>
+                {t.id === currentTheme && (
+                  <svg className="theme-check" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparency, onToggleTransparent }) {
   return (
@@ -69,6 +144,9 @@ export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatTog
 
       {/* Drag region fills the middle */}
       <div className="terminal-drag-region" />
+
+      {/* Theme picker */}
+      <ThemePicker mode={mode} />
 
       {/* Opacity toggle — top-right corner, 3-state cycle */}
       <button

@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { getThemeById, DEFAULT_THEME_ID } from './terminalThemes';
 
 export default function TerminalMode() {
   const containerRef = useRef(null);
@@ -15,6 +16,45 @@ export default function TerminalMode() {
   // Comment input overlay state
   const [showInput, setShowInput] = useState(false);
   const codeWalkRef = useRef(null);
+
+  // Theme state — read from localStorage, fallback to default
+  const [themeId, setThemeId] = useState(
+    () => localStorage.getItem('cloe-terminal-theme') || DEFAULT_THEME_ID
+  );
+
+  // Apply theme to xterm + overlay when theme changes
+  const applyTheme = useCallback((id) => {
+    const themeData = getThemeById(id);
+    if (window.xtermInstance) {
+      window.xtermInstance.options.theme = themeData.theme;
+    }
+    // Update overlay background via CSS variable
+    document.documentElement.style.setProperty('--terminal-bg', themeData.bg);
+  }, []);
+
+  useEffect(() => {
+    applyTheme(themeId);
+  }, [themeId, applyTheme]);
+
+  // Listen for theme changes from titlebar selector
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'cloe-terminal-theme' && e.newValue) {
+        setThemeId(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
+  // Expose theme switcher for titlebar (same-window, no localStorage roundtrip)
+  useEffect(() => {
+    window.cloeSetTerminalTheme = (id) => {
+      localStorage.setItem('cloe-terminal-theme', id);
+      setThemeId(id);
+    };
+    return () => { delete window.cloeSetTerminalTheme; };
+  }, []);
 
   const handleCommentSubmit = useCallback((text) => {
     setShowInput(false);
@@ -59,30 +99,7 @@ export default function TerminalMode() {
         fontSize: 14,
         lineHeight: 1.3,
         fontFamily: "'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
-        theme: {
-          background: 'transparent',
-          foreground: '#e0e0e0',
-          cursor: '#80cbc4',
-          cursorAccent: 'transparent',
-          selectionBackground: 'rgba(100, 181, 246, 0.3)',
-          selectionForeground: '#ffffff',
-          black: '#1a1a2e',
-          red: '#ef5350',
-          green: '#66bb6a',
-          yellow: '#ffca28',
-          blue: '#42a5f5',
-          magenta: '#ab47bc',
-          cyan: '#26c6da',
-          white: '#e0e0e0',
-          brightBlack: '#666666',
-          brightRed: '#ef9a9a',
-          brightGreen: '#a5d6a7',
-          brightYellow: '#ffe082',
-          brightBlue: '#90caf9',
-          brightMagenta: '#ce93d8',
-          brightCyan: '#80deea',
-          brightWhite: '#ffffff',
-        },
+        theme: getThemeById(themeId).theme,
         allowTransparency: true,
         scrollback: 5000,
         macOptionIsMeta: true,

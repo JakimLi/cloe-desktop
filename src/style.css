@@ -149,13 +149,13 @@ html, body {
   right: 0;
   bottom: 0;
   z-index: 5; /* above gif-container (z-index auto), below ws-status (10) */
-  background: rgba(10, 10, 20, 0.85); /* default (no class) — solid dark background */
+  background: var(--terminal-bg, rgba(10, 10, 20, 0.85)); /* theme-driven background */
   transition: background 0.3s ease;
 }
 
 /* 3-level transparency for main window */
 .terminal-overlay.overlay-semi {
-  background: rgba(10, 10, 20, 0.85); /* semi-transparent — original default, see character through overlay */
+  background: var(--terminal-bg, rgba(10, 10, 20, 0.85)); /* semi-transparent — original default, see character through overlay */
 }
 
 .terminal-overlay.overlay-transparent {
@@ -428,6 +428,138 @@ body.canvas-mode .terminal-overlay.overlay-opaque {
 @keyframes chat-overlay-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* ==================== Terminal Theme Picker ==================== */
+
+.theme-picker {
+  position: relative;
+  -webkit-app-region: no-drag;
+  z-index: 10;
+}
+
+.theme-btn .theme-swatch-row {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.theme-swatch-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+/* Dropdown panel */
+.theme-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: rgba(20, 20, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  width: 280px;
+  max-height: 420px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: theme-drop-in 0.15s ease;
+}
+
+@keyframes theme-drop-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.theme-dropdown-header {
+  padding: 10px 14px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.theme-dropdown-list {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.theme-dropdown-list::-webkit-scrollbar {
+  width: 5px;
+}
+.theme-dropdown-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.theme-dropdown-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.theme-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.theme-option.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 1);
+}
+
+.theme-option-swatch {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.theme-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-option-name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.theme-option-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.theme-option.active .theme-check {
+  color: #26c6da;
+  flex-shrink: 0;
 }
 
 /* ==================== End of style.css ==================== */
