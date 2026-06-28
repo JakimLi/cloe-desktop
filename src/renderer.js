@@ -37,6 +37,12 @@ let GIF_ANIMATIONS = {
   shy:         `${BASE}gifs/shy.gif`,
   yawn:        `${BASE}gifs/yawn.gif`,
   laugh:       `${BASE}gifs/laugh.gif`,
+  heart:       `${BASE}gifs/heart.gif`,
+  dance:       `${BASE}gifs/dance.gif`,
+  proud:       `${BASE}gifs/proud.gif`,
+  surprise:    `${BASE}gifs/surprise.gif`,
+  walk_left:   `${BASE}gifs/walk_left.gif`,
+  walk_right:  `${BASE}gifs/walk_right.gif`,
 };
 
 // Weighted idle playlist (blink & smile most frequent)
