@@ -77,6 +77,67 @@ function resolvedGifHref(s) {
 }
 
 // ==================== GIF Switch (double-buffer crossfade) ====================
+
+// Preload GIF and parse its actual duration via fetch + binary GIF parsing.
+// Falls back to REACTION_DURATION if parsing fails.
+async function preloadGifWithDuration(src) {
+  const [img, duration] = await Promise.all([
+    new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error(`Failed to load: ${src}`));
+      const v = window._gifVersion || 0;
+      const sep = src.includes('?') ? '&' : '?';
+      i.src = `${src}${sep}v=${v}`;
+    }),
+    fetchGifDuration(src),
+  ]);
+  return { img, duration };
+}
+
+async function fetchGifDuration(src) {
+  try {
+    const v = window._gifVersion || 0;
+    const sep = src.includes('?') ? '&' : '?';
+    const url = `${src}${sep}v=${v}`;
+    const resp = await fetch(url);
+    const buf = await resp.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    // Parse GIF frame delays (GCE blocks)
+    let total = 0;
+    let pos = 13; // skip header + LSD + GCT
+    while (pos < bytes.length - 1) {
+      if (bytes[pos] === 0x21 && bytes[pos + 1] === 0xF9) {
+        // Graphics Control Extension
+        const delay = bytes[pos + 4] * 10 + bytes[pos + 5];
+        total += delay || 100; // 0 delay = 10ms per spec, but browsers use 100ms
+        pos += 8;
+      } else if (bytes[pos] === 0x21) {
+        // Skip other extensions
+        pos += 2;
+        while (pos < bytes.length && bytes[pos] !== 0) pos += bytes[pos] + 1;
+        pos++;
+      } else if (bytes[pos] === 0x2C) {
+        // Image Descriptor — skip to next block
+        pos += 10;
+        if (pos < bytes.length && bytes[pos] & 0x80) {
+          const lzwMin = bytes[pos];
+          const sub = bytes[pos + 1];
+          pos += 2 + sub;
+        }
+        // Skip LZW data sub-blocks
+        while (pos < bytes.length && bytes[pos] !== 0) pos += bytes[pos] + 1;
+        pos++; // block terminator
+      } else {
+        pos++;
+      }
+    }
+    return total > 0 ? total : REACTION_DURATION;
+  } catch {
+    return REACTION_DURATION;
+  }
+}
+
 function preloadGif(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -112,7 +173,7 @@ function switchGif(name, autoReturn = true) {
   isTransitioning = true;
   const next = getHidden();
 
-  preloadGif(src).then(() => {
+  preloadGifWithDuration(src).then(({ img, duration: gifDuration }) => {
     next.src = src;
     next.style.opacity = '1';
     active.style.opacity = '0';
@@ -138,7 +199,7 @@ function switchGif(name, autoReturn = true) {
             isReacting = false;
             stopAudio();
             switchGif('working', false);
-          }, REACTION_DURATION);
+          }, gifDuration);
           return;
         }
 
@@ -147,7 +208,7 @@ function switchGif(name, autoReturn = true) {
           isReacting = false;
           stopAudio();
           startIdleLoop();
-        }, REACTION_DURATION);
+        }, gifDuration);
       } else {
         scheduleNextIdle();
       }
