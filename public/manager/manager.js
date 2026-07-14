@@ -29,6 +29,11 @@ function switchTab(tabId) {
   if (tabId === 'idle-playlist' && typeof loadIdlePlaylistTab === 'function') {
     loadIdlePlaylistTab();
   }
+
+  // Lazy-load reminders tab
+  if (tabId === 'reminders' && typeof initRemindersTab === 'function') {
+    initRemindersTab();
+  }
 }
 
 // ==================== i18n Update ====================
@@ -45,6 +50,9 @@ function updateAllText() {
   document.getElementById('sidebar-idle-playlist').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.idlePlaylist');
   if (document.getElementById('sidebar-shortcuts')) {
     document.getElementById('sidebar-shortcuts').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.shortcuts');
+  }
+  if (document.getElementById('sidebar-reminders')) {
+    document.getElementById('sidebar-reminders').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.reminders');
   }
 
   // Update actions tab text
@@ -66,6 +74,11 @@ function updateAllText() {
 
   // Update plugin rules tab text
   updatePluginRulesText();
+
+  // Update reminders tab text
+  if (typeof updateRemindersText === 'function') {
+    updateRemindersText();
+  }
 }
 
 // Locale change callback (called from preferences.js)

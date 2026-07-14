@@ -18,6 +18,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
+const reminderEngine = require('./reminder-engine');
 // ==================== Config ====================
 const WS_PORT = 19850;
 const HTTP_PORT = 19851;
@@ -1006,6 +1007,10 @@ function createBridgeServers() {
       console.log(`[WS] Client disconnected (${bridgeClients.size})`);
     });
   });
+
+  // --- Reminder Engine ---
+  reminderEngine.setBroadcast(broadcastToClients);
+  reminderEngine.restoreTimers();
 
   // --- HTTP ---
   const server = http.createServer((req, res) => {
@@ -2340,6 +2345,11 @@ function createBridgeServers() {
     if (req.method === 'POST' && urlPath === '/chat-toggle') {
       toggleChatWindow();
       jsonRes(res, 200, { ok: true });
+      return;
+    }
+
+    // --- Reminder Engine Routes ---
+    if (reminderEngine.handleReminderRoute(req, res)) {
       return;
     }
 

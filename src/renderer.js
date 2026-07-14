@@ -806,6 +806,10 @@ function connectWebSocket() {
         } else {
           handleAction(msg);
         }
+        // Forward to ReminderOverlay if it handled this message
+        if (window.ReminderOverlay && ReminderOverlay.handleMessage) {
+          ReminderOverlay.handleMessage(msg);
+        }
       } catch (e) { console.error('WS parse:', e); }
     };
 

@@ -442,6 +442,56 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // ── Reminder dismiss shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-reminder-dismiss-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.ReminderOverlay && ReminderOverlay.hasActive()) {
+          ReminderOverlay.dismissActive();
+        }
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
+  // ── Reminder stop shortcut ──
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-reminder-stop-shortcut') || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
+      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
+          e.altKey === wantAlt && e.shiftKey === wantShift &&
+          e.key.toUpperCase() === key.toUpperCase()) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.ReminderOverlay && ReminderOverlay.hasActive()) {
+          ReminderOverlay.stopActive();
+        }
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   if (!visible) {
     return null;
   }

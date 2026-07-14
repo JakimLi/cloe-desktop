@@ -33,6 +33,10 @@
           <span class="sidebar-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg></span>
           <span class="sidebar-item-label">Shortcuts</span>
         </button>
+        <button id="sidebar-reminders" class="sidebar-item" data-tab="reminders">
+          <span class="sidebar-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+          <span class="sidebar-item-label">Reminders</span>
+        </button>
       </div>
     </nav>
 
@@ -105,6 +109,11 @@
       <!-- Shortcuts Tab -->
       <div id="tab-shortcuts" class="tab-panel">
         <div id="shortcuts-content"></div>
+      </div>
+
+      <!-- Reminders Tab -->
+      <div id="tab-reminders" class="tab-panel">
+        <div id="reminders-content"></div>
       </div>
 
       <!-- Plugin Rules Tab -->
@@ -319,6 +328,7 @@
   <script src="./actions.js"></script>
   <script src="./preferences.js"></script>
   <script src="./shortcuts.js"></script>
+  <script src="./reminders.js"></script>
   <script src="./plugin-rules.js"></script>
   <script src="./manager.js"></script>
 </body>

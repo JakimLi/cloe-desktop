@@ -859,3 +859,156 @@ html, body {
   text-align: center;
   min-width: 80px;
 }
+
+/* ==================== Reminders Tab ==================== */
+
+.reminders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.reminders-header h2 {
+  margin: 0;
+}
+
+.reminders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.reminder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+
+.reminder-item:hover {
+  background: var(--bg-card-hover);
+}
+
+.reminder-item.reminder-triggered {
+  border-color: rgba(76, 175, 80, 0.3);
+  background: rgba(76, 175, 80, 0.06);
+}
+
+.reminder-item.reminder-disabled {
+  opacity: 0.45;
+}
+
+.reminder-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.reminder-item-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.reminder-item-info {
+  min-width: 0;
+}
+
+.reminder-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reminder-item-detail {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.reminder-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.reminder-status-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.reminder-status-running {
+  background: rgba(100, 181, 246, 0.15);
+  color: #64b5f6;
+}
+
+.reminder-status-triggered {
+  background: rgba(76, 175, 80, 0.18);
+  color: #81c784;
+}
+
+.reminder-status-paused {
+  background: rgba(255, 183, 77, 0.15);
+  color: #ffb74d;
+}
+
+.reminder-status-idle {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+}
+
+.reminder-status-completed {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+}
+
+.reminder-item-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.reminder-action-btn {
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.reminder-action-btn:hover {
+  background: var(--bg-hover);
+}
+
+/* Reminder form */
+
+.reminder-form {
+  margin-top: 8px;
+}
+
+.reminder-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}

@@ -562,4 +562,129 @@ body.canvas-mode .terminal-overlay.overlay-opaque {
   flex-shrink: 0;
 }
 
+/* ==================== Reminder Overlay ==================== */
+
+#reminder-overlay {
+  position: fixed;
+  bottom: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3; /* above gif-container, below react-root terminal overlay */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+#reminder-overlay.has-reminders {
+  opacity: 1;
+}
+
+.reminder-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(20, 20, 25, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: default;
+  animation: reminder-card-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 200px;
+  max-width: 320px;
+}
+
+@keyframes reminder-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.reminder-card-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.reminder-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.reminder-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.reminder-card-meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.3;
+}
+
+.reminder-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.reminder-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.1s;
+  line-height: 1;
+}
+
+.reminder-btn:active {
+  transform: scale(0.9);
+}
+
+.reminder-btn-dismiss {
+  background: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+}
+
+.reminder-btn-dismiss:hover {
+  background: rgba(76, 175, 80, 0.35);
+}
+
+.reminder-btn-stop {
+  background: rgba(244, 67, 54, 0.15);
+  color: #e57373;
+}
+
+.reminder-btn-stop:hover {
+  background: rgba(244, 67, 54, 0.3);
+}
+
+/* When terminal mode is active, raise z-index above terminal overlay */
+body.terminal-mode #reminder-overlay {
+  z-index: 20;
+}
+
 /* ==================== End of style.css ==================== */

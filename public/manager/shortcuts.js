@@ -19,6 +19,9 @@ var SHORTCUT_DEFS = [
   { id: 'char-move-right', lsKey: 'cloe-char-move-right-shortcut', section: 'character' },
   { id: 'char-scale-up', lsKey: 'cloe-char-scale-up-shortcut', section: 'character' },
   { id: 'char-scale-down', lsKey: 'cloe-char-scale-down-shortcut', section: 'character' },
+  // Reminder Controls
+  { id: 'reminder-dismiss', lsKey: 'cloe-reminder-dismiss-shortcut', section: 'reminder' },
+  { id: 'reminder-stop', lsKey: 'cloe-reminder-stop-shortcut', section: 'reminder' },
 ];
 
 function shortcutLabelKey(id) {
@@ -36,6 +39,8 @@ function shortcutLabelKey(id) {
     'char-move-right': 'charMoveRightShortcut',
     'char-scale-up': 'charScaleUpShortcut',
     'char-scale-down': 'charScaleDownShortcut',
+    'reminder-dismiss': 'reminderDismissShortcut',
+    'reminder-stop': 'reminderStopShortcut',
   };
   return map[id];
 }
@@ -52,6 +57,7 @@ function renderShortcuts() {
     window: { title: I18n.t('prefs.shortcutsWindow'), shortcuts: [] },
     chat: { title: I18n.t('prefs.shortcutsChat'), shortcuts: [] },
     character: { title: I18n.t('prefs.shortcutsCharacter'), shortcuts: [] },
+    reminder: { title: I18n.t('prefs.shortcutsReminder'), shortcuts: [] },
   };
 
   SHORTCUT_DEFS.forEach((def) => {

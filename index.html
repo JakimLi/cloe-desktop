@@ -21,11 +21,16 @@
   <!-- React overlay root — terminal/canvas managed by React -->
   <div id="react-root"></div>
 
+  <!-- Reminder overlay — shows triggered reminder cards below character -->
+  <div id="reminder-overlay"></div>
+
   <div id="ws-status" title="WebSocket">●</div>
   <button id="settings-btn" title="设置">⚙</button>
 
   <!-- renderer.js: GIF animations, audio, WebSocket, idle loop, drag -->
   <script type="module" src="/src/renderer.js"></script>
+  <!-- Reminder overlay: card UI + WS listener (loaded after renderer.js) -->
+  <script type="module" src="/src/reminder-overlay.js"></script>
   <!-- React app: terminal (xterm), canvas (Excalidraw), titlebar -->
   <script type="module" src="/src/react/main.jsx"></script>
 </body>
