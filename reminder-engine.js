@@ -97,7 +97,10 @@ function triggerReminder(reminder) {
   if (!r) return;
 
   r.status = 'triggered';
-  r.round = (r.round || 0) + 1;
+  // Only increment round on work-phase triggers
+  if (r.phase !== 'break') {
+    r.round = (r.round || 0) + 1;
+  }
   saveReminders(reminders);
 
   broadcast({
@@ -124,8 +127,29 @@ function dismissReminder(id) {
   if (r.status !== 'triggered') return r;
 
   if (r.auto_start) {
+    // For countdown/pomodoro with break: alternate work ↔ break phases
+    if (r.mode === 'countdown' && r.break_duration > 0) {
+      if (r.phase === 'work') {
+        // Work phase done → start break
+        r.phase = 'break';
+        r.trigger_at = new Date(Date.now() + r.break_duration * 1000).toISOString();
+      } else {
+        // Break done → check if all rounds completed, then start next work
+        if (r.total_rounds > 0 && r.round >= r.total_rounds) {
+          r.status = 'completed';
+          r.enabled = false;
+          saveReminders(reminders);
+          broadcast({ type: 'reminder-stopped', reminder: sanitizeReminder(r) });
+          return reminders[id];
+        }
+        r.phase = 'work';
+        r.trigger_at = new Date(Date.now() + r.duration * 1000).toISOString();
+      }
+    } else {
+      // interval mode or countdown without break
+      r.trigger_at = new Date(Date.now() + r.duration * 1000).toISOString();
+    }
     r.status = 'running';
-    r.trigger_at = new Date(Date.now() + r.duration * 1000).toISOString();
     saveReminders(reminders);
     startTimer(r);
     broadcast({ type: 'reminder-dismissed', reminder: sanitizeReminder(r) });

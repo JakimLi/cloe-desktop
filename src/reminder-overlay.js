@@ -178,5 +178,8 @@
     return div.innerHTML;
   }
 
+  // Expose to window so renderer.js and App.jsx can access (ES module scope doesn't auto-attach named IIFE)
+  window.ReminderOverlay = ReminderOverlay;
+
   console.log('[Reminder] Overlay initialized');
 })();
