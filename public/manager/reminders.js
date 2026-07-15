@@ -116,7 +116,7 @@ function renderReminderItem(r) {
         <div class="rm-card-name">${escapeHtml(r.name)}</div>
         <div class="rm-card-meta">
           <span>${r.mode === 'interval' ? I18n.t('reminders.every') : I18n.t('reminders.countdown')} ${durationMin}min</span>
-          ${r.round > 0 ? `<span class="rm-dot"></span><span>${I18n.t('reminders.round')} ${r.round}${r.total_rounds > 0 ? '/' + r.total_rounds : ''}</span>` : ''}
+          ${r.mode === 'countdown' && r.round > 0 ? `<span class="rm-dot"></span><span>${I18n.t('reminders.round')} ${r.round}${r.total_rounds > 0 ? '/' + r.total_rounds : ''}</span>` : ''}
           ${r.tts ? '' : `<span class="rm-dot"></span>${SVG.mute}`}
           ${isRunning && r.trigger_at ? `<span class="rm-dot"></span><span class="rm-next-time">${formatNextTime(r.trigger_at)}</span>` : ''}
         </div>
@@ -169,10 +169,18 @@ function showReminderForm(id) {
       seg.addEventListener('click', () => {
         modeSegments.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
         seg.classList.add('active');
-        toggleCountdownFields(seg.dataset.mode === 'countdown');
+        const isCountdown = seg.dataset.mode === 'countdown';
+        toggleCountdownFields(isCountdown);
+        // Clear countdown-specific fields when switching to interval
+        if (!isCountdown) {
+          const breakInput = document.getElementById('reminder-break-min');
+          const roundsInput = document.getElementById('reminder-rounds');
+          if (breakInput) breakInput.value = 0;
+          if (roundsInput) roundsInput.value = 0;
+        }
         const autoStartCheckbox = document.getElementById('reminder-auto-start');
         if (autoStartCheckbox && !editTarget) {
-          autoStartCheckbox.checked = seg.dataset.mode === 'interval';
+          autoStartCheckbox.checked = !isCountdown;
         }
       });
     });
