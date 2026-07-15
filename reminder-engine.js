@@ -112,6 +112,41 @@ function triggerReminder(reminder) {
   if (r.action) {
     broadcast({ type: 'action', action: r.action });
   }
+
+  // Generate TTS voice message if enabled
+  if (r.tts) {
+    generateReminderTTS(r);
+  }
+}
+
+/**
+ * Generate a TTS voice message for the reminder and broadcast as a speak action.
+ */
+function generateReminderTTS(r) {
+  const { execFile } = require('child_process');
+  const path = require('path');
+
+  // Build a natural language message
+  let message;
+  if (r.mode === 'countdown' && r.phase === 'break') {
+    message = '休息时间到啦，放松一下吧';
+  } else if (r.mode === 'countdown' && r.total_rounds > 0 && r.round >= r.total_rounds) {
+    message = `${r.name}全部完成啦，辛苦了`;
+  } else {
+    message = `${r.name}时间到啦`;
+  }
+
+  const scriptPath = path.join(os.homedir(), '.hermes', 'skills', 'creative', 'cloe-desktop-action', 'scripts', 'generate_tts.py');
+  execFile('python3', [scriptPath, '--text', message, '--speak'], {
+    timeout: 15000,
+    cwd: path.dirname(scriptPath),
+  }, (err, stdout) => {
+    if (err) {
+      console.error('[Reminder] TTS generation failed:', err.message);
+      return;
+    }
+    console.log('[Reminder] TTS generated for:', r.id);
+  });
 }
 
 /**

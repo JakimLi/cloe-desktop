@@ -12,6 +12,24 @@ function initRemindersTab() {
 let reminders = [];
 let editTarget = null; // null = creating new, string = editing id
 
+// ==================== SVG Icons (Lucide-style) ====================
+
+const SVG = {
+  // Reminder type icons
+  interval: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>',
+  countdown: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></svg>',
+  // Action icons
+  pause: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+  resume: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>',
+  dismiss: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  power_on: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>',
+  power_off: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>',
+  edit: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  delete: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  // Mute indicator
+  mute: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/></svg>',
+};
+
 // ==================== Load & Render ====================
 
 async function loadReminders() {
@@ -30,158 +48,70 @@ function renderReminders() {
   if (!container) return;
 
   container.innerHTML = `
-    <div class="reminders-header">
-      <h2 class="pref-section-title">${I18n.t('reminders.title')}</h2>
-      <button class="btn btn-primary btn-sm" id="btn-add-reminder">+ ${I18n.t('reminders.add')}</button>
+    <div class="rm-toolbar">
+      <div class="rm-toolbar-title">${I18n.t('reminders.title')}</div>
+      <button class="rm-btn-add" id="btn-add-reminder">
+        ${SVG.edit.replace('width="15" height="15"', 'width="14" height="14"').replace('M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z', 'M12 5v14M5 12h14')}
+        <span>${I18n.t('reminders.add')}</span>
+      </button>
     </div>
 
-    <div id="reminders-list" class="reminders-list">
-      ${reminders.length === 0 ? `<div class="empty-state"><p>${I18n.t('reminders.empty')}</p></div>` : ''}
+    <div id="reminders-list" class="rm-list">
+      ${reminders.length === 0 ? `<div class="rm-empty">${I18n.t('reminders.empty')}</div>` : ''}
       ${reminders.map(renderReminderItem).join('')}
     </div>
 
-    <!-- Add/Edit Form (hidden by default) -->
-    <div id="reminder-form" class="reminder-form hidden">
-      <div class="pref-section">
-        <h2 class="pref-section-title" id="reminder-form-title">${I18n.t('reminders.addTitle')}</h2>
-        <div class="pref-group">
-          <div class="pref-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldName')}</div>
-            </div>
-            <div class="pref-control">
-              <input type="text" id="reminder-name" class="form-input" placeholder="${I18n.t('reminders.fieldNamePlaceholder')}" style="width:200px;">
-            </div>
-          </div>
-
-          <div class="pref-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldMode')}</div>
-            </div>
-            <div class="pref-control">
-              <div class="segmented-control" id="reminder-mode-segments">
-                <button class="segment active" data-mode="interval">${I18n.t('reminders.modeInterval')}</button>
-                <button class="segment" data-mode="countdown">${I18n.t('reminders.modeCountdown')}</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="pref-item" id="reminder-duration-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldDuration')}</div>
-              <div class="pref-desc">${I18n.t('reminders.fieldDurationDesc')}</div>
-            </div>
-            <div class="pref-control">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <input type="number" id="reminder-duration-min" class="form-input" min="1" max="720" value="30" style="width:80px;text-align:center;">
-                <span class="pref-desc">${I18n.t('reminders.minutes')}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="pref-item hidden" id="reminder-break-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldBreakDuration')}</div>
-              <div class="pref-desc">${I18n.t('reminders.fieldBreakDurationDesc')}</div>
-            </div>
-            <div class="pref-control">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <input type="number" id="reminder-break-min" class="form-input" min="0" max="120" value="5" style="width:80px;text-align:center;">
-                <span class="pref-desc">${I18n.t('reminders.minutes')}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="pref-item hidden" id="reminder-rounds-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldTotalRounds')}</div>
-              <div class="pref-desc">${I18n.t('reminders.fieldTotalRoundsDesc')}</div>
-            </div>
-            <div class="pref-control">
-              <input type="number" id="reminder-rounds" class="form-input" min="0" max="20" value="4" style="width:80px;text-align:center;">
-              <span class="pref-desc" style="margin-left:6px;">${I18n.t('reminders.fieldTotalRoundsHint')}</span>
-            </div>
-          </div>
-
-          <div class="pref-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldAutoStart')}</div>
-              <div class="pref-desc">${I18n.t('reminders.fieldAutoStartDesc')}</div>
-            </div>
-            <div class="pref-control">
-              <label class="toggle">
-                <input type="checkbox" id="reminder-auto-start" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="pref-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldTTS')}</div>
-              <div class="pref-desc">${I18n.t('reminders.fieldTTSDesc')}</div>
-            </div>
-            <div class="pref-control">
-              <label class="toggle">
-                <input type="checkbox" id="reminder-tts" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="pref-item">
-            <div class="pref-info">
-              <div class="pref-label">${I18n.t('reminders.fieldAction')}</div>
-              <div class="pref-desc">${I18n.t('reminders.fieldActionDesc')}</div>
-            </div>
-            <div class="pref-control">
-              <input type="text" id="reminder-action" class="form-input" placeholder="${I18n.t('reminders.fieldActionPlaceholder')}" style="width:160px;">
-            </div>
-          </div>
-        </div>
-
-        <div class="reminder-form-actions">
-          <button class="btn btn-secondary btn-sm" id="btn-cancel-reminder">${I18n.t('reminders.cancel')}</button>
-          <button class="btn btn-primary btn-sm" id="btn-save-reminder">${I18n.t('reminders.save')}</button>
-        </div>
-      </div>
-    </div>
+    <!-- Add/Edit Form -->
+    <div id="reminder-form" class="rm-form hidden"></div>
   `;
 
   bindReminderEvents();
 }
 
 function renderReminderItem(r) {
-  const icon = r.mode === 'countdown' ? '🍅' : '💧';
+  const icon = r.mode === 'countdown' ? SVG.countdown : SVG.interval;
+  const iconClass = r.mode === 'countdown' ? 'rm-ico-timer' : 'rm-ico-drop';
   const statusLabel = I18n.t(`reminders.status${capitalize(r.status)}`) || r.status;
+  const statusClass = `rm-status-${r.status}`;
   const durationMin = Math.round(r.duration / 60);
   const isRunning = r.status === 'running';
   const isTriggered = r.status === 'triggered';
   const isPaused = r.status === 'paused';
+  const isCompleted = r.status === 'completed';
+
+  // Primary action button (context-aware)
+  let primaryBtn = '';
+  if (isRunning) {
+    primaryBtn = `<button class="rm-action" data-action="pause" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.pause')}">${SVG.pause}</button>`;
+  } else if (isPaused) {
+    primaryBtn = `<button class="rm-action" data-action="resume" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.resume')}">${SVG.resume}</button>`;
+  } else if (isTriggered) {
+    primaryBtn = `<button class="rm-action rm-action-accent" data-action="dismiss" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.dismiss')}">${SVG.dismiss}</button>`;
+  }
+
+  // Toggle button
+  const toggleBtn = r.enabled
+    ? `<button class="rm-action rm-action-on" data-action="toggle" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.disable')}">${SVG.power_on}</button>`
+    : `<button class="rm-action" data-action="toggle" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.enable')}">${SVG.power_off}</button>`;
 
   return `
-    <div class="reminder-item${isTriggered ? ' reminder-triggered' : ''}${!r.enabled ? ' reminder-disabled' : ''}" data-id="${escapeAttr(r.id)}">
-      <div class="reminder-item-left">
-        <div class="reminder-item-icon">${icon}</div>
-        <div class="reminder-item-info">
-          <div class="reminder-item-name">${escapeHtml(r.name)}</div>
-          <div class="reminder-item-detail">
-            ${r.mode === 'interval' ? I18n.t('reminders.every') : I18n.t('reminders.countdown')}
-            ${durationMin}min
-            ${r.round > 0 ? ' · ' + I18n.t('reminders.round') + ' ' + r.round : ''}
-            ${r.tts ? '' : ' · 🔇'}
-          </div>
+    <div class="rm-card${isTriggered ? ' rm-card-active' : ''}${!r.enabled ? ' rm-card-off' : ''}${isCompleted ? ' rm-card-done' : ''}" data-id="${escapeAttr(r.id)}">
+      <div class="rm-card-icon ${iconClass}">${icon}</div>
+      <div class="rm-card-body">
+        <div class="rm-card-name">${escapeHtml(r.name)}</div>
+        <div class="rm-card-meta">
+          <span>${r.mode === 'interval' ? I18n.t('reminders.every') : I18n.t('reminders.countdown')} ${durationMin}min</span>
+          ${r.round > 0 ? `<span class="rm-dot"></span><span>${I18n.t('reminders.round')} ${r.round}${r.total_rounds > 0 ? '/' + r.total_rounds : ''}</span>` : ''}
+          ${r.tts ? '' : `<span class="rm-dot"></span>${SVG.mute}`}
         </div>
       </div>
-      <div class="reminder-item-right">
-        <span class="reminder-status-badge reminder-status-${r.status}">${statusLabel}</span>
-        <div class="reminder-item-actions">
-          ${isRunning ? `<button class="btn-icon btn-icon-sm reminder-action-btn" data-action="pause" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.pause')}">⏸</button>` : ''}
-          ${isPaused ? `<button class="btn-icon btn-icon-sm reminder-action-btn" data-action="resume" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.resume')}">▶</button>` : ''}
-          ${isTriggered ? `<button class="btn-icon btn-icon-sm reminder-action-btn" data-action="dismiss" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.dismiss')}">✓</button>` : ''}
-          <button class="btn-icon btn-icon-sm reminder-action-btn" data-action="toggle" data-id="${escapeAttr(r.id)}" title="${r.enabled ? I18n.t('reminders.disable') : I18n.t('reminders.enable')}">${r.enabled ? '🔴' : '🟢'}</button>
-          <button class="btn-icon btn-icon-sm reminder-action-btn" data-action="edit" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.edit')}">✏</button>
-          <button class="btn-icon btn-icon-sm reminder-action-btn" data-action="delete" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.delete')}">🗑</button>
+      <div class="rm-card-side">
+        <span class="rm-badge ${statusClass}">${statusLabel}</span>
+        <div class="rm-card-btns">
+          ${primaryBtn}
+          ${toggleBtn}
+          <button class="rm-action" data-action="edit" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.edit')}">${SVG.edit}</button>
+          <button class="rm-action rm-action-danger" data-action="delete" data-id="${escapeAttr(r.id)}" title="${I18n.t('reminders.delete')}">${SVG.delete}</button>
         </div>
       </div>
     </div>
@@ -191,46 +121,143 @@ function renderReminderItem(r) {
 // ==================== Events ====================
 
 function bindReminderEvents() {
-  // Add button
   const addBtn = document.getElementById('btn-add-reminder');
   if (addBtn) addBtn.addEventListener('click', () => showReminderForm(null));
 
-  // Mode toggle
+  const list = document.getElementById('reminders-list');
+  if (list) {
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('.rm-action');
+      if (!btn) return;
+      handleReminderAction(btn.dataset.action, btn.dataset.id);
+    });
+  }
+}
+
+function showReminderForm(id) {
+  editTarget = id;
+  const form = document.getElementById('reminder-form');
+  if (!form) return;
+
+  const isEdit = !!id;
+  const r = isEdit ? reminders.find(x => x.id === id) : null;
+  const mode = r ? r.mode : 'interval';
+
+  form.classList.remove('hidden');
+  form.innerHTML = renderFormHTML(isEdit, r, mode);
+
+  // Bind mode segments
   const modeSegments = document.getElementById('reminder-mode-segments');
   if (modeSegments) {
     modeSegments.querySelectorAll('.segment').forEach((seg) => {
       seg.addEventListener('click', () => {
         modeSegments.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
         seg.classList.add('active');
-        const mode = seg.dataset.mode;
-        toggleCountdownFields(mode === 'countdown');
-        // Default auto_start based on mode
+        toggleCountdownFields(seg.dataset.mode === 'countdown');
         const autoStartCheckbox = document.getElementById('reminder-auto-start');
         if (autoStartCheckbox && !editTarget) {
-          autoStartCheckbox.checked = mode === 'interval';
+          autoStartCheckbox.checked = seg.dataset.mode === 'interval';
         }
       });
     });
   }
 
-  // Cancel
   const cancelBtn = document.getElementById('btn-cancel-reminder');
   if (cancelBtn) cancelBtn.addEventListener('click', () => hideReminderForm());
 
-  // Save
   const saveBtn = document.getElementById('btn-save-reminder');
   if (saveBtn) saveBtn.addEventListener('click', () => saveReminder());
 
-  // List actions
-  const list = document.getElementById('reminders-list');
-  if (list) {
-    list.addEventListener('click', (e) => {
-      const btn = e.target.closest('.reminder-action-btn');
-      if (!btn) return;
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      handleReminderAction(action, id);
-    });
+  // Scroll into view
+  form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderFormHTML(isEdit, r, mode) {
+  const name = r ? r.name : '';
+  const duration = r ? Math.round(r.duration / 60) : 30;
+  const breakDur = r && r.break_duration ? Math.round(r.break_duration / 60) : 5;
+  const rounds = r ? (r.total_rounds || 0) : 4;
+  const autoStart = r ? r.auto_start : true;
+  const tts = r ? r.tts : true;
+  const action = r ? (r.action || '') : '';
+  const isCountdown = mode === 'countdown';
+
+  return `
+    <div class="rm-form-inner">
+      <div class="rm-form-head">
+        <span class="rm-form-title">${isEdit ? I18n.t('reminders.editTitle') : I18n.t('reminders.addTitle')}</span>
+        <button class="rm-form-close" id="btn-cancel-reminder" title="${I18n.t('reminders.cancel')}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="rm-form-row">
+        <div class="rm-field">
+          <label class="rm-label">${I18n.t('reminders.fieldName')}</label>
+          <input type="text" id="reminder-name" class="form-input rm-input" placeholder="${I18n.t('reminders.fieldNamePlaceholder')}" value="${escapeAttr(name)}">
+        </div>
+        <div class="rm-field rm-field-sm">
+          <label class="rm-label">${I18n.t('reminders.fieldMode')}</label>
+          <div class="segmented-control" id="reminder-mode-segments">
+            <button class="segment${mode === 'interval' ? ' active' : ''}" data-mode="interval">${I18n.t('reminders.modeInterval')}</button>
+            <button class="segment${mode === 'countdown' ? ' active' : ''}" data-mode="countdown">${I18n.t('reminders.modeCountdown')}</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rm-form-row">
+        <div class="rm-field rm-field-sm">
+          <label class="rm-label">${I18n.t('reminders.fieldDuration')}</label>
+          <div class="rm-input-group">
+            <input type="number" id="reminder-duration-min" class="form-input rm-input rm-input-narrow" min="1" max="720" value="${duration}">
+            <span class="rm-unit">${I18n.t('reminders.minutes')}</span>
+          </div>
+        </div>
+        <div class="rm-field rm-field-sm${isCountdown ? '' : ' hidden'}" id="reminder-break-item">
+          <label class="rm-label">${I18n.t('reminders.fieldBreakDuration')}</label>
+          <div class="rm-input-group">
+            <input type="number" id="reminder-break-min" class="form-input rm-input rm-input-narrow" min="0" max="120" value="${breakDur}">
+            <span class="rm-unit">${I18n.t('reminders.minutes')}</span>
+          </div>
+        </div>
+        <div class="rm-field rm-field-sm${isCountdown ? '' : ' hidden'}" id="reminder-rounds-item">
+          <label class="rm-label">${I18n.t('reminders.fieldTotalRounds')}</label>
+          <input type="number" id="reminder-rounds" class="form-input rm-input rm-input-narrow" min="0" max="20" value="${rounds}">
+        </div>
+      </div>
+
+      <div class="rm-form-row">
+        <div class="rm-field rm-field-sm">
+          <label class="rm-label">${I18n.t('reminders.fieldAction')}</label>
+          <input type="text" id="reminder-action" class="form-input rm-input" placeholder="${I18n.t('reminders.fieldActionPlaceholder')}" value="${escapeAttr(action)}" style="max-width:160px;">
+        </div>
+      </div>
+
+      <div class="rm-form-toggles">
+        <label class="rm-toggle-row">
+          <span class="rm-toggle-label">${I18n.t('reminders.fieldAutoStart')}<span class="rm-toggle-desc">${I18n.t('reminders.fieldAutoStartDesc')}</span></span>
+          <label class="toggle"><input type="checkbox" id="reminder-auto-start" ${autoStart ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        </label>
+        <label class="rm-toggle-row">
+          <span class="rm-toggle-label">${I18n.t('reminders.fieldTTS')}<span class="rm-toggle-desc">${I18n.t('reminders.fieldTTSDesc')}</span></span>
+          <label class="toggle"><input type="checkbox" id="reminder-tts" ${tts ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        </label>
+      </div>
+
+      <div class="rm-form-foot">
+        <button class="btn btn-secondary btn-sm" id="btn-cancel-reminder">${I18n.t('reminders.cancel')}</button>
+        <button class="btn btn-primary btn-sm" id="btn-save-reminder">${I18n.t('reminders.save')}</button>
+      </div>
+    </div>
+  `;
+}
+
+function hideReminderForm() {
+  editTarget = null;
+  const form = document.getElementById('reminder-form');
+  if (form) {
+    form.classList.add('hidden');
+    form.innerHTML = '';
   }
 }
 
@@ -239,50 +266,6 @@ function toggleCountdownFields(show) {
   const roundsItem = document.getElementById('reminder-rounds-item');
   if (breakItem) breakItem.classList.toggle('hidden', !show);
   if (roundsItem) roundsItem.classList.toggle('hidden', !show);
-}
-
-function showReminderForm(id) {
-  editTarget = id;
-  const form = document.getElementById('reminder-form');
-  const titleEl = document.getElementById('reminder-form-title');
-  if (!form) return;
-
-  form.classList.remove('hidden');
-
-  if (id) {
-    const r = reminders.find(x => x.id === id);
-    if (!r) return;
-    titleEl.textContent = I18n.t('reminders.editTitle');
-    document.getElementById('reminder-name').value = r.name;
-    // Set mode
-    const modeSegments = document.getElementById('reminder-mode-segments');
-    modeSegments.querySelectorAll('.segment').forEach(seg => {
-      seg.classList.toggle('active', seg.dataset.mode === r.mode);
-    });
-    document.getElementById('reminder-duration-min').value = Math.round(r.duration / 60);
-    document.getElementById('reminder-break-min').value = r.break_duration ? Math.round(r.break_duration / 60) : 5;
-    document.getElementById('reminder-rounds').value = r.total_rounds || 0;
-    document.getElementById('reminder-auto-start').checked = r.auto_start;
-    document.getElementById('reminder-tts').checked = r.tts;
-    document.getElementById('reminder-action').value = r.action || '';
-    toggleCountdownFields(r.mode === 'countdown');
-  } else {
-    titleEl.textContent = I18n.t('reminders.addTitle');
-    document.getElementById('reminder-name').value = '';
-    document.getElementById('reminder-duration-min').value = 30;
-    document.getElementById('reminder-break-min').value = 5;
-    document.getElementById('reminder-rounds').value = 4;
-    document.getElementById('reminder-auto-start').checked = true;
-    document.getElementById('reminder-tts').checked = true;
-    document.getElementById('reminder-action').value = '';
-    toggleCountdownFields(false);
-  }
-}
-
-function hideReminderForm() {
-  editTarget = null;
-  const form = document.getElementById('reminder-form');
-  if (form) form.classList.add('hidden');
 }
 
 async function saveReminder() {
@@ -299,19 +282,17 @@ async function saveReminder() {
   const action = (document.getElementById('reminder-action')?.value || '').trim();
 
   const body = {
-    name,
-    mode,
+    name, mode,
     duration: durationMin * 60,
     break_duration: breakMin * 60,
     total_rounds: totalRounds,
     auto_start: autoStart,
-    tts,
-    action,
+    tts, action,
   };
 
   if (editTarget) {
     body.id = editTarget;
-    body.start = false; // Don't restart when just editing
+    body.start = false;
   }
 
   try {
@@ -344,7 +325,7 @@ async function handleReminderAction(action, id) {
         break;
       case 'edit':
         showReminderForm(id);
-        return; // don't reload
+        return;
       case 'delete':
         if (!confirm(I18n.t('reminders.deleteConfirm'))) return;
         await fetch(`${API_REMINDERS}/${encodeURIComponent(id)}`, { method: 'DELETE' });
