@@ -59,6 +59,7 @@ She's not just a static widget. Powered by an AI agent, she **chooses her own ex
 - 📡 **Agent state awareness** — the character mirrors your AI agent's real-time state: working mode (typing animation) when the agent processes tasks, idle when done, wave on session start, kiss on session end. A context usage bar shows how much of the AI's memory window is consumed, so you know when a conversation is getting long.
 - 🎨 **Canvas whiteboard** — built-in Excalidraw overlay for visual collaboration. The agent draws diagrams, guides attention, and you can edit alongside it
 - 💬 **Built-in chat window** — standalone Hermes client with SSE streaming, tool progress, model switcher, and Markdown rendering. No terminal needed
+- ⏰ **Reminder system** — interval reminders ("drink water every 30 min") and Pomodoro timers with work/break cycles, desktop card overlay, TTS voice, and character actions
 
 <p align="center">
   <img src="docs/context-usage-demo.png" alt="Agent state awareness — context usage bar shows 57% used (yellow) while Cloe is in working mode" width="280" />
@@ -79,6 +80,10 @@ curl -s http://localhost:19851/action -d '{"action":"speak","audio":"doing"}'
 # Check she's alive
 curl -s http://localhost:19851/status
 # → {"ws_port":19850,"http_port":19851,"clients":1}
+
+# Set a reminder
+curl -s -X POST http://localhost:19851/reminders -H 'Content-Type: application/json' \
+  -d '{"name":"Drink water","mode":"interval","duration":1800,"action":"wave"}'
 ```
 
 ---
@@ -486,6 +491,47 @@ The chat window positions itself next to the character window. It's a separate `
 ```
 
 The main process acts as an IPC proxy, forwarding chat requests to the Hermes API Server and streaming responses back. This avoids CORS restrictions while keeping the chat window lightweight.
+
+---
+
+## Reminders — Interval & Pomodoro Timers
+
+Cloe Desktop includes a built-in **reminder engine** that triggers desktop notifications, character animations, and voice at scheduled intervals. Two modes are supported:
+
+- **Interval** — repeating timer (e.g., "drink water every 30 minutes"), auto-restarts after each trigger
+- **Countdown (Pomodoro)** — work/break cycle timer with configurable rounds (e.g., 25 min work → 5 min break × 4 rounds)
+
+When a reminder fires, Cloe shows a **frosted-glass card** below the character, plays the configured **action animation** (wave, clap, etc.), and optionally **speaks** via TTS ("Drink water time!").
+
+### Quick Start
+
+```bash
+# Interval: remind to drink water every 30 min, wave + speak
+curl -s -X POST http://localhost:19851/reminders -H 'Content-Type: application/json' \
+  -d '{"name":"Drink water","mode":"interval","duration":1800,"action":"wave","tts":true}'
+
+# Pomodoro: 25 min work + 5 min break, 4 rounds
+curl -s -X POST http://localhost:19851/reminders -H 'Content-Type: application/json' \
+  -d '{"name":"Focus","mode":"countdown","duration":1500,"break_duration":300,"total_rounds":4,"action":"clap"}'
+
+# List all reminders
+curl -s http://localhost:19851/reminders
+```
+
+### Reminder API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/reminders` | GET | List all reminders |
+| `/reminders` | POST | Create or update (add `id` + `start: true` to restart timer) |
+| `/reminders/:id/dismiss` | POST | Dismiss current trigger (auto-starts next round if enabled) |
+| `/reminders/:id/stop` | POST | Stop and disable |
+| `/reminders/:id/toggle` | POST | Enable / disable |
+| `/reminders/:id/pause` | POST | Pause (remembers remaining time) |
+| `/reminders/:id/resume` | POST | Resume from paused state |
+| `/reminders/:id` | DELETE | Delete permanently |
+
+Reminders persist to `~/.cloe/reminders.json` and automatically restore on app restart. Full API details and examples are in the [skill documentation](docs/skills/cloe-desktop-action/references/reminders-api.md).
 
 ---
 
