@@ -264,7 +264,6 @@ function renderFormHTML(isEdit, r, mode) {
       </div>
 
       <div class="rm-form-foot">
-        <button class="btn btn-secondary btn-sm" id="btn-cancel-reminder">${I18n.t('reminders.cancel')}</button>
         <button class="btn btn-primary btn-sm" id="btn-save-reminder">${I18n.t('reminders.save')}</button>
       </div>
     </div>
