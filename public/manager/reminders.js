@@ -4,13 +4,28 @@
 const API_REMINDERS = API_CONFIG_BASE + '/reminders';
 
 function initRemindersTab() {
-  loadReminders();
+  loadAvailableActions().then(() => loadReminders());
+}
+
+async function loadAvailableActions() {
+  try {
+    const res = await fetch(API_CONFIG_BASE + '/actions');
+    const data = await res.json();
+    availableActions = (data.actions || []).filter(a =>
+      // Exclude util/internal actions not suitable for reminders
+      !['working', 'idle', 'walk_right', 'walk_left', 'speak'].includes(a.name)
+    );
+  } catch (e) {
+    console.error('[Reminders] load actions failed:', e);
+    availableActions = [];
+  }
 }
 
 // ==================== Data ====================
 
 let reminders = [];
 let editTarget = null; // null = creating new, string = editing id
+let availableActions = []; // cached action list from /actions API
 
 // ==================== SVG Icons (Lucide-style) ====================
 
@@ -103,6 +118,7 @@ function renderReminderItem(r) {
           <span>${r.mode === 'interval' ? I18n.t('reminders.every') : I18n.t('reminders.countdown')} ${durationMin}min</span>
           ${r.round > 0 ? `<span class="rm-dot"></span><span>${I18n.t('reminders.round')} ${r.round}${r.total_rounds > 0 ? '/' + r.total_rounds : ''}</span>` : ''}
           ${r.tts ? '' : `<span class="rm-dot"></span>${SVG.mute}`}
+          ${isRunning && r.trigger_at ? `<span class="rm-dot"></span><span class="rm-next-time">${formatNextTime(r.trigger_at)}</span>` : ''}
         </div>
       </div>
       <div class="rm-card-side">
@@ -229,7 +245,10 @@ function renderFormHTML(isEdit, r, mode) {
       <div class="rm-form-row">
         <div class="rm-field rm-field-sm">
           <label class="rm-label">${I18n.t('reminders.fieldAction')}</label>
-          <input type="text" id="reminder-action" class="form-input rm-input" placeholder="${I18n.t('reminders.fieldActionPlaceholder')}" value="${escapeAttr(action)}" style="max-width:160px;">
+          <select id="reminder-action" class="form-input rm-input rm-select">
+            <option value="">${I18n.t('reminders.fieldActionPlaceholder')}</option>
+            ${availableActions.map(a => `<option value="${escapeAttr(a.name)}"${a.name === action ? ' selected' : ''}>${escapeHtml(a.name)} — ${escapeHtml(a.description || '')}</option>`).join('')}
+          </select>
         </div>
       </div>
 
@@ -341,6 +360,22 @@ async function handleReminderAction(action, id) {
 
 function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatNextTime(triggerAtIso) {
+  try {
+    const target = new Date(triggerAtIso);
+    const now = new Date();
+    const diffMs = target - now;
+    if (diffMs <= 0) return '';
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return '即将提醒';
+    if (diffMin < 60) return `${diffMin}分钟后`;
+    const targetStr = target.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    return `${targetStr}提醒`;
+  } catch {
+    return '';
+  }
 }
 
 function escapeHtml(str) {
