@@ -24,6 +24,7 @@ curl -s http://localhost:19851/status
 | [references/terminal.md](references/terminal.md) | 嵌入终端、模式切换、快捷键 |
 | [references/terminal-effect.md](references/terminal-effect.md) | 终端特效（字符掉落等） |
 | [references/plugin.md](references/plugin.md) | Hermes Plugin 自动触发规则 |
+| [references/reminders-api.md](references/reminders-api.md) | 提醒系统 API（周期提醒、番茄钟） |
 
 ## 快速参考
 
@@ -55,6 +56,10 @@ curl -s http://localhost:19851/action -d '{"action":"smash_screen"}'
 curl -s http://localhost:19851/character-layout
 curl -s -X POST http://localhost:19851/character-layout -H 'Content-Type: application/json' \
   -d '{"position":{"x":0.7,"y":1},"size":{"scale":1.2}}'
+
+# 提醒系统：创建周期提醒
+curl -s -X POST http://localhost:19851/reminders -H 'Content-Type: application/json' \
+  -d '{"name":"喝水","mode":"interval","duration":1800,"action":"wave"}'
 ```
 
 ## 项目位置
