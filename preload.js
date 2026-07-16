@@ -3,11 +3,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   moveWindow: (dx, dy) => ipcRenderer.send('window-move', { dx, dy }),
   getDataDir: () => ipcRenderer.sendSync('get-data-dir'),
-  // PTY
-  ptySpawn: (cols, rows) => ipcRenderer.send('pty-spawn', { cols, rows }),
-  ptyWrite: (data) => ipcRenderer.send('pty-write', data),
-  ptyResize: (cols, rows) => ipcRenderer.send('pty-resize', { cols, rows }),
-  onPtyData: (cb) => ipcRenderer.on('pty-data', (_e, data) => cb(data)),
+  // PTY (multi-tab: ptyId identifies each session)
+  ptySpawn: (ptyId, cols, rows) => ipcRenderer.send('pty-spawn', { ptyId, cols, rows }),
+  ptyWrite: (ptyId, data) => ipcRenderer.send('pty-write', { ptyId, data }),
+  ptyResize: (ptyId, cols, rows) => ipcRenderer.send('pty-resize', { ptyId, cols, rows }),
+  ptyKill: (ptyId) => ipcRenderer.send('pty-kill', { ptyId }),
+  onPtyData: (cb) => ipcRenderer.on('pty-data', (_e, { ptyId, data }) => cb(ptyId, data)),
   // Window mode
   setWindowMode: (mode) => ipcRenderer.send('set-window-mode', mode),
   toggleFullscreen: () => ipcRenderer.send('toggle-fullscreen'),

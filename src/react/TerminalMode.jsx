@@ -1,53 +1,78 @@
 /**
- * TerminalMode — xterm.js terminal rendered inside the React overlay.
+ * TerminalMode — Multi-tab xterm.js terminal renderer.
  *
- * Spawns PTY via Electron preload (window.electronAPI), manages fit on resize.
- * Includes Code Walk mode for interactive code walkthroughs with comments.
+ * Manages a pool of xterm.js instances (one per tab). Only the active
+ * tab's xterm is visible; others are hidden via display:none and lazily
+ * initialized on first activation.
+ *
+ * PTY I/O is routed through window.electronAPI with ptyId to distinguish
+ * multiple PTY sessions. Tab titles are auto-updated from OSC escape sequences.
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getThemeById, DEFAULT_THEME_ID } from './terminalThemes';
 
-export default function TerminalMode() {
-  const containerRef = useRef(null);
-  const inputRef = useRef(null);
+const OSC_TITLE_RE = /\x1b\][012];([^\x07]*)\x07/;
+
+/** Lazily create a single xterm instance attached to the given container. */
+function createXtermInstance(container, themeId) {
+  const { Terminal } = require('xterm');
+  const { FitAddon } = require('@xterm/addon-fit');
+  require('xterm/css/xterm.css');
+
+  const xterm = new Terminal({
+    cursorBlink: true,
+    cursorStyle: 'block',
+    fontSize: 14,
+    lineHeight: 1.3,
+    fontFamily: "'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
+    theme: getThemeById(themeId).theme,
+    allowTransparency: true,
+    scrollback: 5000,
+    macOptionIsMeta: true,
+  });
+
+  const fit = new FitAddon();
+  xterm.loadAddon(fit);
+  xterm.open(container);
+
+  return { xterm, fit };
+}
+
+export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
+  // One container ref per tab — always mounted, display toggled
+  const containerRefs = useRef({});
+  const xtermPool = useRef(new Map()); // tabId → { xterm, fit }
   const initialized = useRef(false);
 
-  // Comment input overlay state
+  // Comment input overlay state (Code Walk)
   const [showInput, setShowInput] = useState(false);
+  const inputRef = useRef(null);
   const codeWalkRef = useRef(null);
 
-  // Theme state — read from localStorage, fallback to default
+  // Theme state
   const [themeId, setThemeId] = useState(
     () => localStorage.getItem('cloe-terminal-theme') || DEFAULT_THEME_ID
   );
 
-  // Apply theme to xterm + overlay when theme changes
   const applyTheme = useCallback((id) => {
     const themeData = getThemeById(id);
-    if (window.xtermInstance) {
-      window.xtermInstance.options.theme = themeData.theme;
-    }
-    // Update overlay background via CSS variable
+    xtermPool.current.forEach(({ xterm }) => {
+      xterm.options.theme = themeData.theme;
+    });
     document.documentElement.style.setProperty('--terminal-bg', themeData.bg);
   }, []);
 
-  useEffect(() => {
-    applyTheme(themeId);
-  }, [themeId, applyTheme]);
+  useEffect(() => { applyTheme(themeId); }, [themeId, applyTheme]);
 
-  // Listen for theme changes from titlebar selector
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'cloe-terminal-theme' && e.newValue) {
-        setThemeId(e.newValue);
-      }
+      if (e.key === 'cloe-terminal-theme' && e.newValue) setThemeId(e.newValue);
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
   }, []);
 
-  // Expose theme switcher for titlebar (same-window, no localStorage roundtrip)
   useEffect(() => {
     window.cloeSetTerminalTheme = (id) => {
       localStorage.setItem('cloe-terminal-theme', id);
@@ -56,315 +81,243 @@ export default function TerminalMode() {
     return () => { delete window.cloeSetTerminalTheme; };
   }, []);
 
-  const handleCommentSubmit = useCallback((text) => {
-    setShowInput(false);
-    // Must refocus xterm after input overlay disappears
-    setTimeout(() => {
-      if (codeWalkRef.current) codeWalkRef.current.refocus();
-    }, 0);
-    if (codeWalkRef.current) {
-      codeWalkRef.current.submitComment(text);
-    }
-  }, []);
-
-  const handleCommentCancel = useCallback(() => {
-    setShowInput(false);
-    setTimeout(() => {
-      if (codeWalkRef.current) codeWalkRef.current.refocus();
-    }, 0);
-  }, []);
-
+  // ── Initialize PTY listener and xterm pool ──────────────────────
   useEffect(() => {
-    if (showInput && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [showInput]);
-
-  useEffect(() => {
-    if (initialized.current || !containerRef.current) return;
+    if (initialized.current) return;
     initialized.current = true;
 
     let destroyed = false;
 
-    (async () => {
-      const { Terminal } = await import('xterm');
-      const { FitAddon } = await import('@xterm/addon-fit');
-      await import('xterm/css/xterm.css');
+    // PTY output → route to the correct xterm instance
+    window.electronAPI.onPtyData((ptyId, data) => {
+      if (destroyed) return;
 
-      if (destroyed || !containerRef.current) return;
+      // Extract OSC title and notify parent
+      const oscMatch = data.match(OSC_TITLE_RE);
+      if (oscMatch) {
+        updateTabTitle(ptyId, oscMatch[1]);
+      }
 
-      const xterm = new Terminal({
-        cursorBlink: true,
-        cursorStyle: 'block',
-        fontSize: 14,
-        lineHeight: 1.3,
-        fontFamily: "'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
-        theme: getThemeById(themeId).theme,
-        allowTransparency: true,
-        scrollback: 5000,
-        macOptionIsMeta: true,
-      });
+      let entry = xtermPool.current.get(ptyId);
+      if (!entry) return; // tab not yet visible — data is lost (acceptable)
+      if (!entry._codeWalk?.active) {
+        entry.xterm.write(data);
+      }
+    });
 
-      const fit = new FitAddon();
-      xterm.loadAddon(fit);
-      xterm.open(containerRef.current);
+    // Spawn the default PTY on first load
+    const firstTab = tabs[0];
+    if (firstTab) {
+      window.electronAPI.ptySpawn(firstTab.id, 80, 24);
+    }
 
-      window.xtermInstance = xterm;
-
-      // ── Code Walk Mode ────────────────────────────────────────────
-      const codeWalk = {
-        active: false,
-        steps: [],
-        current: 0,
-        comments: [],       // { stepIndex, stepTitle, file, lines, text }
-        summaryShown: false,
-        diffMode: false,    // toggle git diff view
-        _onCommentDone: null, // callback after comment submitted/cancelled
-
-        start(renderedSteps) {
-          codeWalk.active = true;
-          codeWalk.steps = renderedSteps;
-          codeWalk.current = 0;
-          codeWalk.comments = [];
-          codeWalk.summaryShown = false;
-          codeWalk.diffMode = false;
-          // Reset terminal to normal mode (in case shell enabled application cursor keys)
-          xterm.write('\x1b[?1l\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
-          try { fit.fit(); } catch {}
-          codeWalk.render(0);
-        },
-
-        stop(forceQuit) {
-          // If comments exist and not yet shown summary, show it first
-          if (!forceQuit && codeWalk.comments.length > 0 && !codeWalk.summaryShown) {
-            codeWalk.showSummary();
-            return;
-          }
-          codeWalk.active = false;
-          codeWalk.steps = [];
-          codeWalk.current = 0;
-          codeWalk.comments = [];
-          codeWalk.summaryShown = false;
-          codeWalk.diffMode = false;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25h');
-          window.electronAPI.ptyWrite('\x0c');
-        },
-
-        render(index) {
-          const step = codeWalk.steps[index];
-          if (!step) return;
-          const total = codeWalk.steps.length;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
-
-          const header = step.title || ('Step ' + (index + 1));
-          xterm.write('\x1b[1;36m╔═══ ' + header + ' ═══╗\x1b[0m\r\n');
-          xterm.write('\x1b[90m  ' + (step.file || '') + ':' + (step.start || '') + '-' + (step.end || '') + '\x1b[0m\r\n');
-
-          if (codeWalk.diffMode) {
-            // ── Diff view ──
-            xterm.write('\r\n\x1b[1;33m📊 Diff (HEAD → working tree)\x1b[0m\r\n');
-            if (step.diffAnsi) {
-              xterm.write('\r\n');
-              xterm.write(step.diffAnsi.replace(/\r?\n/g, '\r\n'));
-            } else {
-              xterm.write('\r\n\x1b[90m  (no uncommitted changes for this file)\x1b[0m\r\n');
-            }
-          } else {
-            // ── Normal code view ──
-            xterm.write('\r\n');
-            if (step.ansi) {
-              xterm.write(step.ansi.replace(/\r?\n/g, '\r\n'));
-            }
-
-            if (step.note) {
-              xterm.write('\r\n\x1b[33m💡 ' + step.note + '\x1b[0m\r\n');
-            }
-          }
-
-          // Show existing comments for this step
-          const stepComments = codeWalk.comments.filter(c => c.stepIndex === index);
-          if (stepComments.length > 0) {
-            xterm.write('\r\n\x1b[36m💬 Comments (' + stepComments.length + '):\x1b[0m\r\n');
-            for (const c of stepComments) {
-              xterm.write('\x1b[90m  • \x1b[0m' + c.text + '\r\n');
-            }
-          }
-
-          const commentCount = codeWalk.comments.length;
-          const badge = commentCount > 0
-            ? ' \x1b[33m[' + commentCount + ' comment' + (commentCount > 1 ? 's' : '') + ']\x1b[0m'
-            : '';
-          const diffBadge = codeWalk.diffMode ? ' \x1b[1;32m[DIFF]\x1b[0m' : '';
-          xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [d] diff  [j/k] scroll  [↑↓] scroll  [q/Esc] quit ── '
-            + (index + 1) + '/' + total + badge + diffBadge + ' ──\x1b[0m');
-          xterm.scrollToTop();
-        },
-
-        next() {
-          if (codeWalk.current < codeWalk.steps.length - 1) {
-            codeWalk.current++;
-            codeWalk.render(codeWalk.current);
-          } else {
-            xterm.write('\x1b[s\x1b[999;1H\r\n\x1b[90m── already at last step ──\x1b[0m\x1b[u');
-          }
-        },
-
-        prev() {
-          if (codeWalk.current > 0) {
-            codeWalk.current--;
-            codeWalk.render(codeWalk.current);
-          } else {
-            xterm.write('\x1b[s\x1b[999;1H\r\n\x1b[90m── already at first step ──\x1b[0m\x1b[u');
-          }
-        },
-
-        submitComment(text) {
-          const trimmed = (text || '').trim();
-          if (trimmed) {
-            const step = codeWalk.steps[codeWalk.current];
-            codeWalk.comments.push({
-              stepIndex: codeWalk.current,
-              stepTitle: step?.title || '',
-              file: step?.file || '',
-              lines: (step?.start || '') + '-' + (step?.end || ''),
-              text: trimmed,
-              timestamp: new Date().toISOString(),
-            });
-          }
-          codeWalk.render(codeWalk.current);
-        },
-
-        refocus() {
-          xterm.focus();
-        },
-
-        toggleDiff() {
-          codeWalk.diffMode = !codeWalk.diffMode;
-          codeWalk.render(codeWalk.current);
-        },
-
-        showSummary() {
-          codeWalk.summaryShown = true;
-          xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
-          xterm.write('\x1b[1;36m╔══════════════════════════════════════╗\x1b[0m\r\n');
-          xterm.write('\x1b[1;36m║      📋 Code Review Summary          ║\x1b[0m\r\n');
-          xterm.write('\x1b[1;36m╚══════════════════════════════════════╝\x1b[0m\r\n\r\n');
-
-          if (codeWalk.comments.length === 0) {
-            xterm.write('\x1b[90m  No comments submitted.\x1b[0m\r\n');
-          } else {
-            let prevStep = -1;
-            for (const c of codeWalk.comments) {
-              if (c.stepIndex !== prevStep) {
-                if (prevStep >= 0) xterm.write('\r\n');
-                xterm.write('\x1b[33m  Step ' + (c.stepIndex + 1) + ': ' + c.stepTitle + '\x1b[0m\r\n');
-                xterm.write('\x1b[90m  ' + c.file + ':' + c.lines + '\x1b[0m\r\n');
-                prevStep = c.stepIndex;
-              }
-              xterm.write('\x1b[36m  💬 \x1b[0m' + c.text + '\r\n');
-            }
-            xterm.write('\r\n\x1b[90m  ── Total: ' + codeWalk.comments.length + ' comment'
-              + (codeWalk.comments.length > 1 ? 's' : '') + ' ──\x1b[0m\r\n');
-          }
-
-          xterm.write('\r\n\x1b[90m── [Enter/q] close & submit  [p] go back to review ──\x1b[0m');
-        },
-      };
-
-      window.cloeCodeWalk = codeWalk;
-      codeWalkRef.current = codeWalk;
-
-      // ── PTY output → xterm (filtered during codeWalk) ─────────────
-      window.electronAPI.onPtyData((data) => {
-        if (!destroyed && !codeWalk.active) xterm.write(data);
-      });
-
-      // ── xterm input → PTY or codeWalk handler ─────────────────────
-      xterm.onData((data) => {
-        if (destroyed) return;
-
-        // Code Walk mode
-        if (codeWalk.active) {
-          // Summary view
-          if (codeWalk.summaryShown) {
-            if (data === '\x1b' || data === 'q' || data === 'Q' || data === '\r') {
-              codeWalk.stop(true);
-              return;
-            }
-            if (data === 'p' || data === 'P') {
-              codeWalk.summaryShown = false;
-              codeWalk.render(codeWalk.current);
-              return;
-            }
-            return;
-          }
-
-          // Normal walkthrough navigation (comment input handled by HTML overlay)
-          // xterm.onData 收到的是终端协议字符串，不是键盘事件。
-          // \x1b = ESC (ASCII 27)，后面跟 [ + 字母/数字组成 ANSI escape sequence。
-          if (data === '\x1b') { codeWalk.stop(); return; }              // Esc → 退出
-          if (data === 'n' || data === 'N' || data === ' ') { codeWalk.next(); return; }
-          if (data === 'p' || data === 'P') { codeWalk.prev(); return; }
-          if (data === 'q' || data === 'Q') { codeWalk.stop(); return; }
-          if (data === 'c' || data === 'C') {
-            // Trigger React state to show HTML input overlay
-            setShowInput(true);
-            return;
-          }
-          if (data === 'd' || data === 'D') { codeWalk.toggleDiff(); return; }
-          if (data === 'j') { xterm.scrollLines(3); return; }           // vim: j — 向下滚动3行
-          if (data === 'k') { xterm.scrollLines(-3); return; }          // vim: k — 向上滚动3行
-          if (data === '\x1b[A' || data === '\x1bOA') { xterm.scrollLines(-3); return; }  // ArrowUp 键 — 向上滚动3行
-          if (data === '\x1b[B' || data === '\x1bOB') { xterm.scrollLines(3); return; }   // ArrowDown 键 — 向下滚动3行
-          if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }     // PageUp 键 — 向上翻1页
-          if (data === '\x1b[6~') { xterm.scrollPages(1); return; }      // PageDown 键 — 向下翻1页
-          if (data === '\x1b[H' || data === '\x1bOH') { xterm.scrollToTop(); return; }    // Home 键 — 滚动到顶部
-          if (data === '\x1b[F' || data === '\x1bOF') { xterm.scrollToBottom(); return; } // End 键 — 滚动到底部
-          return;
-        }
-
-        // Normal mode: forward to PTY
-        window.electronAPI.ptyWrite(data);
-      });
-
-      // Spawn PTY after DOM renders
-      setTimeout(() => {
-        if (destroyed) return;
-        fit.fit();
-        window.electronAPI.ptySpawn(xterm.cols, xterm.rows);
-        xterm.focus();
-      }, 150);
-
-      // Resize
-      const doResize = () => {
-        try { fit.fit(); } catch {}
-        if (!destroyed) window.electronAPI.ptyResize(xterm.cols, xterm.rows);
-      };
-      window.addEventListener('resize', doResize);
-    })();
-
-    return () => {
-      destroyed = true;
-      window.removeEventListener('resize', () => {});
-    };
+    return () => { destroyed = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Ensure every tab has a container div ────────────────────────
+  // When tabs change, new tabs need a ref target for lazy xterm init
+  useEffect(() => {
+    for (const tab of tabs) {
+      if (!containerRefs.current[tab.id]) {
+        containerRefs.current[tab.id] = React.createRef();
+      }
+    }
+  }, [tabs]);
+
+  // ── Activate a tab: lazy-create xterm, fit, focus ─────────────
+  const ensureXtermForTab = useCallback((tabId) => {
+    let entry = xtermPool.current.get(tabId);
+    if (entry) return entry;
+
+    const containerEl = containerRefs.current[tabId]?.current;
+    if (!containerEl) return null;
+
+    const { xterm, fit } = createXtermInstance(containerEl, themeId);
+    entry = { xterm, fit };
+
+    // ── Code Walk setup (per-instance) ──
+    entry._codeWalk = {
+      active: false, steps: [], current: 0,
+      comments: [], summaryShown: false, diffMode: false,
+
+      start(renderedSteps) {
+        const cw = entry._codeWalk;
+        cw.active = true; cw.steps = renderedSteps; cw.current = 0;
+        cw.comments = []; cw.summaryShown = false; cw.diffMode = false;
+        xterm.write('\x1b[?1l\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
+        try { fit.fit(); } catch {}
+        cw.render(0);
+      },
+
+      stop(forceQuit) {
+        const cw = entry._codeWalk;
+        if (!forceQuit && cw.comments.length > 0 && !cw.summaryShown) {
+          cw.showSummary(); return;
+        }
+        cw.active = false; cw.steps = []; cw.current = 0;
+        cw.comments = []; cw.summaryShown = false; cw.diffMode = false;
+        xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25h');
+        window.electronAPI.ptyWrite(tabId, '\x0c');
+      },
+
+      render(index) {
+        const cw = entry._codeWalk;
+        const step = cw.steps[index]; if (!step) return;
+        const total = cw.steps.length;
+        xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l');
+        xterm.write('\x1b[1;36m╔═══ ' + (step.title || 'Step ' + (index + 1)) + ' ═══╗\x1b[0m\r\n');
+        xterm.write('\x1b[90m  ' + (step.file || '') + ':' + (step.start || '') + '-' + (step.end || '') + '\x1b[0m\r\n');
+        if (cw.diffMode) {
+          xterm.write('\r\n\x1b[1;33m📊 Diff (HEAD → working tree)\x1b[0m\r\n');
+          if (step.diffAnsi) { xterm.write('\r\n'); xterm.write(step.diffAnsi.replace(/\r?\n/g, '\r\n')); }
+          else { xterm.write('\r\n\x1b[90m  (no uncommitted changes)\x1b[0m\r\n'); }
+        } else {
+          xterm.write('\r\n');
+          if (step.ansi) xterm.write(step.ansi.replace(/\r?\n/g, '\r\n'));
+          if (step.note) xterm.write('\r\n\x1b[33m💡 ' + step.note + '\x1b[0m\r\n');
+        }
+        const sc = cw.comments.filter(c => c.stepIndex === index);
+        if (sc.length > 0) {
+          xterm.write('\r\n\x1b[36m💬 Comments (' + sc.length + '):\x1b[0m\r\n');
+          for (const c of sc) xterm.write('\x1b[90m  • \x1b[0m' + c.text + '\r\n');
+        }
+        const cc = cw.comments.length;
+        const badge = cc > 0 ? ' \x1b[33m[' + cc + ' comment' + (cc > 1 ? 's' : '') + ']\x1b[0m' : '';
+        const db = cw.diffMode ? ' \x1b[1;32m[DIFF]\x1b[0m' : '';
+        xterm.write('\r\n\x1b[90m── [n] next  [p] prev  [c] comment  [d] diff  [j/k] scroll  [↑↓] scroll  [q/Esc] quit ── ' + (index + 1) + '/' + total + badge + db + ' ──\x1b[0m');
+        xterm.scrollToTop();
+      },
+
+      next() { const cw = entry._codeWalk; if (cw.current < cw.steps.length - 1) { cw.current++; cw.render(cw.current); } else { xterm.write('\x1b[s\x1b[999;1H\r\n\x1b[90m── already at last step ──\x1b[0m\x1b[u'); } },
+      prev() { const cw = entry._codeWalk; if (cw.current > 0) { cw.current--; cw.render(cw.current); } else { xterm.write('\x1b[s\x1b[999;1H\r\n\x1b[90m── already at first step ──\x1b[0m\x1b[u'); } },
+      submitComment(text) { const cw = entry._codeWalk; const t = (text || '').trim(); if (t) { const s = cw.steps[cw.current]; cw.comments.push({ stepIndex: cw.current, stepTitle: s?.title || '', file: s?.file || '', lines: (s?.start || '') + '-' + (s?.end || ''), text: t, timestamp: new Date().toISOString() }); } cw.render(cw.current); },
+      refocus() { xterm.focus(); },
+      toggleDiff() { const cw = entry._codeWalk; cw.diffMode = !cw.diffMode; cw.render(cw.current); },
+      showSummary() { const cw = entry._codeWalk; cw.summaryShown = true; xterm.write('\x1b[3J\x1b[2J\x1b[H\x1b[?25l'); xterm.write('\x1b[1;36m╔══════════════════════════════════════╗\x1b[0m\r\n'); xterm.write('\x1b[1;36m║      📋 Code Review Summary          ║\x1b[0m\r\n'); xterm.write('\x1b[1;36m╚══════════════════════════════════════╝\x1b[0m\r\n\r\n'); if (cw.comments.length === 0) { xterm.write('\x1b[90m  No comments submitted.\x1b[0m\r\n'); } else { let p = -1; for (const c of cw.comments) { if (c.stepIndex !== p) { if (p >= 0) xterm.write('\r\n'); xterm.write('\x1b[33m  Step ' + (c.stepIndex + 1) + ': ' + c.stepTitle + '\x1b[0m\r\n'); xterm.write('\x1b[90m  ' + c.file + ':' + c.lines + '\x1b[0m\r\n'); p = c.stepIndex; } xterm.write('\x1b[36m  💬 \x1b[0m' + c.text + '\r\n'); } xterm.write('\r\n\x1b[90m  ── Total: ' + cw.comments.length + ' comment' + (cw.comments.length > 1 ? 's' : '') + ' ──\x1b[0m\r\n'); } xterm.write('\r\n\x1b[90m── [Enter/q] close & submit  [p] go back to review ──\x1b[0m'); },
+    };
+
+    // Keyboard input → PTY or code walk
+    xterm.onData((data) => {
+      const cw = entry._codeWalk;
+      if (cw.active) {
+        if (cw.summaryShown) {
+          if (data === '\x1b' || data === 'q' || data === 'Q' || data === '\r') { cw.stop(true); return; }
+          if (data === 'p' || data === 'P') { cw.summaryShown = false; cw.render(cw.current); return; }
+          return;
+        }
+        if (data === '\x1b') { cw.stop(); return; }
+        if (data === 'n' || data === 'N' || data === ' ') { cw.next(); return; }
+        if (data === 'p' || data === 'P') { cw.prev(); return; }
+        if (data === 'q' || data === 'Q') { cw.stop(); return; }
+        if (data === 'c' || data === 'C') { setShowInput(true); codeWalkRef.current = cw; return; }
+        if (data === 'd' || data === 'D') { cw.toggleDiff(); return; }
+        if (data === 'j') { xterm.scrollLines(3); return; }
+        if (data === 'k') { xterm.scrollLines(-3); return; }
+        if (data === '\x1b[A' || data === '\x1bOA') { xterm.scrollLines(-3); return; }
+        if (data === '\x1b[B' || data === '\x1bOB') { xterm.scrollLines(3); return; }
+        if (data === '\x1b[5~') { xterm.scrollPages(-1); return; }
+        if (data === '\x1b[6~') { xterm.scrollPages(1); return; }
+        if (data === '\x1b[H' || data === '\x1bOH') { xterm.scrollToTop(); return; }
+        if (data === '\x1b[F' || data === '\x1bOF') { xterm.scrollToBottom(); return; }
+        return;
+      }
+      window.electronAPI.ptyWrite(tabId, data);
+    });
+
+    // Expose for code walk triggers
+    if (!window.cloeCodeWalk) window.cloeCodeWalk = entry._codeWalk;
+
+    xtermPool.current.set(tabId, entry);
+
+    // Spawn PTY for this tab if not already done
+    window.electronAPI.ptySpawn(tabId, 80, 24);
+
+    return entry;
+  }, [themeId, updateTabTitle]);
+
+  // ── Activate tab: ensure xterm, fit, focus ─────────────────────
+  useEffect(() => {
+    // Deactivate previous
+    xtermPool.current.forEach((entry, tabId) => {
+      if (tabId !== activeTabId && entry.xterm.element) {
+        entry.xterm.element.style.display = 'none';
+      }
+    });
+
+    // Activate current
+    const entry = ensureXtermForTab(activeTabId);
+    if (entry) {
+      entry.xterm.element.style.display = '';
+      setTimeout(() => {
+        try { entry.fit.fit(); } catch {}
+        entry.xterm.focus();
+      }, 50);
+    }
+
+    // Update global ref for backward compatibility
+    const activeEntry = xtermPool.current.get(activeTabId);
+    window.xtermInstance = activeEntry?.xterm || null;
+  }, [activeTabId, ensureXtermForTab]);
+
+  // ── Resize handler ──────────────────────────────────────────────
+  useEffect(() => {
+    const doResize = () => {
+      const entry = xtermPool.current.get(activeTabId);
+      if (!entry) return;
+      try { entry.fit.fit(); } catch {}
+      window.electronAPI.ptyResize(activeTabId, entry.xterm.cols, entry.xterm.rows);
+    };
+    window.addEventListener('resize', doResize);
+    return () => window.removeEventListener('resize', doResize);
+  }, [activeTabId]);
+
+  // ── Tab creation: spawn PTY when new tab added ────────────────────
+  useEffect(() => {
+    for (const tab of tabs) {
+      if (!xtermPool.current.has(tab.id)) {
+        // PTY will be spawned in ensureXtermForTab when tab is first activated
+      }
+    }
+  }, [tabs]);
+
+  // ── Comment input handlers ──────────────────────────────────────
+  const handleCommentSubmit = useCallback((text) => {
+    setShowInput(false);
+    setTimeout(() => { if (codeWalkRef.current) codeWalkRef.current.refocus(); }, 0);
+    if (codeWalkRef.current) codeWalkRef.current.submitComment(text);
+  }, []);
+
+  const handleCommentCancel = useCallback(() => {
+    setShowInput(false);
+    setTimeout(() => { if (codeWalkRef.current) codeWalkRef.current.refocus(); }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (showInput && inputRef.current) inputRef.current.focus();
+  }, [showInput]);
+
+  // ── Render ──────────────────────────────────────────────────────
   return (
     <div className="terminal-container" style={{ position: 'absolute', inset: 0 }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          ref={containerRefs.current[tab.id]}
+          style={{
+            display: tab.id === activeTabId ? 'block' : 'none',
+            position: 'absolute',
+            inset: 0,
+          }}
+        />
+      ))}
       {showInput && (
         <div style={{
-          position: 'absolute',
-          bottom: '40px',
-          left: '10px',
-          right: '10px',
-          zIndex: 100,
+          position: 'absolute', bottom: '40px', left: '10px', right: '10px', zIndex: 100,
         }}>
           <div style={{
-            background: 'rgba(26, 26, 46, 0.95)',
-            border: '1px solid #26c6da',
-            borderRadius: '6px',
-            padding: '10px 14px',
+            background: 'rgba(26, 26, 46, 0.95)', border: '1px solid #26c6da',
+            borderRadius: '6px', padding: '10px 14px',
           }}>
             <div style={{ color: '#26c6da', fontSize: '13px', marginBottom: '6px' }}>
               💬 Comment — Enter 提交 · Esc 取消
@@ -373,33 +326,19 @@ export default function TerminalMode() {
               ref={inputRef}
               type="text"
               style={{
-                width: '100%',
-                background: 'rgba(0,0,0,0.4)',
-                border: 'none',
-                outline: 'none',
-                color: '#e0e0e0',
-                fontSize: '14px',
+                width: '100%', background: 'rgba(0,0,0,0.4)', border: 'none',
+                outline: 'none', color: '#e0e0e0', fontSize: '14px',
                 fontFamily: "'SF Mono', 'Menlo', monospace",
-                padding: '6px 10px',
-                borderRadius: '4px',
-                caretColor: '#26c6da',
+                padding: '6px 10px', borderRadius: '4px', caretColor: '#26c6da',
               }}
               placeholder="输入评论..."
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleCommentSubmit(e.target.value);
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  handleCommentCancel();
-                }
+                if (e.key === 'Enter') { e.preventDefault(); handleCommentSubmit(e.target.value); }
+                else if (e.key === 'Escape') { e.preventDefault(); handleCommentCancel(); }
               }}
               onBlur={() => {
-                // Small delay to allow Enter/Esc to fire first
                 setTimeout(() => {
-                  if (codeWalkRef.current && codeWalkRef.current.active) {
-                    handleCommentCancel();
-                  }
+                  if (codeWalkRef.current && codeWalkRef.current.active) handleCommentCancel();
                 }, 150);
               }}
             />

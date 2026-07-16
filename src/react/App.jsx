@@ -3,7 +3,7 @@
  *
  * Manages overlay visibility (show/hide terminal) and active mode (terminal vs canvas).
  * Listens to localStorage for cross-window toggle signals from settings panel.
- * Delegates to OverlayTitlebar, TerminalMode, and CanvasMode.
+ * Delegates to OverlayTitlebar, TerminalMode, CanvasMode, and TabSwitcher.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -12,6 +12,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import OverlayTitlebar from './OverlayTitlebar';
 import TerminalMode from './TerminalMode';
 import CanvasMode from './CanvasMode';
+import TabSwitcher from './TabSwitcher';
+import { useTerminalTabs } from './useTerminalTabs';
+import { matchesShortcut } from './utils/shortcut';
 
 export default function App() {
   const [visible, setVisible] = useState(false);
@@ -28,6 +31,16 @@ export default function App() {
       return 'semi';
     }
   );
+
+  // ── Terminal multi-tab state ──
+  const {
+    tabs, activeTabId, setActiveTabId,
+    createTab, closeTab, updateTabTitle, nextTab, prevTab,
+  } = useTerminalTabs();
+
+  // ── Tab switcher overlay state ──
+  const [switcherVisible, setSwitcherVisible] = useState(false);
+  const [pendingTabId, setPendingTabId] = useState(activeTabId);
 
   // ── Show/hide overlay ──
   const show = useCallback((mode) => {
@@ -94,27 +107,17 @@ export default function App() {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-terminal-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        // In normal mode: skip if xterm has focus
-        if (!visible && document.activeElement?.classList?.contains('xterm-helper-textarea')) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (visible) {
-          hide();
-          localStorage.setItem('cloe-terminal-visible', 'false');
-        } else {
-          show();
-          localStorage.setItem('cloe-terminal-visible', 'true');
-        }
+      if (!matchesShortcut(e, stored)) return;
+      // In normal mode: skip if xterm has focus
+      if (!visible && document.activeElement?.classList?.contains('xterm-helper-textarea')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (visible) {
+        hide();
+        localStorage.setItem('cloe-terminal-visible', 'false');
+      } else {
+        show();
+        localStorage.setItem('cloe-terminal-visible', 'true');
       }
     };
     document.addEventListener('keydown', handler, true);
@@ -126,26 +129,16 @@ export default function App() {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-canvas-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (visible && mode === 'canvas') {
-          hide();
-          localStorage.setItem('cloe-terminal-visible', 'false');
-        } else {
-          show('canvas');
-          localStorage.setItem('cloe-terminal-visible', 'true');
-          localStorage.setItem('cloe-overlay-mode', 'canvas');
-        }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (visible && mode === 'canvas') {
+        hide();
+        localStorage.setItem('cloe-terminal-visible', 'false');
+      } else {
+        show('canvas');
+        localStorage.setItem('cloe-terminal-visible', 'true');
+        localStorage.setItem('cloe-overlay-mode', 'canvas');
       }
     };
     document.addEventListener('keydown', handler, true);
@@ -157,24 +150,104 @@ export default function App() {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-chat-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        window.electronAPI?.toggleChatWindow?.();
-      }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.electronAPI?.toggleChatWindow?.();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
+
+  // ── Terminal tab shortcuts (only when visible + terminal mode) ──
+  useEffect(() => {
+    const handler = (e) => {
+      // All tab shortcuts require visible terminal overlay
+      if (!visible || mode !== 'terminal') return;
+
+      // Cmd+T: new tab
+      if (e.metaKey && !e.ctrlKey && !e.altKey && e.key === 't') {
+        e.preventDefault();
+        e.stopPropagation();
+        createTab();
+        return;
+      }
+
+      // Cmd+W: close current tab
+      if (e.metaKey && !e.ctrlKey && !e.altKey && e.key === 'w') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTab(activeTabId);
+        return;
+      }
+
+      // Cmd+Shift+[: prev tab
+      if (e.metaKey && !e.ctrlKey && !e.altKey && e.shiftKey && e.key === '[') {
+        e.preventDefault();
+        e.stopPropagation();
+        prevTab();
+        return;
+      }
+
+      // Cmd+Shift+]: next tab
+      if (e.metaKey && !e.ctrlKey && !e.altKey && e.shiftKey && e.key === ']') {
+        e.preventDefault();
+        e.stopPropagation();
+        nextTab();
+        return;
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [visible, mode, activeTabId, createTab, closeTab, nextTab, prevTab]);
+
+  // ── Tab switcher shortcut (Cmd+Tab hold → cycle, release → switch) ──
+  useEffect(() => {
+    const handler = (e) => {
+      if (!visible || mode !== 'terminal') return;
+      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'CommandOrControl+Tab';
+      if (!matchesShortcut(e, stored)) return;
+
+      e.preventDefault();
+      if (e.repeat) {
+        // Cycle to next tab
+        setPendingTabId(prev => {
+          const idx = tabs.findIndex(t => t.id === prev);
+          if (idx === -1 || tabs.length <= 1) return prev;
+          return tabs[(idx + 1) % tabs.length].id;
+        });
+      } else {
+        // First press: show switcher
+        setPendingTabId(activeTabId);
+        setSwitcherVisible(true);
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [visible, mode, tabs, activeTabId]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (!switcherVisible) return;
+      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'CommandOrControl+Tab';
+      if (!matchesShortcut(e, stored)) return;
+
+      e.preventDefault();
+      setActiveTabId(pendingTabId);
+      setSwitcherVisible(false);
+    };
+    document.addEventListener('keyup', handler, true);
+    return () => document.removeEventListener('keyup', handler, true);
+  }, [switcherVisible, pendingTabId]);
+
+  // Dismiss switcher if focus is lost (e.g. another shortcut fires)
+  useEffect(() => {
+    if (!switcherVisible) return;
+    const timer = setTimeout(() => {
+      setSwitcherVisible(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [switcherVisible]);
 
   // ── Fullscreen change re-fit ──
   useEffect(() => {
@@ -203,7 +276,6 @@ export default function App() {
 
   // ── Chat window toggle (separate BrowserWindow) ──
   useEffect(() => {
-    // Listen for state updates from main process (when chat window is closed externally)
     const fn = window.electronAPI?.onChatWindowState?.((isOpen) => setChatOpen(isOpen));
     return () => fn?.();
   }, []);
@@ -227,19 +299,10 @@ export default function App() {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-transparency-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleOverlayTransparent();
-      }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleOverlayTransparent();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
@@ -274,106 +337,29 @@ export default function App() {
       .catch(() => {});
   }
 
-  // Character move up
-  useEffect(() => {
-    const handler = (e) => {
-      // Skip if user is typing in chat input (but not xterm helper textarea)
-      const ae = document.activeElement;
-      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
-      const stored = localStorage.getItem('cloe-char-move-up-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        moveCharacter('up');
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
+  const charMoveKeys = [
+    { key: 'cloe-char-move-up-shortcut', dir: 'up' },
+    { key: 'cloe-char-move-down-shortcut', dir: 'down' },
+    { key: 'cloe-char-move-left-shortcut', dir: 'left' },
+    { key: 'cloe-char-move-right-shortcut', dir: 'right' },
+  ];
 
-  // Character move down
-  useEffect(() => {
-    const handler = (e) => {
-      const ae = document.activeElement;
-      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
-      const stored = localStorage.getItem('cloe-char-move-down-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
+  charMoveKeys.forEach(({ key, dir }) => {
+    useEffect(() => {
+      const handler = (e) => {
+        const ae = document.activeElement;
+        if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
+        const stored = localStorage.getItem(key) || '';
+        if (!stored) return;
+        if (!matchesShortcut(e, stored)) return;
         e.preventDefault();
         e.stopPropagation();
-        moveCharacter('down');
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
-
-  // Character move left
-  useEffect(() => {
-    const handler = (e) => {
-      const ae = document.activeElement;
-      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
-      const stored = localStorage.getItem('cloe-char-move-left-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        moveCharacter('left');
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
-
-  // Character move right
-  useEffect(() => {
-    const handler = (e) => {
-      const ae = document.activeElement;
-      if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
-      const stored = localStorage.getItem('cloe-char-move-right-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        moveCharacter('right');
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
+        moveCharacter(dir);
+      };
+      document.addEventListener('keydown', handler, true);
+      return () => document.removeEventListener('keydown', handler, true);
+    }, [dir]);
+  });
 
   // ── Character scale shortcuts ──
   const CHAR_SCALE_STEP = 0.1;
@@ -396,96 +382,57 @@ export default function App() {
       .catch(() => {});
   }
 
-  // Character scale up
   useEffect(() => {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-char-scale-up-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        scaleCharacter('up');
-      }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      scaleCharacter('up');
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // Character scale down
   useEffect(() => {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-char-scale-down-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        scaleCharacter('down');
-      }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      scaleCharacter('down');
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // ── Reminder dismiss shortcut ──
+  // ── Reminder shortcuts ──
   useEffect(() => {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-reminder-dismiss-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (window.ReminderOverlay && ReminderOverlay.hasActive()) {
-          ReminderOverlay.dismissActive();
-        }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.ReminderOverlay && ReminderOverlay.hasActive()) {
+        ReminderOverlay.dismissActive();
       }
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // ── Reminder stop shortcut ──
   useEffect(() => {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-reminder-stop-shortcut') || '';
       if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (window.ReminderOverlay && ReminderOverlay.hasActive()) {
-          ReminderOverlay.stopActive();
-        }
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.ReminderOverlay && ReminderOverlay.hasActive()) {
+        ReminderOverlay.stopActive();
       }
     };
     document.addEventListener('keydown', handler, true);
@@ -509,7 +456,10 @@ export default function App() {
       />
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>
         <div style={{ display: mode === 'terminal' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
-          <TerminalMode />
+          <TerminalMode tabs={tabs} activeTabId={activeTabId} updateTabTitle={updateTabTitle} />
+          {switcherVisible && (
+            <TabSwitcher tabs={tabs} pendingTabId={pendingTabId} />
+          )}
         </div>
         <div style={{ display: mode === 'canvas' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
           <CanvasMode />

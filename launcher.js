@@ -2510,15 +2510,15 @@ ipcMain.on('window-move', (_e, { dx, dy }) => {
 });
 
 // ==================== PTY (direct in Electron main process) ====================
-let ptyProc = null;
-let ptyReady = false;
+// Multi-tab: each tab gets its own PTY identified by ptyId.
+const ptyMap = new Map();
 
-function spawnPty(cols, rows) {
-  if (ptyProc || ptyReady) return;
+function spawnPty(ptyId, cols, rows) {
+  if (ptyMap.has(ptyId)) return;
   try {
     const pty = require('node-pty');
     const shell = '/bin/zsh';
-    ptyProc = pty.spawn(shell, ['-l'], {
+    const ptyProc = pty.spawn(shell, ['-l'], {
       name: 'xterm-256color',
       cols: cols || 80,
       rows: rows || 24,
@@ -2533,31 +2533,41 @@ function spawnPty(cols, rows) {
     });
     ptyProc.onData((data) => {
       if (win && !win.isDestroyed()) {
-        win.webContents.send('pty-data', data);
+        win.webContents.send('pty-data', { ptyId, data });
       }
     });
     ptyProc.onExit(({ exitCode }) => {
-      console.log(`[PTY] Shell exited with code ${exitCode}`);
-      ptyProc = null;
-      ptyReady = false;
+      console.log(`[PTY:${ptyId}] Shell exited with code ${exitCode}`);
+      ptyMap.delete(ptyId);
     });
-    ptyReady = true;
-    console.log('[PTY] Shell ready');
+    ptyMap.set(ptyId, ptyProc);
+    console.log(`[PTY:${ptyId}] Shell ready`);
   } catch (e) {
-    console.error('[PTY] Failed to spawn:', e.message);
+    console.error(`[PTY:${ptyId}] Failed to spawn:`, e.message);
   }
 }
 
-ipcMain.on('pty-spawn', (_e, { cols, rows }) => {
-  spawnPty(cols, rows);
+ipcMain.on('pty-spawn', (_e, { ptyId, cols, rows }) => {
+  spawnPty(ptyId, cols, rows);
 });
 
-ipcMain.on('pty-write', (_e, data) => {
-  if (ptyProc) ptyProc.write(data || '');
+ipcMain.on('pty-write', (_e, { ptyId, data }) => {
+  const p = ptyMap.get(ptyId);
+  if (p) p.write(data || '');
 });
 
-ipcMain.on('pty-resize', (_e, { cols, rows }) => {
-  if (ptyProc) ptyProc.resize(cols || 80, rows || 24);
+ipcMain.on('pty-resize', (_e, { ptyId, cols, rows }) => {
+  const p = ptyMap.get(ptyId);
+  if (p) p.resize(cols || 80, rows || 24);
+});
+
+ipcMain.on('pty-kill', (_e, { ptyId }) => {
+  const p = ptyMap.get(ptyId);
+  if (p) {
+    p.kill();
+    ptyMap.delete(ptyId);
+    console.log(`[PTY:${ptyId}] Killed`);
+  }
 });
 
 // ==================== Window Mode ====================
