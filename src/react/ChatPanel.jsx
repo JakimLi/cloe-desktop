@@ -186,8 +186,9 @@ export default function ChatPanel({ visible, onClose }) {
       const c = streamRef.current;
       streamRef.current = '';
       setStreamingContent('');
-      const msg = c ? `${c}\n\n⚠️ ${data.error}` : `⚠️ ${data.error}`;
-      setMessages(prev => [...prev, { role: 'assistant', content: msg }]);
+      const errMsg = data.error || 'Unknown error';
+      const msg = c ? `${c}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
+      setMessages(prev => [...prev, { role: 'assistant', content: msg, isError: true }]);
       setSending(false);
       setConnected(false);
     });
@@ -364,7 +365,7 @@ export default function ChatPanel({ visible, onClose }) {
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+          <div key={i} className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`}>
             <MessageContent content={m.content} image={m.image} onImageClick={setPreviewImage} />
           </div>
         ))}

@@ -190,6 +190,15 @@ html, body, #root {
   min-width: 0;
 }
 
+/* ── Error message styling ── */
+.chat-msg-error {
+  border-color: rgba(255, 95, 87, 0.4) !important;
+  background: rgba(60, 30, 30, 0.92) !important;
+}
+.chat-msg-error .chat-msg-content strong {
+  color: #ff6b6b;
+}
+
 .chat-msg-content { white-space: normal; }
 
 /* ── Markdown prose elements (react-markdown output) ── */

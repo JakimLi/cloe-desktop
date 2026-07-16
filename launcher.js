@@ -3095,7 +3095,18 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
         res.on('end', () => {
           if (!ended) {
             ended = true;
-            try { sendTo('hermes-stream-error', { error: `HTTP ${res.statusCode}: ${body.slice(0, 100)}` }); } catch {}
+            try {
+              let errMsg = `HTTP ${res.statusCode}`;
+              if (body) {
+                try {
+                  const parsed = JSON.parse(body);
+                  errMsg = parsed.error?.message || parsed.error || parsed.detail || parsed.message || body.slice(0, 500);
+                } catch {
+                  errMsg = body.slice(0, 500);
+                }
+              }
+              sendTo('hermes-stream-error', { error: errMsg });
+            } catch {}
           }
         });
         return;
@@ -3129,6 +3140,10 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
               const parsed = JSON.parse(data);
               if (currentEvent === 'hermes.tool.progress') {
                 try { sendTo('hermes-stream-tool', parsed); } catch {}
+              } else if (currentEvent === 'hermes.error') {
+                // Backend error during streaming (e.g. model failure, rate limit)
+                const errMsg = parsed.error || parsed.message || JSON.stringify(parsed);
+                try { sendTo('hermes-stream-error', { error: errMsg }); } catch {}
               } else {
                 // Standard chat.completion.chunk
                 const content = parsed.choices?.[0]?.delta?.content;

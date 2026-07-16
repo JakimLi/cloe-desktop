@@ -509,8 +509,9 @@ function ChatApp() {
       toolsRef.current = [];
       setStreamingContent('');
       setStreamingTools([]);
-      const msg = c ? `${c}\n\n⚠️ ${data.error}` : `⚠️ ${data.error}`;
-      setMessages(prev => [...prev, { role: 'assistant', content: msg, tools: t }]);
+      const errMsg = data.error || 'Unknown error';
+      const msg = c ? `${c}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
+      setMessages(prev => [...prev, { role: 'assistant', content: msg, tools: t, isError: true }]);
       setSending(false);
       setConnected(false);
     });
@@ -686,7 +687,7 @@ function ChatApp() {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`chat-msg chat-msg-${m.role}`}
+            className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`}
             onClick={() => setFocusedIndex(i)}
           >
             {m.role === 'assistant' && (
