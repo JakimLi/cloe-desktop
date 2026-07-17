@@ -42,6 +42,7 @@ async function createXtermInstance(container, themeId) {
 export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
   // One container ref per tab — always mounted, display toggled
   const containerRefs = useRef({});
+  const rootRef = useRef(null);
   const xtermPool = useRef(new Map()); // tabId → { xterm, fit }
   const initialized = useRef(false);
 
@@ -260,15 +261,32 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
   }, [activeTabId, ensureXtermForTab]);
 
   // ── Resize handler ──────────────────────────────────────────────
+  // Uses ResizeObserver on the container to catch ALL size changes:
+  // window resize, overlay show/hide, mode switch, maximize/restore.
   useEffect(() => {
-    const doResize = () => {
-      const entry = xtermPool.current.get(activeTabId);
-      if (!entry) return;
-      try { entry.fit.fit(); } catch {}
-      window.electronAPI.ptyResize(activeTabId, entry.xterm.cols, entry.xterm.rows);
+    const container = rootRef.current;
+    if (!container) return;
+
+    let resizeTimer = null;
+    const doFit = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const entry = xtermPool.current.get(activeTabId);
+        if (!entry) return;
+        try { entry.fit.fit(); } catch {}
+        window.electronAPI.ptyResize(activeTabId, entry.xterm.cols, entry.xterm.rows);
+      }, 30);
     };
-    window.addEventListener('resize', doResize);
-    return () => window.removeEventListener('resize', doResize);
+
+    const ro = new ResizeObserver(() => doFit());
+    ro.observe(container);
+    window.addEventListener('resize', doFit);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', doFit);
+      clearTimeout(resizeTimer);
+    };
   }, [activeTabId]);
 
   // ── Tab creation: spawn PTY when new tab added ────────────────────
@@ -298,7 +316,7 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
 
   // ── Render ──────────────────────────────────────────────────────
   return (
-    <div className="terminal-container" style={{ position: 'absolute', inset: 0, padding: '8px 16px 8px 16px' }}>
+    <div ref={rootRef} className="terminal-container" style={{ position: 'absolute', inset: 0, padding: '8px 16px 8px 16px' }}>
       {tabs.map((tab) => (
         <div
           key={tab.id}
