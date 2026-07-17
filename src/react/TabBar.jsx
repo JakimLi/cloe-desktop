@@ -4,24 +4,18 @@
  * Shows all terminal tabs, supports click-to-switch, double-click-to-rename,
  * hover close button, and a + button to create new tabs.
  * Only rendered in terminal mode.
+ *
+ * Close confirmation is handled by the parent (App.jsx) via pendingCloseTab,
+ * so both the close button and the Cmd+W shortcut share the same flow.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import './tab-bar.css';
 
-const isZh = () => {
-  const saved = localStorage.getItem('cloe-manager-lang');
-  if (saved) return saved.startsWith('zh');
-  return navigator.language?.startsWith('zh');
-};
-const t = (zh, en) => (isZh() ? zh : en);
-
 export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
-  const [confirmTab, setConfirmTab] = useState(null);
   const inputRef = useRef(null);
-  const confirmRef = useRef(null);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -30,21 +24,6 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
       inputRef.current.select();
     }
   }, [editingId]);
-
-  // Close confirm dialog on outside click or Escape
-  useEffect(() => {
-    if (!confirmTab) return;
-    const onDown = (e) => {
-      if (confirmRef.current && !confirmRef.current.contains(e.target)) setConfirmTab(null);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') setConfirmTab(null); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [confirmTab]);
 
   const startEdit = (tab) => {
     setEditingId(tab.id);
@@ -61,15 +40,6 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
 
   const cancelEdit = () => {
     setEditingId(null);
-  };
-
-  const handleClose = (tab) => {
-    setConfirmTab(tab);
-  };
-
-  const confirmClose = () => {
-    if (confirmTab) onClose(confirmTab.id);
-    setConfirmTab(null);
   };
 
   return (
@@ -109,7 +79,7 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
                       title="Close tab"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleClose(tab);
+                        onClose(tab.id);
                       }}
                     >
                       <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
@@ -130,31 +100,44 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
           </svg>
         </button>
       )}
+    </div>
+  );
+}
 
-      {/* Close confirmation dialog */}
-      {confirmTab && (
-        <div className="tab-bar-confirm-overlay" onClick={(e) => e.stopPropagation()}>
-          <div className="tab-bar-confirm" ref={confirmRef} onClick={(e) => e.stopPropagation()}>
-            <div className="tab-bar-confirm-text">
-              {t(`关闭标签页「${confirmTab.title}」？`, `Close tab "${confirmTab.title}"?`)}
-            </div>
-            <div className="tab-bar-confirm-actions">
-              <button
-                className="tab-bar-confirm-btn tab-bar-confirm-cancel"
-                onClick={() => setConfirmTab(null)}
-              >
-                {t('取消', 'Cancel')}
-              </button>
-              <button
-                className="tab-bar-confirm-btn tab-bar-confirm-ok"
-                onClick={confirmClose}
-              >
-                {t('关闭', 'Close')}
-              </button>
-            </div>
-          </div>
+/**
+ * TabCloseConfirm — Confirmation dialog rendered by parent.
+ * Exported so App.jsx can use it without duplicating markup.
+ */
+const isZh = () => {
+  const saved = localStorage.getItem('cloe-manager-lang');
+  if (saved) return saved.startsWith('zh');
+  return navigator.language?.startsWith('zh');
+};
+
+export function TabCloseConfirm({ tab, onConfirm, onCancel }) {
+  if (!tab) return null;
+  const zh = isZh();
+  return (
+    <div className="tab-bar-confirm-overlay" onClick={(e) => e.stopPropagation()}>
+      <div className="tab-bar-confirm" onClick={(e) => e.stopPropagation()}>
+        <div className="tab-bar-confirm-text">
+          {zh ? `关闭标签页「${tab.title}」？` : `Close tab "${tab.title}"?`}
         </div>
-      )}
+        <div className="tab-bar-confirm-actions">
+          <button
+            className="tab-bar-confirm-btn tab-bar-confirm-cancel"
+            onClick={onCancel}
+          >
+            {zh ? '取消' : 'Cancel'}
+          </button>
+          <button
+            className="tab-bar-confirm-btn tab-bar-confirm-ok"
+            onClick={onConfirm}
+          >
+            {zh ? '关闭' : 'Close'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

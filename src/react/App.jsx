@@ -13,7 +13,7 @@ import OverlayTitlebar from './OverlayTitlebar';
 import TerminalMode from './TerminalMode';
 import CanvasMode from './CanvasMode';
 import TabSwitcher from './TabSwitcher';
-import TabBar from './TabBar';
+import TabBar, { TabCloseConfirm } from './TabBar';
 import { useTerminalTabs } from './useTerminalTabs';
 import { matchesShortcut, parseShortcutParts, isModifierKeyUp } from './utils/shortcut';
 
@@ -38,6 +38,21 @@ export default function App() {
     tabs, activeTabId, setActiveTabId,
     createTab, closeTab, updateTabTitle, nextTab, prevTab,
   } = useTerminalTabs();
+
+  // ── Tab close confirmation (shared by shortcut + TabBar) ──
+  const [pendingCloseTab, setPendingCloseTab] = useState(null);
+  const requestCloseTab = useCallback((tabId) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) setPendingCloseTab(tab);
+  }, [tabs]);
+
+  // Dismiss close-confirm on Escape
+  useEffect(() => {
+    if (!pendingCloseTab) return;
+    const handler = (e) => { if (e.key === 'Escape') setPendingCloseTab(null); };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [pendingCloseTab]);
 
   // ── Tab switcher overlay state ──
   const [switcherVisible, setSwitcherVisible] = useState(false);
@@ -177,10 +192,10 @@ export default function App() {
         e.preventDefault(); e.stopPropagation();
         createTab(); return;
       }
-      // Cmd+W: close current tab
+      // Cmd+W: close current tab (with confirmation)
       if (matchesShortcut(e, closeSc)) {
         e.preventDefault(); e.stopPropagation();
-        closeTab(activeTabId); return;
+        requestCloseTab(activeTabId); return;
       }
       // Cmd+Shift+[: prev tab
       if (matchesShortcut(e, prevSc)) {
@@ -474,7 +489,7 @@ export default function App() {
             activeTabId={activeTabId}
             onSelect={setActiveTabId}
             onCreate={createTab}
-            onClose={closeTab}
+            onClose={requestCloseTab}
             onRename={updateTabTitle}
           />
         )}
@@ -490,6 +505,14 @@ export default function App() {
           <CanvasMode />
         </div>
       </div>
+      <TabCloseConfirm
+        tab={pendingCloseTab}
+        onConfirm={() => {
+          if (pendingCloseTab) closeTab(pendingCloseTab.id);
+          setPendingCloseTab(null);
+        }}
+        onCancel={() => setPendingCloseTab(null)}
+      />
     </div>
   );
 }
