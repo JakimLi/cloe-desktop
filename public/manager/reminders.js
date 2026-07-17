@@ -116,7 +116,7 @@ function renderReminderItem(r) {
         <div class="rm-card-name">${escapeHtml(r.name)}</div>
         <div class="rm-card-meta">
           <span>${r.mode === 'interval' ? I18n.t('reminders.every') : I18n.t('reminders.countdown')} ${durationMin}min</span>
-          ${r.mode === 'countdown' && r.round > 0 ? `<span class="rm-dot"></span><span>${I18n.t('reminders.round')} ${r.round}${r.total_rounds > 0 ? '/' + r.total_rounds : ''}</span>` : ''}
+          ${r.total_rounds > 0 && r.round > 0 ? `<span class="rm-dot"></span><span>${r.round}/${r.total_rounds}</span>` : ''}
           ${r.tts ? '' : `<span class="rm-dot"></span>${SVG.mute}`}
           ${isRunning && r.trigger_at ? `<span class="rm-dot"></span><span class="rm-next-time">${formatNextTime(r.trigger_at)}</span>` : ''}
         </div>
@@ -200,7 +200,7 @@ function renderFormHTML(isEdit, r, mode) {
   const name = r ? r.name : '';
   const duration = r ? Math.round(r.duration / 60) : 30;
   const breakDur = r && r.break_duration ? Math.round(r.break_duration / 60) : 5;
-  const rounds = r ? (r.total_rounds || 0) : 4;
+  const rounds = r ? (r.total_rounds || 0) : 0;
   const autoStart = r ? r.auto_start : true;
   const tts = r ? r.tts : true;
   const action = r ? (r.action || '') : '';
@@ -244,9 +244,9 @@ function renderFormHTML(isEdit, r, mode) {
             <span class="rm-unit">${I18n.t('reminders.minutes')}</span>
           </div>
         </div>
-        <div class="rm-field rm-field-sm${isCountdown ? '' : ' hidden'}" id="reminder-rounds-item">
-          <label class="rm-label">${I18n.t('reminders.fieldTotalRounds')}</label>
-          <input type="number" id="reminder-rounds" class="form-input rm-input rm-input-narrow" min="0" max="20" value="${rounds}">
+        <div class="rm-field rm-field-sm" id="reminder-rounds-item">
+          <label class="rm-label">${I18n.t('reminders.fieldMaxRounds')}</label>
+          <input type="number" id="reminder-rounds" class="form-input rm-input rm-input-narrow" min="0" max="999" value="${rounds}">
         </div>
       </div>
 
@@ -289,9 +289,8 @@ function hideReminderForm() {
 
 function toggleCountdownFields(show) {
   const breakItem = document.getElementById('reminder-break-item');
-  const roundsItem = document.getElementById('reminder-rounds-item');
   if (breakItem) breakItem.classList.toggle('hidden', !show);
-  if (roundsItem) roundsItem.classList.toggle('hidden', !show);
+  // rounds field stays visible for both modes now
 }
 
 async function saveReminder() {

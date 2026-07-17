@@ -182,6 +182,14 @@ function dismissReminder(id) {
       }
     } else {
       // interval mode or countdown without break
+      // Check if max rounds reached → auto-complete
+      if (r.total_rounds > 0 && r.round >= r.total_rounds) {
+        r.status = 'completed';
+        r.enabled = false;
+        saveReminders(reminders);
+        broadcast({ type: 'reminder-stopped', reminder: sanitizeReminder(r) });
+        return reminders[id];
+      }
       r.trigger_at = new Date(Date.now() + r.duration * 1000).toISOString();
     }
     r.status = 'running';
@@ -242,7 +250,7 @@ function upsertReminder(data) {
 
     // For countdown mode (pomodoro-like)
     break_duration: data.break_duration || 0,
-    total_rounds: isInterval ? 0 : (data.total_rounds || 0),  // interval = always infinite
+    total_rounds: data.total_rounds || 0,  // 0 = infinite (both modes)
 
     // Runtime state
     status: existing ? existing.status : 'idle',
