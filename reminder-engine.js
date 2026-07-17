@@ -242,7 +242,7 @@ function upsertReminder(data) {
 
     // For countdown mode (pomodoro-like)
     break_duration: data.break_duration || 0,
-    total_rounds: data.total_rounds || 0,  // 0 = infinite
+    total_rounds: isInterval ? 0 : (data.total_rounds || 0),  // interval = always infinite
 
     // Runtime state
     status: existing ? existing.status : 'idle',

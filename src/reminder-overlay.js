@@ -34,8 +34,8 @@
     // Icon based on mode
     const icon = reminder.mode === 'countdown' ? '🍅' : '💧';
 
-    // Round info for countdown mode
-    const roundInfo = reminder.total_rounds > 0
+    // Round info only for countdown mode with finite rounds
+    const roundInfo = (reminder.mode === 'countdown' && reminder.total_rounds > 0)
       ? `${reminder.round || 0}/${reminder.total_rounds}`
       : '';
 
