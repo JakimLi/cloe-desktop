@@ -9,7 +9,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './tab-bar.css';
 
-const isZh = () => navigator.language?.startsWith('zh');
+const isZh = () => {
+  const saved = localStorage.getItem('cloe-manager-lang');
+  if (saved) return saved.startsWith('zh');
+  return navigator.language?.startsWith('zh');
+};
 const t = (zh, en) => (isZh() ? zh : en);
 
 export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename }) {
