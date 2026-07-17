@@ -15,10 +15,10 @@ import { getThemeById, DEFAULT_THEME_ID } from './terminalThemes';
 const OSC_TITLE_RE = /\x1b\][012];([^\x07]*)\x07/;
 
 /** Lazily create a single xterm instance attached to the given container. */
-function createXtermInstance(container, themeId) {
-  const { Terminal } = require('xterm');
-  const { FitAddon } = require('@xterm/addon-fit');
-  require('xterm/css/xterm.css');
+async function createXtermInstance(container, themeId) {
+  const { Terminal } = await import('xterm');
+  const { FitAddon } = await import('@xterm/addon-fit');
+  await import('xterm/css/xterm.css');
 
   const xterm = new Terminal({
     cursorBlink: true,
@@ -115,25 +115,23 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Ensure every tab has a container div ────────────────────────
-  // When tabs change, new tabs need a ref target for lazy xterm init
-  useEffect(() => {
-    for (const tab of tabs) {
-      if (!containerRefs.current[tab.id]) {
-        containerRefs.current[tab.id] = React.createRef();
-      }
+  // ── Ensure every tab has a container ref (sync, not in useEffect!) ─
+  // Must happen during render so the ref exists when JSX binds it.
+  for (const tab of tabs) {
+    if (!containerRefs.current[tab.id]) {
+      containerRefs.current[tab.id] = React.createRef();
     }
-  }, [tabs]);
+  }
 
   // ── Activate a tab: lazy-create xterm, fit, focus ─────────────
-  const ensureXtermForTab = useCallback((tabId) => {
+  const ensureXtermForTab = useCallback(async (tabId) => {
     let entry = xtermPool.current.get(tabId);
     if (entry) return entry;
 
     const containerEl = containerRefs.current[tabId]?.current;
     if (!containerEl) return null;
 
-    const { xterm, fit } = createXtermInstance(containerEl, themeId);
+    const { xterm, fit } = await createXtermInstance(containerEl, themeId);
     entry = { xterm, fit };
 
     // ── Code Walk setup (per-instance) ──
@@ -245,19 +243,20 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
       }
     });
 
-    // Activate current
-    const entry = ensureXtermForTab(activeTabId);
-    if (entry) {
-      entry.xterm.element.style.display = '';
-      setTimeout(() => {
-        try { entry.fit.fit(); } catch {}
-        entry.xterm.focus();
-      }, 50);
-    }
+    // Activate current (async because xterm import is dynamic)
+    ensureXtermForTab(activeTabId).then((entry) => {
+      if (entry) {
+        entry.xterm.element.style.display = '';
+        setTimeout(() => {
+          try { entry.fit.fit(); } catch {}
+          entry.xterm.focus();
+        }, 50);
+      }
 
-    // Update global ref for backward compatibility
-    const activeEntry = xtermPool.current.get(activeTabId);
-    window.xtermInstance = activeEntry?.xterm || null;
+      // Update global ref for backward compatibility
+      const activeEntry = xtermPool.current.get(activeTabId);
+      window.xtermInstance = activeEntry?.xterm || null;
+    });
   }, [activeTabId, ensureXtermForTab]);
 
   // ── Resize handler ──────────────────────────────────────────────
