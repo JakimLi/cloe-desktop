@@ -132,3 +132,81 @@
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.8);
 }
+
+/* ── Close confirmation dialog ── */
+
+.tab-bar-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.3);
+  animation: tabConfirmFade 100ms ease-out;
+}
+
+.tab-bar-confirm {
+  background: rgba(30, 30, 40, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 20px 24px 16px;
+  min-width: 260px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  animation: tabConfirmIn 120ms ease-out;
+}
+
+.tab-bar-confirm-text {
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.tab-bar-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tab-bar-confirm-btn {
+  padding: 6px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab-bar-confirm-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tab-bar-confirm-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tab-bar-confirm-ok {
+  background: rgba(255, 85, 85, 0.85);
+  color: rgba(255, 255, 255, 1);
+}
+
+.tab-bar-confirm-ok:hover {
+  background: rgba(255, 85, 85, 1);
+}
+
+@keyframes tabConfirmFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tabConfirmIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}

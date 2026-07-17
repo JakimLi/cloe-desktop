@@ -12,7 +12,9 @@ import './tab-bar.css';
 export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [confirmTab, setConfirmTab] = useState(null);
   const inputRef = useRef(null);
+  const confirmRef = useRef(null);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -21,6 +23,21 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
       inputRef.current.select();
     }
   }, [editingId]);
+
+  // Close confirm dialog on outside click or Escape
+  useEffect(() => {
+    if (!confirmTab) return;
+    const onDown = (e) => {
+      if (confirmRef.current && !confirmRef.current.contains(e.target)) setConfirmTab(null);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setConfirmTab(null); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [confirmTab]);
 
   const startEdit = (tab) => {
     setEditingId(tab.id);
@@ -37,6 +54,15 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
 
   const cancelEdit = () => {
     setEditingId(null);
+  };
+
+  const handleClose = (tab) => {
+    setConfirmTab(tab);
+  };
+
+  const confirmClose = () => {
+    if (confirmTab) onClose(confirmTab.id);
+    setConfirmTab(null);
   };
 
   return (
@@ -76,7 +102,7 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
                       title="Close tab"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onClose(tab.id);
+                        handleClose(tab);
                       }}
                     >
                       <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
@@ -96,6 +122,31 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
             <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
           </svg>
         </button>
+      )}
+
+      {/* Close confirmation dialog */}
+      {confirmTab && (
+        <div className="tab-bar-confirm-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="tab-bar-confirm" ref={confirmRef} onClick={(e) => e.stopPropagation()}>
+            <div className="tab-bar-confirm-text">
+              关闭标签页「{confirmTab.title}」？
+            </div>
+            <div className="tab-bar-confirm-actions">
+              <button
+                className="tab-bar-confirm-btn tab-bar-confirm-cancel"
+                onClick={() => setConfirmTab(null)}
+              >
+                取消
+              </button>
+              <button
+                className="tab-bar-confirm-btn tab-bar-confirm-ok"
+                onClick={confirmClose}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
