@@ -50,6 +50,7 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
   const [showInput, setShowInput] = useState(false);
   const inputRef = useRef(null);
   const codeWalkRef = useRef(null);
+  const [xtermReady, setXtermReady] = useState(false);
 
   // Theme state
   const [themeId, setThemeId] = useState(
@@ -248,10 +249,18 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
     ensureXtermForTab(activeTabId).then((entry) => {
       if (entry) {
         entry.xterm.element.style.display = '';
+        // Delay fit: the window may still be animating to its new size
+        // (IPC setWindowMode('terminal') triggers win.setSize which is async)
         setTimeout(() => {
           try { entry.fit.fit(); } catch {}
           entry.xterm.focus();
-        }, 50);
+          setXtermReady(true);
+        }, 150);
+        // Safety net: re-fit after window resize settles
+        setTimeout(() => {
+          try { entry.fit.fit(); } catch {}
+          window.electronAPI?.ptyResize?.(activeTabId, entry.xterm.cols, entry.xterm.rows);
+        }, 400);
       }
 
       // Update global ref for backward compatibility
@@ -263,6 +272,7 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
   // ── Resize handler ──────────────────────────────────────────────
   // Uses ResizeObserver on the container to catch ALL size changes:
   // window resize, overlay show/hide, mode switch, maximize/restore.
+  // Re-subscribes when activeTabId changes or when xterm first becomes ready.
   useEffect(() => {
     const container = rootRef.current;
     if (!container) return;
@@ -280,14 +290,14 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
 
     const ro = new ResizeObserver(() => doFit());
     ro.observe(container);
-    window.addEventListener('resize', doFit);
+    // Also fit immediately when this effect re-runs (e.g. xterm just became ready)
+    doFit();
 
     return () => {
       ro.disconnect();
-      window.removeEventListener('resize', doFit);
       clearTimeout(resizeTimer);
     };
-  }, [activeTabId]);
+  }, [activeTabId, xtermReady]);
 
   // ── Tab creation: spawn PTY when new tab added ────────────────────
   useEffect(() => {
