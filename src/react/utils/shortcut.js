@@ -23,6 +23,37 @@ export function parseShortcut(stored) {
 }
 
 /**
+ * Split a shortcut into modifier flags and trigger key separately.
+ * Used by the tab switcher to distinguish "modifier held" from "trigger tapped".
+ * Returns { key, hasMeta, hasCtrl, hasAlt, hasShift }
+ */
+export function parseShortcutParts(stored) {
+  const s = parseShortcut(stored);
+  if (!s) return null;
+  return {
+    key: s.key,
+    hasMeta: s.metaKey,
+    hasCtrl: s.ctrlKey,
+    hasAlt: s.altKey,
+    hasShift: s.shiftKey,
+  };
+}
+
+/**
+ * Check if a keyup event released a modifier that's part of the shortcut.
+ * e.g. shortcut "Control+Tab", keyup of Control → true, keyup of Tab → false.
+ */
+export function isModifierKeyUp(e, parts) {
+  if (!parts) return false;
+  return (
+    (parts.hasMeta && (e.key === 'Meta' || e.key === 'Command')) ||
+    (parts.hasCtrl && e.key === 'Control') ||
+    (parts.hasAlt && e.key === 'Alt') ||
+    (parts.hasShift && e.key === 'Shift')
+  );
+}
+
+/**
  * Check if a KeyboardEvent matches the given accelerator string.
  */
 export function matchesShortcut(event, stored) {

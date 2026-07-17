@@ -14,7 +14,7 @@ import TerminalMode from './TerminalMode';
 import CanvasMode from './CanvasMode';
 import TabSwitcher from './TabSwitcher';
 import { useTerminalTabs } from './useTerminalTabs';
-import { matchesShortcut } from './utils/shortcut';
+import { matchesShortcut, parseShortcutParts, isModifierKeyUp } from './utils/shortcut';
 
 export default function App() {
   const [visible, setVisible] = useState(false);
@@ -196,44 +196,62 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, [visible, mode, activeTabId, createTab, closeTab, nextTab, prevTab]);
 
-  // ── Tab switcher shortcut (Cmd+Tab hold → cycle, release → switch) ──
+  // ── Tab switcher: hold modifier + tap trigger key to cycle, release modifier to confirm ──
+  // Behavior (like macOS Cmd+Tab or browser Ctrl+Tab):
+  //   1. Press modifier+trigger → show switcher, highlight current tab
+  //   2. Keep holding modifier, press trigger again → cycle to next tab
+  //   3. Release modifier → confirm switch, close switcher
+  //   4. Release trigger without releasing modifier → keep switcher open (do nothing)
   useEffect(() => {
-    const handler = (e) => {
-      if (!visible || mode !== 'terminal') return;
-      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'Alt+Tab';
-      if (!matchesShortcut(e, stored)) return;
+    if (!visible || mode !== 'terminal') return;
 
-      e.preventDefault();
-      if (e.repeat) {
-        // Cycle to next tab
-        setPendingTabId(prev => {
-          const idx = tabs.findIndex(t => t.id === prev);
-          if (idx === -1 || tabs.length <= 1) return prev;
-          return tabs[(idx + 1) % tabs.length].id;
-        });
-      } else {
-        // First press: show switcher
-        setPendingTabId(activeTabId);
-        setSwitcherVisible(true);
+    const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'Alt+Tab';
+    const parts = parseShortcutParts(stored);
+    if (!parts) return;
+
+    const onKeyDown = (e) => {
+      // Trigger key pressed while modifier held (first or repeat)
+      if (e.key === parts.key && (
+        (!parts.hasMeta || e.metaKey) &&
+        (!parts.hasCtrl || e.ctrlKey) &&
+        (!parts.hasAlt || e.altKey) &&
+        (!parts.hasShift || e.shiftKey)
+      )) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!switcherVisible) {
+          // First press: open switcher at current tab
+          setPendingTabId(activeTabId);
+          setSwitcherVisible(true);
+        } else {
+          // Subsequent taps: cycle to next
+          setPendingTabId(prev => {
+            const idx = tabs.findIndex(t => t.id === prev);
+            if (idx === -1 || tabs.length <= 1) return prev;
+            return tabs[(idx + 1) % tabs.length].id;
+          });
+        }
       }
     };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, [visible, mode, tabs, activeTabId]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (!switcherVisible) return;
-      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'Alt+Tab';
-      if (!matchesShortcut(e, stored)) return;
-
-      e.preventDefault();
-      setActiveTabId(pendingTabId);
-      setSwitcherVisible(false);
+    const onKeyUp = (e) => {
+      // Modifier released → confirm and close
+      if (switcherVisible && isModifierKeyUp(e, parts)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveTabId(pendingTabId);
+        setSwitcherVisible(false);
+      }
+      // Trigger key released alone → do nothing (keep open, wait for modifier release)
     };
-    document.addEventListener('keyup', handler, true);
-    return () => document.removeEventListener('keyup', handler, true);
-  }, [switcherVisible, pendingTabId]);
+
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('keyup', onKeyUp, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('keyup', onKeyUp, true);
+    };
+  }, [visible, mode, tabs, activeTabId, switcherVisible, pendingTabId]);
 
   // Dismiss switcher if focus is lost (e.g. another shortcut fires)
   useEffect(() => {
