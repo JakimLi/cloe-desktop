@@ -165,36 +165,31 @@ export default function App() {
       // All tab shortcuts require visible terminal overlay
       if (!visible || mode !== 'terminal') return;
 
+      // Read configurable shortcuts from localStorage (with defaults)
+      const newSc = localStorage.getItem('cloe-tab-new-shortcut') || 'Cmd+T';
+      const closeSc = localStorage.getItem('cloe-tab-close-shortcut') || 'Cmd+W';
+      const prevSc = localStorage.getItem('cloe-tab-prev-shortcut') || 'Cmd+Shift+[';
+      const nextSc = localStorage.getItem('cloe-tab-next-shortcut') || 'Cmd+Shift+]';
+
       // Cmd+T: new tab
-      if (e.metaKey && !e.ctrlKey && !e.altKey && e.key === 't') {
-        e.preventDefault();
-        e.stopPropagation();
-        createTab();
-        return;
+      if (matchesShortcut(e, newSc)) {
+        e.preventDefault(); e.stopPropagation();
+        createTab(); return;
       }
-
       // Cmd+W: close current tab
-      if (e.metaKey && !e.ctrlKey && !e.altKey && e.key === 'w') {
-        e.preventDefault();
-        e.stopPropagation();
-        closeTab(activeTabId);
-        return;
+      if (matchesShortcut(e, closeSc)) {
+        e.preventDefault(); e.stopPropagation();
+        closeTab(activeTabId); return;
       }
-
       // Cmd+Shift+[: prev tab
-      if (e.metaKey && !e.ctrlKey && !e.altKey && e.shiftKey && e.key === '[') {
-        e.preventDefault();
-        e.stopPropagation();
-        prevTab();
-        return;
+      if (matchesShortcut(e, prevSc)) {
+        e.preventDefault(); e.stopPropagation();
+        prevTab(); return;
       }
-
       // Cmd+Shift+]: next tab
-      if (e.metaKey && !e.ctrlKey && !e.altKey && e.shiftKey && e.key === ']') {
-        e.preventDefault();
-        e.stopPropagation();
-        nextTab();
-        return;
+      if (matchesShortcut(e, nextSc)) {
+        e.preventDefault(); e.stopPropagation();
+        nextTab(); return;
       }
     };
     document.addEventListener('keydown', handler, true);
@@ -205,7 +200,7 @@ export default function App() {
   useEffect(() => {
     const handler = (e) => {
       if (!visible || mode !== 'terminal') return;
-      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'CommandOrControl+Tab';
+      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'Alt+Tab';
       if (!matchesShortcut(e, stored)) return;
 
       e.preventDefault();
@@ -229,7 +224,7 @@ export default function App() {
   useEffect(() => {
     const handler = (e) => {
       if (!switcherVisible) return;
-      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'CommandOrControl+Tab';
+      const stored = localStorage.getItem('cloe-tab-switch-shortcut') || 'Alt+Tab';
       if (!matchesShortcut(e, stored)) return;
 
       e.preventDefault();

@@ -6,13 +6,15 @@
 /**
  * Parse an Electron-style accelerator string into modifier flags + key.
  * e.g. "CommandOrControl+Shift+T" → { key: "T", metaKey: true, ... }
+ * e.g. "Cmd+Tab" → { key: "Tab", metaKey: true, ... }
+ * e.g. "Cmd+Shift+[" → { key: "[", metaKey: true, shiftKey: true, ... }
  */
 export function parseShortcut(stored) {
   if (!stored) return null;
   const parts = stored.toLowerCase().split('+');
   const key = parts[parts.length - 1];
   return {
-    key: key.toUpperCase(),
+    key: key === 'tab' ? 'Tab' : key === '[' ? '[' : key === ']' ? ']' : key.toUpperCase(),
     metaKey: parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p)),
     ctrlKey: parts.some(p => ['control', 'ctrl'].includes(p)),
     altKey: parts.includes('alt'),
@@ -26,8 +28,10 @@ export function parseShortcut(stored) {
 export function matchesShortcut(event, stored) {
   const s = parseShortcut(stored);
   if (!s) return false;
+  // Normalise: event.key for Tab is "Tab", for [ is "[", for ] is "]"
+  const eventKey = event.key === 'Tab' ? 'Tab' : event.key === '[' ? '[' : event.key === ']' ? ']' : event.key.toUpperCase();
   return (
-    event.key.toUpperCase() === s.key &&
+    eventKey === s.key &&
     event.metaKey === s.metaKey &&
     event.ctrlKey === s.ctrlKey &&
     event.altKey === s.altKey &&

@@ -298,7 +298,7 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
 
   // ── Render ──────────────────────────────────────────────────────
   return (
-    <div className="terminal-container" style={{ position: 'absolute', inset: 0 }}>
+    <div className="terminal-container" style={{ position: 'absolute', inset: 0, padding: '8px 16px 8px 16px' }}>
       {tabs.map((tab) => (
         <div
           key={tab.id}
@@ -306,7 +306,7 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
           style={{
             display: tab.id === activeTabId ? 'block' : 'none',
             position: 'absolute',
-            inset: 0,
+            top: '8px', left: '16px', right: '16px', bottom: '8px',
           }}
         />
       ))}

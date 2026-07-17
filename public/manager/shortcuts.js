@@ -8,6 +8,12 @@ var SHORTCUT_DEFS = [
   { id: 'terminal', lsKey: 'cloe-terminal-shortcut', section: 'window' },
   { id: 'canvas', lsKey: 'cloe-canvas-shortcut', section: 'window' },
   { id: 'transparency', lsKey: 'cloe-transparency-shortcut', section: 'window' },
+  // Terminal Tabs
+  { id: 'tab-new', lsKey: 'cloe-tab-new-shortcut', section: 'terminal', defaultAccel: 'Cmd+T' },
+  { id: 'tab-close', lsKey: 'cloe-tab-close-shortcut', section: 'terminal', defaultAccel: 'Cmd+W' },
+  { id: 'tab-switch', lsKey: 'cloe-tab-switch-shortcut', section: 'terminal', defaultAccel: 'Alt+Tab' },
+  { id: 'tab-prev', lsKey: 'cloe-tab-prev-shortcut', section: 'terminal', defaultAccel: 'Cmd+Shift+[' },
+  { id: 'tab-next', lsKey: 'cloe-tab-next-shortcut', section: 'terminal', defaultAccel: 'Cmd+Shift+]' },
   // Chat Controls
   { id: 'chat', lsKey: 'cloe-chat-shortcut', section: 'chat' },
   { id: 'chat-pin', lsKey: 'cloe-chat-pin-shortcut', section: 'chat' },
@@ -30,6 +36,11 @@ function shortcutLabelKey(id) {
     'terminal': 'terminalShortcut',
     'canvas': 'canvasShortcut',
     'transparency': 'transparencyShortcut',
+    'tab-new': 'tabNewShortcut',
+    'tab-close': 'tabCloseShortcut',
+    'tab-switch': 'tabSwitchShortcut',
+    'tab-prev': 'tabPrevShortcut',
+    'tab-next': 'tabNextShortcut',
     'chat': 'chatShortcut',
     'chat-pin': 'chatPinShortcut',
     'chat-focus': 'chatFocusShortcut',
@@ -55,6 +66,7 @@ function renderShortcuts() {
 
   const sections = {
     window: { title: I18n.t('prefs.shortcutsWindow'), shortcuts: [] },
+    terminal: { title: I18n.t('prefs.shortcutsTerminal'), shortcuts: [] },
     chat: { title: I18n.t('prefs.shortcutsChat'), shortcuts: [] },
     character: { title: I18n.t('prefs.shortcutsCharacter'), shortcuts: [] },
     reminder: { title: I18n.t('prefs.shortcutsReminder'), shortcuts: [] },
@@ -108,7 +120,7 @@ function bindShortcutRecorder(def) {
   const clearBtn = document.getElementById('shortcut-clear-' + def.id);
   if (!input || !clearBtn) return;
 
-  let saved = localStorage.getItem(def.lsKey) || '';
+  let saved = localStorage.getItem(def.lsKey) || def.defaultAccel || '';
   if (saved) input.value = electronAcceleratorToDisplay(saved);
 
   input.addEventListener('focus', () => {
@@ -142,37 +154,58 @@ function bindShortcutRecorder(def) {
 /**
  * Build an Electron accelerator string from a KeyboardEvent.
  * Preserve all modifiers separately — don't collapse Ctrl+Cmd.
+ * Supports single-char keys, function keys, Tab, and bracket keys.
  */
 function buildElectronAccelerator(e) {
+  // Ignore pure modifier presses
+  if (['Meta', 'Control', 'Alt', 'Shift', 'CapsLock'].includes(e.key)) return null;
+
   const parts = [];
   if (e.metaKey) parts.push('Cmd');
   if (e.ctrlKey) parts.push('Control');
   if (e.altKey) parts.push('Alt');
   if (e.shiftKey) parts.push('Shift');
-  // Only register single letter keys or function keys
+  // Only register single letter keys, function keys, Tab, and brackets
   if (/^F\d{1,2}$/.test(e.key)) {
+    parts.push(e.key);
+  } else if (e.key === 'Tab') {
+    parts.push('Tab');
+  } else if (e.key === '[' || e.key === ']') {
     parts.push(e.key);
   } else if (e.key.length === 1) {
     parts.push(e.key.toUpperCase());
   } else {
-    return null; // ignore modifier-only, arrows, etc.
+    return null; // ignore arrows, etc.
   }
   return parts.join('+');
 }
 
 /**
  * Convert "Cmd+Control+T" → "⌘⌃T" for display.
+ * Special: "Cmd+Tab" → "⌘⇥", "[" → "[", "]" → "]"
  */
 function electronAcceleratorToDisplay(accel) {
-  return accel
-    .replace(/CommandOrControl/g, '⌘')
-    .replace(/Command/g, '⌘')
-    .replace(/Cmd/g, '⌘')
-    .replace(/Control/g, '⌃')
-    .replace(/Ctrl/g, '⌃')
-    .replace(/Alt/g, '⌥')
-    .replace(/Shift/g, '⇧')
-    .replace(/\+/g, '');
+  // Replace Tab as the last segment
+  const segs = accel.split('+');
+  const key = segs[segs.length - 1];
+  const mods = segs.slice(0, -1);
+
+  const modStr = mods.map(m =>
+    m.replace(/CommandOrControl/g, '⌘')
+     .replace(/Command/g, '⌘')
+     .replace(/Cmd/g, '⌘')
+     .replace(/Control/g, '⌃')
+     .replace(/Ctrl/g, '⌃')
+     .replace(/Alt/g, '⌥')
+     .replace(/Shift/g, '⇧')
+  ).join('');
+
+  let keyStr;
+  if (key === 'Tab') keyStr = '⇥';
+  else if (key === '[' || key === ']') keyStr = key;
+  else keyStr = key.toUpperCase();
+
+  return modStr + keyStr;
 }
 
 function updateShortcutsText() {
