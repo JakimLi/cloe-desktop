@@ -13,6 +13,7 @@ import OverlayTitlebar from './OverlayTitlebar';
 import TerminalMode from './TerminalMode';
 import CanvasMode from './CanvasMode';
 import TabSwitcher from './TabSwitcher';
+import TabBar from './TabBar';
 import { useTerminalTabs } from './useTerminalTabs';
 import { matchesShortcut, parseShortcutParts, isModifierKeyUp } from './utils/shortcut';
 
@@ -466,7 +467,18 @@ export default function App() {
         chatVisible={chatOpen}
         overlayTransparency={overlayTransparency}
         onToggleTransparent={toggleOverlayTransparent}
-      />
+      >
+        {mode === 'terminal' && (
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onSelect={setActiveTabId}
+            onCreate={createTab}
+            onClose={closeTab}
+            onRename={updateTabTitle}
+          />
+        )}
+      </OverlayTitlebar>
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>
         <div style={{ display: mode === 'terminal' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
           <TerminalMode tabs={tabs} activeTabId={activeTabId} updateTabTitle={updateTabTitle} />

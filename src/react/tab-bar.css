@@ -1,0 +1,134 @@
+/* ── Tab Bar (titlebar embedded) ── */
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding-left: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.tab-bar-list {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tab-bar-list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px 0 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 140px;
+  transition: background 0.15s ease, color 0.15s ease;
+  position: relative;
+}
+
+.tab-bar-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.tab-bar-item.active {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.tab-bar-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--terminal-accent, #26c6da);
+  border-radius: 2px 2px 0 0;
+}
+
+.tab-bar-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-bar-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.tab-bar-item:hover .tab-bar-close {
+  opacity: 1;
+}
+
+.tab-bar-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tab-bar-item.active .tab-bar-close {
+  opacity: 0.5;
+}
+
+/* Input for rename */
+.tab-bar-input {
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemText, 'SF Pro Text', sans-serif;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.95);
+  outline: none;
+  padding: 2px 6px;
+  width: 90px;
+  height: 18px;
+}
+
+/* + button */
+.tab-bar-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab-bar-add:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}

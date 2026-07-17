@@ -86,7 +86,7 @@ function ThemePicker({ mode }) {
   );
 }
 
-export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparency, onToggleTransparent }) {
+export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparency, onToggleTransparent, children }) {
   return (
     <div className="terminal-titlebar">
       {/* Traffic lights (hover reveal) */}
@@ -142,8 +142,8 @@ export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatTog
         </button>
       </div>
 
-      {/* Drag region fills the middle */}
-      <div className="terminal-drag-region" />
+      {/* Tab bar (passed as children) or drag region fallback */}
+      {children || <div className="terminal-drag-region" />}
 
       {/* Theme picker */}
       <ThemePicker mode={mode} />
