@@ -9,6 +9,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './tab-bar.css';
 
+const isZh = () => navigator.language?.startsWith('zh');
+const t = (zh, en) => (isZh() ? zh : en);
+
 export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -129,20 +132,20 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
         <div className="tab-bar-confirm-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="tab-bar-confirm" ref={confirmRef} onClick={(e) => e.stopPropagation()}>
             <div className="tab-bar-confirm-text">
-              关闭标签页「{confirmTab.title}」？
+              {t(`关闭标签页「${confirmTab.title}」？`, `Close tab "${confirmTab.title}"?`)}
             </div>
             <div className="tab-bar-confirm-actions">
               <button
                 className="tab-bar-confirm-btn tab-bar-confirm-cancel"
                 onClick={() => setConfirmTab(null)}
               >
-                取消
+                {t('取消', 'Cancel')}
               </button>
               <button
                 className="tab-bar-confirm-btn tab-bar-confirm-ok"
                 onClick={confirmClose}
               >
-                关闭
+                {t('关闭', 'Close')}
               </button>
             </div>
           </div>
