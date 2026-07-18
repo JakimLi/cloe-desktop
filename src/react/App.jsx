@@ -181,6 +181,15 @@ export default function App() {
       // All tab shortcuts require visible terminal overlay
       if (!visible || mode !== 'terminal') return;
 
+      // Cmd+1..9: jump to tab by index (1-based, like browsers/iTerm2)
+      if (e.metaKey && !e.ctrlKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(e.key, 10) - 1;
+        if (idx < tabs.length) setActiveTabId(tabs[idx].id);
+        return;
+      }
+
       // Read configurable shortcuts from localStorage (with defaults)
       const newSc = localStorage.getItem('cloe-tab-new-shortcut') || 'Cmd+T';
       const closeSc = localStorage.getItem('cloe-tab-close-shortcut') || 'Cmd+W';
@@ -210,7 +219,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [visible, mode, activeTabId, createTab, closeTab, nextTab, prevTab]);
+  }, [visible, mode, activeTabId, tabs, createTab, closeTab, nextTab, prevTab]);
 
   // ── Tab switcher: hold modifier + tap trigger key to cycle, release modifier to confirm ──
   // Behavior (like macOS Cmd+Tab or browser Ctrl+Tab):
