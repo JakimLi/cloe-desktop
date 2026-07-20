@@ -30,7 +30,8 @@
         "walk_left": "gifs/walk_left.gif",
         "dance": "gifs/dance.gif",
         "proud": "gifs/proud.gif",
-        "surprise": "gifs/surprise.gif"
+        "surprise": "gifs/surprise.gif",
+        "drink": "gifs/drink.gif"
       },
       "actionInfo": {
         "blink": {
@@ -112,6 +113,10 @@
         "surprise": {
           "description": "惊讶，眼睛睁大嘴巴微张，被吓到或听到意外消息的时候",
           "descriptionEn": "Surprise — eyes wide, mouth open, shocked or startled"
+        },
+        "drink": {
+          "description": "喝水，拿起杯子喝水，口渴或想休息一下的时候",
+          "descriptionEn": "Drink — picking up a glass and drinking water, thirsty or taking a break"
         }
       },
       "idlePlaylist": [
@@ -145,7 +150,8 @@
         "walk_left": "walk_left",
         "dance": "dance",
         "proud": "proud",
-        "surprise": "surprise"
+        "surprise": "surprise",
+        "drink": "drink"
       }
     },
     {
