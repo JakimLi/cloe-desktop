@@ -69,10 +69,20 @@ else
     exit 1
 fi
 
-# [2.6] Pre-compile node-pty for both architectures (universal DMG)
-echo "[2.6/3] Pre-compile node-pty (arm64 + x64)..."
+# [2.6] Pre-compile node-pty as universal binary (arm64 + x64)
+# electron-builder merges asar.unpacked from x64-temp and arm64-temp, but
+# the latter overwrites the former — only ONE architecture survives unless
+# we pre-create a fat binary via lipo.
+echo "[2.6/3] Pre-compile node-pty (universal fat binary)..."
+PTY_TMPDIR=$(mktemp -d)
 npx electron-rebuild -f -w node-pty --arch arm64
+cp node_modules/node-pty/build/Release/pty.node "$PTY_TMPDIR/pty-arm64.node"
 npx electron-rebuild -f -w node-pty --arch x64
+cp node_modules/node-pty/build/Release/pty.node "$PTY_TMPDIR/pty-x64.node"
+lipo -create -output node_modules/node-pty/build/Release/pty.node \
+  "$PTY_TMPDIR/pty-arm64.node" "$PTY_TMPDIR/pty-x64.node"
+rm -rf "$PTY_TMPDIR"
+echo "  ✓ $(file node_modules/node-pty/build/Release/pty.node | grep -o 'universal.*')"
 
 # [3] electron-builder
 if [[ "$1" == "--dir" ]]; then
