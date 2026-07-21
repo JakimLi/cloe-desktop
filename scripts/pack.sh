@@ -69,17 +69,26 @@ else
     exit 1
 fi
 
+# [2.6] Pre-compile node-pty for both architectures (universal DMG)
+echo "[2.6/3] Pre-compile node-pty (arm64 + x64)..."
+npx electron-rebuild -f -w node-pty --arch arm64
+npx electron-rebuild -f -w node-pty --arch x64
+
 # [3] electron-builder
 if [[ "$1" == "--dir" ]]; then
     echo "[3/3] electron-builder --dir..."
-    ./node_modules/.bin/electron-builder --mac --dir
+    ELECTRON_MIRROR="${ELECTRON_MIRROR:-https://npmmirror.com/mirrors/electron/}" \
+      ./node_modules/.bin/electron-builder --mac --dir --config.npmRebuild=false
     echo ""
     echo "=== 完成! ==="
-    echo "App: release/mac/Cloe.app"
-    echo "运行: open release/mac/Cloe.app"
+    echo "App: release/mac-arm64/Cloe.app"
+    echo "运行: open release/mac-arm64/Cloe.app"
 else
-    echo "[3/3] electron-builder --mac (DMG)..."
-    ./node_modules/.bin/electron-builder --mac
+    echo "[3/3] electron-builder --mac (universal DMG)..."
+    pkill -9 hdiutil 2>/dev/null || true
+    hdiutil detach "/Volumes/Cloe*" -quiet 2>/dev/null || true
+    ELECTRON_MIRROR="${ELECTRON_MIRROR:-https://npmmirror.com/mirrors/electron/}" \
+      ./node_modules/.bin/electron-builder --mac --config.npmRebuild=false
     echo ""
     echo "=== 完成! ==="
     DMG=$(ls -t release/*.dmg 2>/dev/null | head -1)
@@ -88,6 +97,16 @@ else
         echo "DMG: $DMG ($SIZE)"
     fi
 fi
+
+# [3.5] Verify pty.node architectures in output
+echo "[3.5/3] 校验 pty.node..."
+for dir in release/mac-universal release/mac-arm64 release/mac; do
+    PTY=$(find "$dir/Cloe.app" -name "pty.node" 2>/dev/null | head -1)
+    if [[ -n "$PTY" ]]; then
+        ARCH=$(file "$PTY" | grep -o 'arm64\|x86_64' | tr '\n' '+')
+        echo "  ✓ $dir: $ARCH"
+    fi
+done
 
 # ── Install step ──────────────────────────────────────────
 if $INSTALL; then
