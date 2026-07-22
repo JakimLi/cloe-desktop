@@ -1,53 +1,67 @@
 /**
- * Cloe Desktop — Global Mute State
+ * Cloe Desktop — Global Control State
  *
- * Single source of truth for the global TTS mute switch.
+ * Single source of truth for global switches:
+ *   - muted: global TTS mute
+ *   - global_paused: all running reminders are globally paused
  * Reads/writes ~/.cloe/mute-state.json.
- * When muted, reminder-engine and agent-tracker skip TTS generation.
  */
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const MUTE_FILE = path.join(os.homedir(), '.cloe', 'mute-state.json');
+const STATE_FILE = path.join(os.homedir(), '.cloe', 'mute-state.json');
 
-/** @type {boolean|null} cached state, null = not yet loaded */
+/** @type {object|null} cached state */
 let cached = null;
 
-function loadMuteState() {
+function _load() {
   try {
-    if (!fs.existsSync(MUTE_FILE)) return false;
-    const data = JSON.parse(fs.readFileSync(MUTE_FILE, 'utf-8'));
-    return !!data.muted;
+    if (!fs.existsSync(STATE_FILE)) return { muted: false, global_paused: false };
+    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
   } catch {
-    return false;
+    return { muted: false, global_paused: false };
   }
 }
 
-function saveMuteState(muted) {
-  const dir = path.dirname(MUTE_FILE);
+function _save(state) {
+  const dir = path.dirname(STATE_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(MUTE_FILE, JSON.stringify({ muted }, null, 2), 'utf-8');
-  cached = muted;
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+  cached = state;
 }
 
-/**
- * Check if TTS is globally muted.
- * Reads from cache if available, otherwise loads from disk.
- */
+function _ensureCached() {
+  if (!cached) cached = _load();
+}
+
+// ── Mute ──
+
 function isMuted() {
-  if (cached === null) cached = loadMuteState();
-  return cached;
+  _ensureCached();
+  return !!cached.muted;
 }
 
-/**
- * Toggle mute state. Returns the new state.
- */
 function toggleMute() {
-  const newState = !isMuted();
-  saveMuteState(newState);
-  return newState;
+  _ensureCached();
+  cached.muted = !cached.muted;
+  _save(cached);
+  return cached.muted;
 }
 
-module.exports = { isMuted, toggleMute, loadMuteState, saveMuteState };
+// ── Global Pause ──
+
+function isGlobalPaused() {
+  _ensureCached();
+  return !!cached.global_paused;
+}
+
+function toggleGlobalPause() {
+  _ensureCached();
+  cached.global_paused = !cached.global_paused;
+  _save(cached);
+  return cached.global_paused;
+}
+
+module.exports = { isMuted, toggleMute, isGlobalPaused, toggleGlobalPause, _load };

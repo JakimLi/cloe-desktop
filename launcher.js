@@ -2393,6 +2393,28 @@ function createBridgeServers() {
       return;
     }
 
+    // --- Global Pause Toggle ---
+    if (req.method === 'POST' && urlPath === '/toggle-global-pause') {
+      const paused = muteState.toggleGlobalPause();
+      let count = 0;
+      if (paused) {
+        count = reminderEngine.pauseAllRunning();
+      } else {
+        count = reminderEngine.resumeAllGloballyPaused();
+      }
+      broadcastToClients({ type: 'global-pause-changed', paused, count });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ paused, count }));
+      return;
+    }
+
+    // --- Global Pause State ---
+    if (req.method === 'GET' && urlPath === '/global-pause-state') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ paused: muteState.isGlobalPaused() }));
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
   });

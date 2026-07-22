@@ -10,6 +10,7 @@ var SHORTCUT_DEFS = [
   { id: 'transparency', lsKey: 'cloe-transparency-shortcut', section: 'window' },
   { id: 'agent-tracker', lsKey: 'cloe-agent-tracker-shortcut', section: 'window' },
   { id: 'mute-toggle', lsKey: 'cloe-mute-toggle-shortcut', section: 'window' },
+  { id: 'global-pause-toggle', lsKey: 'cloe-global-pause-toggle-shortcut', section: 'window' },
   // Terminal Tabs
   { id: 'tab-new', lsKey: 'cloe-tab-new-shortcut', section: 'terminal', defaultAccel: 'Cmd+T' },
   { id: 'tab-close', lsKey: 'cloe-tab-close-shortcut', section: 'terminal', defaultAccel: 'Cmd+W' },
@@ -40,6 +41,7 @@ function shortcutLabelKey(id) {
     'transparency': 'transparencyShortcut',
     'agent-tracker': 'agentTrackerShortcut',
     'mute-toggle': 'muteToggleShortcut',
+    'global-pause-toggle': 'globalPauseToggleShortcut',
     'tab-new': 'tabNewShortcut',
     'tab-close': 'tabCloseShortcut',
     'tab-switch': 'tabSwitchShortcut',

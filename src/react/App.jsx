@@ -25,20 +25,37 @@ function MuteToast({ toast }) {
   const icon = toast.muted ? '🔇' : '🔊';
   const text = toast.muted ? '已静音' : '已恢复语音';
   return (
-    <div style={{
-      position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
-      zIndex: 200, display: 'flex', alignItems: 'center', gap: 8,
-      background: 'rgba(28, 28, 38, 0.95)', backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
-      padding: '10px 20px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      animation: 'mute-toast-in 0.2s ease-out',
-    }}>
+    <div style={toastStyle}>
       <span style={{ fontSize: 18 }}>{icon}</span>
-      <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 }}>{text}</span>
+      <span style={toastTextStyle}>{text}</span>
     </div>
   );
 }
+
+function PauseToast({ toast }) {
+  if (!toast) return null;
+  const icon = toast.paused ? '⏸️' : '▶️';
+  const text = toast.paused
+    ? `已暂停 ${toast.count} 个提醒`
+    : `已恢复 ${toast.count} 个提醒`;
+  return (
+    <div style={toastStyle}>
+      <span style={{ fontSize: 18 }}>{icon}</span>
+      <span style={toastTextStyle}>{text}</span>
+    </div>
+  );
+}
+
+const toastStyle = {
+  position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+  zIndex: 200, display: 'flex', alignItems: 'center', gap: 8,
+  background: 'rgba(28, 28, 38, 0.95)', backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+  padding: '10px 20px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+  animation: 'mute-toast-in 0.2s ease-out',
+};
+const toastTextStyle = { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 };
 
 export default function App() {
   const [visible, setVisible] = useState(false);
@@ -615,6 +632,42 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // ── Global Pause Toggle ──
+  const [globalPaused, setGlobalPaused] = useState(false);
+  const [pauseToast, setPauseToast] = useState(null); // { paused: boolean, count: number, ts: number }
+
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e.detail;
+      if (msg.type === 'global-pause-changed') {
+        setGlobalPaused(msg.paused);
+        setPauseToast({ paused: msg.paused, count: msg.count || 0, ts: Date.now() });
+      }
+    };
+    window.addEventListener('cloe-global-pause', handler);
+    return () => window.removeEventListener('cloe-global-pause', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!pauseToast) return;
+    const timer = setTimeout(() => setPauseToast(null), 2500);
+    return () => clearTimeout(timer);
+  }, [pauseToast]);
+
+  // Global pause toggle shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-global-pause-toggle-shortcut') || '';
+      if (!stored) return;
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      fetch(`${API_BASE}/toggle-global-pause`, { method: 'POST' }).catch(() => {});
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   if (!visible) {
     return (
       <>
@@ -626,6 +679,7 @@ export default function App() {
           onClose={() => setAgentModalVisible(false)}
         />
         <MuteToast toast={muteToast} />
+        <PauseToast toast={pauseToast} />
       </>
     );
   }
@@ -679,6 +733,7 @@ export default function App() {
         onClose={() => setAgentModalVisible(false)}
       />
       <MuteToast toast={muteToast} />
+      <PauseToast toast={pauseToast} />
     </div>
   );
 }

@@ -818,6 +818,10 @@ function connectWebSocket() {
         if (msg.type === 'mute-state-changed') {
           window.dispatchEvent(new CustomEvent('cloe-mute-state', { detail: msg }));
         }
+        // Forward global pause state changes to React layer
+        if (msg.type === 'global-pause-changed') {
+          window.dispatchEvent(new CustomEvent('cloe-global-pause', { detail: msg }));
+        }
       } catch (e) { console.error('WS parse:', e); }
     };
 

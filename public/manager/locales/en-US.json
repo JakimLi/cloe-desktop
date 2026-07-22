@@ -320,7 +320,12 @@
     "muteToggleShortcutDesc": "Toggle global TTS mute (silence all voice alerts, e.g. during meetings)",
     "muteToggleShortcutEmpty": "Click to set shortcut…",
     "muteToggleShortcutHint": "Press a key combination",
-    "muteToggleShortcutClear": "Clear"
+    "muteToggleShortcutClear": "Clear",
+    "globalPauseToggleShortcut": "Pause All Reminders",
+    "globalPauseToggleShortcutDesc": "Toggle pause/resume for all running reminders (manually paused and stopped are excluded)",
+    "globalPauseToggleShortcutEmpty": "Click to set shortcut…",
+    "globalPauseToggleShortcutHint": "Press a key combination",
+    "globalPauseToggleShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",

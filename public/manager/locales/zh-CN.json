@@ -320,7 +320,12 @@
     "muteToggleShortcutDesc": "按此快捷键切换语音提醒的全局静音开关（开会时一键静音）",
     "muteToggleShortcutEmpty": "点击设置快捷键…",
     "muteToggleShortcutHint": "点击输入框后按下想要的组合键",
-    "muteToggleShortcutClear": "清除"
+    "muteToggleShortcutClear": "清除",
+    "globalPauseToggleShortcut": "全局暂停提醒",
+    "globalPauseToggleShortcutDesc": "按此快捷键暂停/恢复所有进行中的提醒（手动暂停和停止的不受影响）",
+    "globalPauseToggleShortcutEmpty": "点击设置快捷键…",
+    "globalPauseToggleShortcutHint": "点击输入框后按下想要的组合键",
+    "globalPauseToggleShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",

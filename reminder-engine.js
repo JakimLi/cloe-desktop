@@ -356,11 +356,60 @@ function resumeReminder(id) {
   r.status = 'running';
   r.trigger_at = new Date(Date.now() + (r.remaining_ms || r.duration * 1000)).toISOString();
   delete r.remaining_ms;
+  delete r.globally_paused;
   saveReminders(reminders);
   startTimer(r);
 
   broadcast({ type: 'reminder-updated', reminder: sanitizeReminder(r) });
   return reminders[id];
+}
+
+// ── Global Pause/Resume ──
+
+/**
+ * Pause all running reminders. Marks them with globally_paused=true so
+ * resumeGlobalPause only resumes the ones we paused (not manually paused ones).
+ * Returns count of paused reminders.
+ */
+function pauseAllRunning() {
+  const reminders = loadReminders();
+  let count = 0;
+  for (const [id, r] of Object.entries(reminders)) {
+    if (r.enabled && r.status === 'running') {
+      const remaining = Math.max(0, new Date(r.trigger_at).getTime() - Date.now());
+      r.status = 'paused';
+      r.remaining_ms = remaining;
+      r.globally_paused = true;
+      clearTimer(id);
+      count++;
+      broadcast({ type: 'reminder-updated', reminder: sanitizeReminder(r) });
+    }
+  }
+  if (count > 0) saveReminders(reminders);
+  return count;
+}
+
+/**
+ * Resume all reminders that were globally paused.
+ * Does NOT touch manually paused reminders or stopped ones.
+ * Returns count of resumed reminders.
+ */
+function resumeAllGloballyPaused() {
+  const reminders = loadReminders();
+  let count = 0;
+  for (const [id, r] of Object.entries(reminders)) {
+    if (r.enabled && r.status === 'paused' && r.globally_paused) {
+      r.status = 'running';
+      r.trigger_at = new Date(Date.now() + (r.remaining_ms || r.duration * 1000)).toISOString();
+      delete r.remaining_ms;
+      delete r.globally_paused;
+      saveReminders(reminders);
+      startTimer(r);
+      count++;
+      broadcast({ type: 'reminder-updated', reminder: sanitizeReminder(r) });
+    }
+  }
+  return count;
 }
 
 // ==================== Restore on Startup ====================
@@ -555,4 +604,6 @@ module.exports = {
   toggleReminder,
   pauseReminder,
   resumeReminder,
+  pauseAllRunning,
+  resumeAllGloballyPaused,
 };
