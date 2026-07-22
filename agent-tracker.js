@@ -10,6 +10,7 @@
  * In-memory only — sessions are ephemeral and lost on restart.
  */
 
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
