@@ -574,7 +574,13 @@ export default function App() {
   // ESC to close agent modal
   useEffect(() => {
     if (!agentModalVisible) return;
-    const handler = (e) => { if (e.key === 'Escape') setAgentModalVisible(false); };
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setAgentModalVisible(false);
+      }
+    };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
   }, [agentModalVisible]);
