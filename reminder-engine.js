@@ -115,7 +115,13 @@ function triggerReminder(reminder) {
 
   // Generate TTS voice message if enabled
   if (r.tts) {
-    generateReminderTTS(r);
+    // Check global mute switch
+    const { isMuted } = require('./mute-state');
+    if (isMuted()) {
+      console.log('[Reminder] TTS skipped: global mute is on');
+    } else {
+      generateReminderTTS(r);
+    }
   }
 }
 

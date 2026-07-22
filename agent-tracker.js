@@ -65,6 +65,13 @@ function speakFallback(event) {
 }
 
 function generateAgentTTS(session, event) {
+  // Check global mute switch
+  const { isMuted } = require('./mute-state');
+  if (isMuted()) {
+    console.log('[agent-tracker] TTS skipped: global mute is on');
+    return;
+  }
+
   const displayName = session.title || session.source_label || session.source;
   let message;
   if (event === 'turn-end') {

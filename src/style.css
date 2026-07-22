@@ -687,4 +687,11 @@ body.terminal-mode #reminder-overlay {
   z-index: 20;
 }
 
+/* ==================== Mute Toast Animation ==================== */
+
+@keyframes mute-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* ==================== End of style.css ==================== */

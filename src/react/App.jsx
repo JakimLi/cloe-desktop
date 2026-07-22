@@ -20,6 +20,26 @@ import AgentSessionModal from './AgentSessionModal';
 
 const API_BASE = 'http://127.0.0.1:19851';
 
+function MuteToast({ toast }) {
+  if (!toast) return null;
+  const icon = toast.muted ? '🔇' : '🔊';
+  const text = toast.muted ? '已静音' : '已恢复语音';
+  return (
+    <div style={{
+      position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 200, display: 'flex', alignItems: 'center', gap: 8,
+      background: 'rgba(28, 28, 38, 0.95)', backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+      padding: '10px 20px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      animation: 'mute-toast-in 0.2s ease-out',
+    }}>
+      <span style={{ fontSize: 18 }}>{icon}</span>
+      <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 }}>{text}</span>
+    </div>
+  );
+}
+
 export default function App() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
@@ -556,15 +576,57 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
+  // ── Global Mute Toggle ──
+  const [muted, setMuted] = useState(false);
+  const [muteToast, setMuteToast] = useState(null); // { muted: boolean, ts: number }
+
+  // Sync mute state from WS events (e.g. toggled from another window)
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e.detail;
+      if (msg.type === 'mute-state-changed') {
+        setMuted(msg.muted);
+        setMuteToast({ muted: msg.muted, ts: Date.now() });
+      }
+    };
+    window.addEventListener('cloe-mute-state', handler);
+    return () => window.removeEventListener('cloe-mute-state', handler);
+  }, []);
+
+  // Auto-hide toast after 2s
+  useEffect(() => {
+    if (!muteToast) return;
+    const timer = setTimeout(() => setMuteToast(null), 2000);
+    return () => clearTimeout(timer);
+  }, [muteToast]);
+
+  // Mute toggle shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-mute-toggle-shortcut') || '';
+      if (!stored) return;
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // POST toggle-mute, server will broadcast back
+      fetch(`${API_BASE}/toggle-mute`, { method: 'POST' }).catch(() => {});
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   if (!visible) {
     return (
-      <AgentSessionModal
-        visible={agentModalVisible}
-        sessions={agentSessions}
-        onSetTitle={handleAgentSetTitle}
-        onCancel={handleAgentCancel}
-        onClose={() => setAgentModalVisible(false)}
-      />
+      <>
+        <AgentSessionModal
+          visible={agentModalVisible}
+          sessions={agentSessions}
+          onSetTitle={handleAgentSetTitle}
+          onCancel={handleAgentCancel}
+          onClose={() => setAgentModalVisible(false)}
+        />
+        <MuteToast toast={muteToast} />
+      </>
     );
   }
 
@@ -616,6 +678,7 @@ export default function App() {
         onCancel={handleAgentCancel}
         onClose={() => setAgentModalVisible(false)}
       />
+      <MuteToast toast={muteToast} />
     </div>
   );
 }

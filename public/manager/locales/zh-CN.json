@@ -315,7 +315,12 @@
     "agentTrackerShortcutDesc": "按此快捷键打开/关闭 Agent Session 追踪面板",
     "agentTrackerShortcutEmpty": "点击设置快捷键…",
     "agentTrackerShortcutHint": "点击输入框后按下想要的组合键",
-    "agentTrackerShortcutClear": "清除"
+    "agentTrackerShortcutClear": "清除",
+    "muteToggleShortcut": "全局静音",
+    "muteToggleShortcutDesc": "按此快捷键切换语音提醒的全局静音开关（开会时一键静音）",
+    "muteToggleShortcutEmpty": "点击设置快捷键…",
+    "muteToggleShortcutHint": "点击输入框后按下想要的组合键",
+    "muteToggleShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",

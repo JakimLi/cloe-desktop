@@ -315,7 +315,12 @@
     "agentTrackerShortcutDesc": "Press to toggle the Agent Session tracker panel",
     "agentTrackerShortcutEmpty": "Click to set shortcut…",
     "agentTrackerShortcutHint": "Press a key combination",
-    "agentTrackerShortcutClear": "Clear"
+    "agentTrackerShortcutClear": "Clear",
+    "muteToggleShortcut": "Mute All",
+    "muteToggleShortcutDesc": "Toggle global TTS mute (silence all voice alerts, e.g. during meetings)",
+    "muteToggleShortcutEmpty": "Click to set shortcut…",
+    "muteToggleShortcutHint": "Press a key combination",
+    "muteToggleShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",

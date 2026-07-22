@@ -20,6 +20,7 @@ const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const reminderEngine = require('./reminder-engine');
 const agentTracker = require('./agent-tracker');
+const muteState = require('./mute-state');
 // ==================== Config ====================
 const WS_PORT = 19850;
 const HTTP_PORT = 19851;
@@ -2373,6 +2374,22 @@ function createBridgeServers() {
 
     // --- Agent Session Tracker Routes ---
     if (agentTracker.handleAgentRoute(req, res)) {
+      return;
+    }
+
+    // --- Global Mute Toggle ---
+    if (req.method === 'POST' && urlPath === '/toggle-mute') {
+      const muted = muteState.toggleMute();
+      broadcastToClients({ type: 'mute-state-changed', muted });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ muted }));
+      return;
+    }
+
+    // --- Global Mute State ---
+    if (req.method === 'GET' && urlPath === '/mute-state') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ muted: muteState.isMuted() }));
       return;
     }
 
