@@ -85,6 +85,8 @@
       "launcher.js",
       "reminder-engine.js",
       "agent-tracker.js",
+      "audio/fallback/turn_complete.mp3",
+      "audio/fallback/needs_decision.mp3",
       "preload.js",
       "chat-preload.js",
       "node_modules/ws/**/*",

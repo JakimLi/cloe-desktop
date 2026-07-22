@@ -33,6 +33,37 @@ function broadcast(msg) {
 
 // ==================== TTS ====================
 
+// Fallback audio files shipped with the app (audio/fallback/).
+// Dev mode resolves relative to CWD, packaged app resolves relative to __dirname.
+const _appRoot = fs.existsSync(path.join(__dirname, 'audio', 'fallback'))
+  ? __dirname
+  : path.resolve(process.resourcesPath || __dirname, '..');
+const FALLBACK_DIR = path.join(_appRoot, 'audio', 'fallback');
+const FALLBACK_FILES = {
+  'turn-end': 'turn_complete.mp3',
+  'needs-decision': 'needs_decision.mp3',
+};
+
+function speakFallback(event) {
+  const filename = FALLBACK_FILES[event];
+  if (!filename) return;
+  const filePath = path.join(FALLBACK_DIR, filename);
+  if (!fs.existsSync(filePath)) return;
+
+  const BRIDGE_URL = 'http://127.0.0.1:19851';
+  const payload = JSON.stringify({
+    action: 'speak',
+    audio_url: `${BRIDGE_URL}/tts-fallback/${filename}`,
+  });
+  const req = require('http').request(`${BRIDGE_URL}/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }, (res) => { res.resume(); });
+  req.on('error', (e) => console.error('[agent-tracker] fallback speak failed:', e.message));
+  req.write(payload);
+  req.end();
+}
+
 function generateAgentTTS(session, event) {
   const displayName = session.title || session.source_label || session.source;
   let message;
@@ -49,7 +80,10 @@ function generateAgentTTS(session, event) {
     'cloe-desktop-action', 'scripts', 'generate_tts.py');
   execFile('python3', [scriptPath, '--text', message, '--speak'],
     { timeout: 15000 }, (err) => {
-      if (err) console.error('[agent-tracker] TTS failed:', err.message);
+      if (err) {
+        console.error('[agent-tracker] TTS failed, using fallback:', err.message);
+        speakFallback(event);
+      }
     });
 }
 

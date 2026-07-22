@@ -1714,6 +1714,20 @@ function createBridgeServers() {
     // trigger speak with audio_url=http://localhost:19851/tts/filename.mp3
     // Supports Range requests (206 Partial Content) — Chromium requires this
     // for MP3 streaming; without it, playback truncates at ~10s.
+    if (req.method === 'GET' && req.url.startsWith('/tts-fallback/')) {
+      const filename = decodeURIComponent(req.url.slice(14));
+      if (!filename || filename.includes('/') || filename.includes('..') || filename.includes('\\0')) {
+        res.writeHead(400); res.end('Invalid filename'); return;
+      }
+      const fbDir = path.join(__dirname, 'audio', 'fallback');
+      const filePath = path.join(fbDir, filename);
+      if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
+      const stat = fs.statSync(filePath);
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': stat.size });
+      fs.createReadStream(filePath).pipe(res);
+      return;
+    }
+
     if (req.method === 'GET' && req.url.startsWith('/tts/')) {
       const filename = decodeURIComponent(req.url.slice(5));
       if (!filename || filename.includes('/') || filename.includes('..') || filename.includes('\0')) {
