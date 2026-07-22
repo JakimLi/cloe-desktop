@@ -84,6 +84,7 @@
       "dist/**/*",
       "launcher.js",
       "reminder-engine.js",
+      "agent-tracker.js",
       "preload.js",
       "chat-preload.js",
       "node_modules/ws/**/*",

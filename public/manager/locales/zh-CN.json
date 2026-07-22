@@ -310,7 +310,12 @@
     "reminderStopShortcutDesc": "按此快捷键彻底关闭当前提醒（停止后续提醒）",
     "reminderStopShortcutEmpty": "点击设置快捷键…",
     "reminderStopShortcutHint": "点击输入框后按下想要的组合键",
-    "reminderStopShortcutClear": "清除"
+    "reminderStopShortcutClear": "清除",
+    "agentTrackerShortcut": "Agent 面板",
+    "agentTrackerShortcutDesc": "按此快捷键打开/关闭 Agent Session 追踪面板",
+    "agentTrackerShortcutEmpty": "点击设置快捷键…",
+    "agentTrackerShortcutHint": "点击输入框后按下想要的组合键",
+    "agentTrackerShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",

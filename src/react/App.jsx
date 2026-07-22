@@ -16,6 +16,9 @@ import TabSwitcher from './TabSwitcher';
 import TabBar, { TabCloseConfirm } from './TabBar';
 import { useTerminalTabs } from './useTerminalTabs';
 import { matchesShortcut, parseShortcutParts, isModifierKeyUp } from './utils/shortcut';
+import AgentSessionModal from './AgentSessionModal';
+
+const API_BASE = 'http://127.0.0.1:19851';
 
 export default function App() {
   const [visible, setVisible] = useState(false);
@@ -477,8 +480,92 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // ── Agent Session Tracker ──
+  const [agentSessions, setAgentSessions] = useState([]);
+  const [agentModalVisible, setAgentModalVisible] = useState(false);
+
+  // Sync sessions from WS events
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e.detail;
+      if (!msg || !msg.type) return;
+      if (msg.type === 'agent-session-registered' || msg.type === 'agent-session-updated' || msg.type === 'agent-session-title-set') {
+        if (msg.session) {
+          setAgentSessions(prev => {
+            const idx = prev.findIndex(s => s.id === msg.session.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = msg.session;
+              return next;
+            }
+            return [...prev, msg.session];
+          });
+        }
+      } else if (msg.type === 'agent-session-ended' || msg.type === 'agent-session-cancelled') {
+        if (msg.session_id) {
+          setAgentSessions(prev => prev.filter(s => s.id !== msg.session_id));
+        }
+      }
+    };
+    window.addEventListener('cloe-agent-session', handler);
+    return () => window.removeEventListener('cloe-agent-session', handler);
+  }, []);
+
+  // Initial fetch on first open
+  useEffect(() => {
+    if (!visible) return;
+    fetch(`${API_BASE}/agent-sessions`)
+      .then(r => r.json())
+      .then(data => { if (data.sessions) setAgentSessions(data.sessions); })
+      .catch(() => {});
+  }, [visible]);
+
+  // Agent modal shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-agent-tracker-shortcut') || '';
+      if (!stored) return;
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setAgentModalVisible(prev => !prev);
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
+  // ESC to close agent modal
+  useEffect(() => {
+    if (!agentModalVisible) return;
+    const handler = (e) => { if (e.key === 'Escape') setAgentModalVisible(false); };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [agentModalVisible]);
+
+  const handleAgentSetTitle = useCallback((id, title) => {
+    fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/title`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    }).catch(() => {});
+  }, []);
+
+  const handleAgentCancel = useCallback((id) => {
+    fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    }).catch(() => {});
+  }, []);
+
   if (!visible) {
-    return null;
+    return (
+      <AgentSessionModal
+        visible={agentModalVisible}
+        sessions={agentSessions}
+        onSetTitle={handleAgentSetTitle}
+        onCancel={handleAgentCancel}
+        onClose={() => setAgentModalVisible(false)}
+      />
+    );
   }
 
   return (
@@ -521,6 +608,13 @@ export default function App() {
           setPendingCloseTab(null);
         }}
         onCancel={() => setPendingCloseTab(null)}
+      />
+      <AgentSessionModal
+        visible={agentModalVisible}
+        sessions={agentSessions}
+        onSetTitle={handleAgentSetTitle}
+        onCancel={handleAgentCancel}
+        onClose={() => setAgentModalVisible(false)}
       />
     </div>
   );

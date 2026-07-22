@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const reminderEngine = require('./reminder-engine');
+const agentTracker = require('./agent-tracker');
 // ==================== Config ====================
 const WS_PORT = 19850;
 const HTTP_PORT = 19851;
@@ -1011,6 +1012,9 @@ function createBridgeServers() {
   // --- Reminder Engine ---
   reminderEngine.setBroadcast(broadcastToClients);
   reminderEngine.restoreTimers();
+
+  // --- Agent Session Tracker ---
+  agentTracker.setBroadcast(broadcastToClients);
 
   // --- HTTP ---
   const server = http.createServer((req, res) => {
@@ -2350,6 +2354,11 @@ function createBridgeServers() {
 
     // --- Reminder Engine Routes ---
     if (reminderEngine.handleReminderRoute(req, res)) {
+      return;
+    }
+
+    // --- Agent Session Tracker Routes ---
+    if (agentTracker.handleAgentRoute(req, res)) {
       return;
     }
 

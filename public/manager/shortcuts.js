@@ -8,6 +8,7 @@ var SHORTCUT_DEFS = [
   { id: 'terminal', lsKey: 'cloe-terminal-shortcut', section: 'window' },
   { id: 'canvas', lsKey: 'cloe-canvas-shortcut', section: 'window' },
   { id: 'transparency', lsKey: 'cloe-transparency-shortcut', section: 'window' },
+  { id: 'agent-tracker', lsKey: 'cloe-agent-tracker-shortcut', section: 'window' },
   // Terminal Tabs
   { id: 'tab-new', lsKey: 'cloe-tab-new-shortcut', section: 'terminal', defaultAccel: 'Cmd+T' },
   { id: 'tab-close', lsKey: 'cloe-tab-close-shortcut', section: 'terminal', defaultAccel: 'Cmd+W' },
@@ -36,6 +37,7 @@ function shortcutLabelKey(id) {
     'terminal': 'terminalShortcut',
     'canvas': 'canvasShortcut',
     'transparency': 'transparencyShortcut',
+    'agent-tracker': 'agentTrackerShortcut',
     'tab-new': 'tabNewShortcut',
     'tab-close': 'tabCloseShortcut',
     'tab-switch': 'tabSwitchShortcut',

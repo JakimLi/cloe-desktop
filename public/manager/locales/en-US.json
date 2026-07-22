@@ -310,7 +310,12 @@
     "reminderStopShortcutDesc": "Press to stop the current reminder entirely (no more cycles)",
     "reminderStopShortcutEmpty": "Click to set shortcut…",
     "reminderStopShortcutHint": "Press a key combination",
-    "reminderStopShortcutClear": "Clear"
+    "reminderStopShortcutClear": "Clear",
+    "agentTrackerShortcut": "Agent Panel",
+    "agentTrackerShortcutDesc": "Press to toggle the Agent Session tracker panel",
+    "agentTrackerShortcutEmpty": "Click to set shortcut…",
+    "agentTrackerShortcutHint": "Press a key combination",
+    "agentTrackerShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",

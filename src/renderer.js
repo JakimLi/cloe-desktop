@@ -810,6 +810,10 @@ function connectWebSocket() {
         if (window.ReminderOverlay && ReminderOverlay.handleMessage) {
           ReminderOverlay.handleMessage(msg);
         }
+        // Forward agent session events to React layer
+        if (msg.type && msg.type.startsWith('agent-session-')) {
+          window.dispatchEvent(new CustomEvent('cloe-agent-session', { detail: msg }));
+        }
       } catch (e) { console.error('WS parse:', e); }
     };
 
