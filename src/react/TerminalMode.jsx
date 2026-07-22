@@ -30,6 +30,7 @@ async function createXtermInstance(container, themeId) {
     allowTransparency: true,
     scrollback: 5000,
     macOptionIsMeta: true,
+    bellStyle: 'none',
   });
 
   const fit = new FitAddon();
@@ -199,6 +200,8 @@ export default function TerminalMode({ tabs, activeTabId, updateTabTitle }) {
 
     // Keyboard input → PTY or code walk
     xterm.onData((data) => {
+      // Block control chars that sneak through shortcut handlers
+      if (data === '\x1f' || data === '\x07') return;
       const cw = entry._codeWalk;
       if (cw.active) {
         if (cw.summaryShown) {

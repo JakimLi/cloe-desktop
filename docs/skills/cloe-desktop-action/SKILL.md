@@ -24,7 +24,8 @@ curl -s http://localhost:19851/status
 | [references/terminal.md](references/terminal.md) | 嵌入终端、模式切换、快捷键 |
 | [references/terminal-effect.md](references/terminal-effect.md) | 终端特效（字符掉落等） |
 | [references/plugin.md](references/plugin.md) | Hermes Plugin 自动触发规则 |
-| [references/reminders-api.md](references/reminders-api.md) | 提醒系统 API（周期提醒、番茄钟） |
+| [references/reminders-api.md](references/reminders-api.md) | 提醒系统 API（周期提醒、番茄钟、全局静音/暂停） |
+| [references/agent-sessions-api.md](references/agent-sessions-api.md) | Agent Session Tracker API（外部 agent 注册、状态通知、TTS） |
 
 ## 快速参考
 
@@ -60,6 +61,22 @@ curl -s -X POST http://localhost:19851/character-layout -H 'Content-Type: applic
 # 提醒系统：创建周期提醒
 curl -s -X POST http://localhost:19851/reminders -H 'Content-Type: application/json' \
   -d '{"name":"喝水","mode":"interval","duration":1800,"action":"wave"}'
+
+# 全局静音 toggle
+curl -s -X POST http://localhost:19851/toggle-mute
+
+# 全局暂停/恢复提醒 toggle
+curl -s -X POST http://localhost:19851/toggle-global-pause
+
+# Agent Session：注册外部 agent session
+curl -s -X POST http://localhost:19851/agent-sessions -H 'Content-Type: application/json' \
+  -d '{"source":"zcode","source_label":"ZCode","title":"Running tests"}'
+
+# Agent Session：通知 turn 完成（触发 TTS）
+curl -s -X POST http://localhost:19851/agent-sessions/SESSION_ID/turn-end -H 'Content-Type: application/json' -d '{}'
+
+# Agent Session：通知需要用户确认（触发 TTS）
+curl -s -X POST http://localhost:19851/agent-sessions/SESSION_ID/needs-decision -H 'Content-Type: application/json' -d '{}'
 ```
 
 ## 项目位置

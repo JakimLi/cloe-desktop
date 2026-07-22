@@ -80,6 +80,38 @@ curl -s -X POST http://localhost:19851/reminders/喝水/resume
 curl -s -X DELETE http://localhost:19851/reminders/喝水
 ```
 
+## 全局控制
+
+### 全局静音
+
+开关全局语音静音。开启后所有提醒和 Agent Session 的 TTS 都不会播放。通过快捷键 toggle 后桌面会弹出提示。
+
+```bash
+# 查看静音状态
+curl -s http://localhost:19851/mute-state
+# {"muted": false}
+
+# 切换静音
+curl -s -X POST http://localhost:19851/toggle-mute
+# {"muted": true}
+```
+
+### 全局暂停 / 恢复提醒
+
+暂停所有"运行中"的提醒（不影响已停止的）。再次调用恢复所有被全局暂停的提醒。
+
+```bash
+# 查看暂停状态
+curl -s http://localhost:19851/global-pause-state
+# {"paused": false}
+
+# 切换暂停/恢复
+curl -s -X POST http://localhost:19851/toggle-global-pause
+# {"paused": true, "count": 3}  -- 暂停了3个提醒
+```
+
+> 注意：全局暂停只暂停 status=running 的提醒，手动暂停的和 stopped 的不受影响。恢复时只恢复被全局暂停的那批。
+
 ## 触发效果
 
 提醒到时间时：
