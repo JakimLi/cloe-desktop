@@ -1,11 +1,11 @@
 /**
- * WorkspacePanel — Unified panel for Agent Sessions + Tasks.
+ * WorkspacePanel — Unified panel for Agent Sessions + Reminders + Tasks.
  *
- * Left-right split layout:
- *   - Left sidebar: Agent Sessions (compact cards, always visible)
- *   - Right main: Tasks (primary work area with full CRUD + timer + reorder)
+ * Vertical-tab layout:
+ *   - Left rail: tab icons (Agent / Reminders / Tasks) with count badges
+ *   - Right main: full-width content for the active tab
  *
- * Design: pure black semi-transparent + blur, zero gradients, minimal.
+ * Design: solid dark background + blur, zero gradients, minimal.
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -47,6 +47,21 @@ function formatRelative(iso) {
   if (hours < 24) return t(`${hours}小时前`, `${hours}h ago`);
   const days = Math.floor(hours / 24);
   return t(`${days}天前`, `${days}d ago`);
+}
+
+function formatNextTime(triggerAtIso) {
+  try {
+    const target = new Date(triggerAtIso);
+    const diffMs = target - Date.now();
+    if (diffMs <= 0) return '';
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return t('即将提醒', 'soon');
+    if (diffMin < 60) return t(`${diffMin}分钟后`, `in ${diffMin}m`);
+    const targetStr = target.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    return targetStr;
+  } catch {
+    return '';
+  }
 }
 
 // ==================== Agent Session Card ====================
@@ -275,12 +290,235 @@ function TaskEditor({ task, onSave, onCancel }) {
   );
 }
 
+// ==================== Reminder Card (full — matches settings page) ====================
+
+const RM_STATUS = {
+  idle:       { label: t('就绪', 'Ready'),     color: 'rgba(255,255,255,0.3)' },
+  running:    { label: t('运行中', 'Running'),   color: '#4d9eff' },
+  paused:     { label: t('已暂停', 'Paused'),    color: '#f5a623' },
+  triggered:  { label: t('到时', 'Due'),         color: '#3dd68c' },
+  completed:  { label: t('完成', 'Done'),        color: 'rgba(255,255,255,0.2)' },
+};
+
+function ReminderCard({ reminder, onToggle, onPauseResume, onDismiss, onDelete, onEdit }) {
+  const r = reminder;
+  const cfg = RM_STATUS[r.status] || RM_STATUS.idle;
+  const isRunning = r.status === 'running';
+  const isPaused = r.status === 'paused';
+  const isTriggered = r.status === 'triggered';
+  const isCompleted = r.status === 'completed';
+  const durMin = Math.round(r.duration / 60);
+  const isCountdown = r.mode === 'countdown';
+
+  // Live countdown for running reminders
+  const [remaining, setRemaining] = useState('');
+  useEffect(() => {
+    if (!isRunning || !r.trigger_at) return;
+    const update = () => {
+      const diff = new Date(r.trigger_at).getTime() - Date.now();
+      if (diff <= 0) { setRemaining(t('即将提醒', 'soon')); return; }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setRemaining(`${m}:${String(s).padStart(2,'0')}`);
+    };
+    update();
+    const iv = setInterval(update, 1000);
+    return () => clearInterval(iv);
+  }, [isRunning, r.trigger_at]);
+
+  const roundInfo = r.total_rounds > 0 && r.round > 0 ? `${r.round}/${r.total_rounds}` : '';
+  const nextTime = isRunning && r.trigger_at ? formatNextTime(r.trigger_at) : '';
+
+  return (
+    <div className={`wp-rm-card${isTriggered ? ' wp-rm-triggered' : ''}${!r.enabled ? ' wp-rm-off' : ''}${isCompleted ? ' wp-rm-done' : ''}`}>
+      <div className={`wp-rm-icon ${isCountdown ? 'wp-rm-ico-timer' : 'wp-rm-ico-drop'}`}>
+        {isCountdown ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/>
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+        )}
+      </div>
+      <div className="wp-rm-body">
+        <div className="wp-rm-name">{r.name}</div>
+        <div className="wp-rm-meta">
+          <span>{isCountdown ? t('倒计时', 'Countdown') : t('每', 'Every')} {durMin}{t('分钟', 'min')}</span>
+          {roundInfo && <><span className="wp-rm-dot"></span><span>{roundInfo}</span></>}
+          {!r.tts && <><span className="wp-rm-dot"></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/></svg></>}
+          {isRunning && nextTime && <><span className="wp-rm-dot"></span><span className="wp-rm-next">{remaining || nextTime}</span></>}
+          {r.action && <><span className="wp-rm-dot"></span><span className="wp-rm-action-tag">{r.action}</span></>}
+        </div>
+      </div>
+      <div className="wp-rm-side">
+        <span className="wp-rm-badge wp-rm-status-{r.status}" style={{ color: cfg.color, background: cfg.color + '14' }}>{cfg.label}</span>
+        <div className="wp-rm-btns">
+          {isRunning && (
+            <button className="wp-rm-btn" onClick={() => onPauseResume(r.id, 'pause')} title={t('暂停', 'Pause')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            </button>
+          )}
+          {isPaused && (
+            <button className="wp-rm-btn" onClick={() => onPauseResume(r.id, 'resume')} title={t('继续', 'Resume')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+          )}
+          {isTriggered && (
+            <button className="wp-rm-btn wp-rm-btn-accent" onClick={() => onDismiss(r.id)} title={t('知道了', 'Dismiss')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          )}
+          <button className={`wp-rm-btn${r.enabled ? ' wp-rm-btn-on' : ''}`} onClick={() => onToggle(r.id)} title={r.enabled ? t('关闭', 'Disable') : t('启用', 'Enable')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity={r.enabled ? 1 : 0.5}><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+          <button className="wp-rm-btn" onClick={() => onEdit(r)} title={t('编辑', 'Edit')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button className="wp-rm-btn wp-rm-btn-danger" onClick={() => onDelete(r.id)} title={t('删除', 'Delete')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== Reminder Form (modal — matches settings page) ====================
+
+function ReminderFormModal({ reminder, availableActions, onSave, onCancel }) {
+  const isEdit = !!reminder;
+  const r = reminder || {};
+  const [name, setName] = useState(r.name || '');
+  const [mode, setMode] = useState(r.mode || 'interval');
+  const [duration, setDuration] = useState(r.duration ? Math.round(r.duration / 60) : 30);
+  const [breakDur, setBreakDur] = useState(r.break_duration ? Math.round(r.break_duration / 60) : 5);
+  const [rounds, setRounds] = useState(r.total_rounds || 0);
+  const [autoStart, setAutoStart] = useState(r.auto_start !== false);
+  const [tts, setTts] = useState(r.tts !== false);
+  const [action, setAction] = useState(r.action || '');
+  const nameRef = useRef(null);
+
+  const isCountdown = mode === 'countdown';
+
+  useEffect(() => { if (nameRef.current) nameRef.current.focus(); }, []);
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onSave({
+      ...(isEdit ? { id: r.id, start: false } : {}),
+      name: trimmed,
+      mode,
+      duration: duration * 60,
+      break_duration: breakDur * 60,
+      total_rounds: rounds,
+      auto_start: autoStart,
+      tts,
+      action: action.trim(),
+    });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSave(); }
+  };
+
+  return (
+    <div className="wp-editor-overlay" onClick={onCancel}>
+      <div className="wp-rm-form-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="wp-rm-form-head">
+          <span className="wp-rm-form-title">{isEdit ? t('编辑提醒', 'Edit Reminder') : t('添加提醒', 'Add Reminder')}</span>
+          <button className="wp-rm-form-close" onClick={onCancel}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div className="wp-rm-form-row">
+          <div className="wp-rm-field">
+            <label className="wp-rm-label">{t('名称', 'Name')}</label>
+            <input
+              ref={nameRef}
+              type="text"
+              className="wp-rm-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t('提醒名称', 'Reminder name')}
+            />
+          </div>
+          <div className="wp-rm-field wp-rm-field-sm">
+            <label className="wp-rm-label">{t('模式', 'Mode')}</label>
+            <div className="wp-rm-segments">
+              <button className={`wp-rm-seg${mode === 'interval' ? ' active' : ''}`} onClick={() => setMode('interval')}>{t('周期', 'Interval')}</button>
+              <button className={`wp-rm-seg${mode === 'countdown' ? ' active' : ''}`} onClick={() => setMode('countdown')}>{t('倒计时', 'Countdown')}</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="wp-rm-form-row">
+          <div className="wp-rm-field wp-rm-field-sm">
+            <label className="wp-rm-label">{t('时长', 'Duration')}</label>
+            <div className="wp-rm-input-group">
+              <input type="number" className="wp-rm-input wp-rm-input-narrow" min="1" max="720" value={duration} onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 1))} onKeyDown={handleKeyDown} />
+              <span className="wp-rm-unit">{t('分钟', 'min')}</span>
+            </div>
+          </div>
+          {isCountdown && (
+            <div className="wp-rm-field wp-rm-field-sm">
+              <label className="wp-rm-label">{t('休息时长', 'Break')}</label>
+              <div className="wp-rm-input-group">
+                <input type="number" className="wp-rm-input wp-rm-input-narrow" min="0" max="120" value={breakDur} onChange={(e) => setBreakDur(Math.max(0, parseInt(e.target.value) || 0))} onKeyDown={handleKeyDown} />
+                <span className="wp-rm-unit">{t('分钟', 'min')}</span>
+              </div>
+            </div>
+          )}
+          <div className="wp-rm-field wp-rm-field-sm">
+            <label className="wp-rm-label">{t('最大轮次', 'Max Rounds')}</label>
+            <input type="number" className="wp-rm-input wp-rm-input-narrow" min="0" max="999" value={rounds} onChange={(e) => setRounds(Math.max(0, parseInt(e.target.value) || 0))} onKeyDown={handleKeyDown} />
+          </div>
+        </div>
+
+        <div className="wp-rm-form-row">
+          <div className="wp-rm-field">
+            <label className="wp-rm-label">{t('触发动作', 'Action')}</label>
+            <select className="wp-rm-input wp-rm-select" value={action} onChange={(e) => setAction(e.target.value)}>
+              <option value="">{t('无', 'None')}</option>
+              {(availableActions || []).map(a => (
+                <option key={a.name} value={a.name}>{a.name}{a.description ? ` — ${a.description}` : ''}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="wp-rm-form-toggles">
+          <label className="wp-rm-toggle-row">
+            <span className="wp-rm-toggle-label">{t('自动启动', 'Auto Start')}<span className="wp-rm-toggle-desc">{t('创建后立即开始', 'Start immediately')}</span></span>
+            <label className="wp-rm-toggle"><input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} /><span className="wp-rm-toggle-slider"></span></label>
+          </label>
+          <label className="wp-rm-toggle-row">
+            <span className="wp-rm-toggle-label">{t('语音播报', 'TTS')}<span className="wp-rm-toggle-desc">{t('到时间语音提醒', 'Voice alert when due')}</span></span>
+            <label className="wp-rm-toggle"><input type="checkbox" checked={tts} onChange={(e) => setTts(e.target.checked)} /><span className="wp-rm-toggle-slider"></span></label>
+          </label>
+        </div>
+
+        <div className="wp-rm-form-foot">
+          <button className="wp-editor-cancel" onClick={onCancel}>{t('取消', 'Cancel')}</button>
+          <button className="wp-editor-save" onClick={handleSave} disabled={!name.trim()}>{t('保存', 'Save')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ==================== Main Panel ====================
 
 export default function WorkspacePanel({
   visible,
   sessions,
   tasks,
+  reminders,
   timingId,
   onSessionSetTitle,
   onSessionCancel,
@@ -291,10 +529,34 @@ export default function WorkspacePanel({
   onTaskToggleComplete,
   onTaskStartStop,
   onTaskReorder,
+  onReminderCreate,
+  onReminderToggle,
+  onReminderPauseResume,
+  onReminderDismiss,
+  onReminderDelete,
   onClose,
 }) {
   const backdropRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('agent'); // 'agent' | 'reminders' | 'tasks'
   const [editingTask, setEditingTask] = useState(null);
+  const [editingReminder, setEditingReminder] = useState(null);
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [availableActions, setAvailableActions] = useState([]);
+
+  // Fetch available actions for reminder form
+  useEffect(() => {
+    if (showReminderForm) {
+      fetch('http://127.0.0.1:19851/actions')
+        .then(r => r.json())
+        .then(data => {
+          const filtered = (data.actions || []).filter(a =>
+            !['working', 'idle', 'walk_right', 'walk_left', 'speak'].includes(a.name)
+          );
+          setAvailableActions(filtered);
+        })
+        .catch(() => {});
+    }
+  }, [showReminderForm]);
 
   const handleBackdropClick = useCallback((e) => {
     if (e.target === backdropRef.current) onClose();
@@ -304,95 +566,172 @@ export default function WorkspacePanel({
 
   const activeSessions = sessions || [];
   const activeTasks = tasks || [];
+  const activeReminders = reminders || [];
+  const activeReminderCount = activeReminders.filter(r => r.enabled && r.status !== 'completed').length;
+
+  // Detect standalone window mode: electronAPI.closeWindow exists in the workspace preload
+  const isStandalone = !!(window.electronAPI && window.electronAPI.closeWindow && !window.electronAPI.toggleWorkspaceWindow);
 
   return (
-    <div className="wp-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
-      <div className="wp-modal" onClick={(e) => e.stopPropagation()}>
-        {/* ── Header ── */}
-        <div className="wp-header">
-          <span className="wp-title">{t('工作区', 'Workspace')}</span>
-          <button className="wp-close" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* ── Body: left sidebar (sessions) + right main (tasks) ── */}
+    <div className={isStandalone ? "wp-window-root" : "wp-backdrop"} ref={backdropRef} onClick={isStandalone ? undefined : handleBackdropClick}>
+      <div className={isStandalone ? "wp-modal wp-modal-window" : "wp-modal wp-modal-overlay"}>
+        {/* ── Body: vertical tab rail + content ── */}
         <div className="wp-body">
-          {/* ── Left: Agent Sessions (always visible, empty state when no sessions) ── */}
-          <div className="wp-sidebar">
-            <div className="wp-sidebar-header">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="wp-sidebar-icon">
+          {/* ── Left: Tab Rail ── */}
+          <div className="wp-tab-rail">
+            <button
+              className={`wp-tab-item${activeTab === 'agent' ? ' active' : ''}`}
+              onClick={() => setActiveTab('agent')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
               </svg>
-              <span>{t('Agent', 'Agent')}</span>
-              <span className="wp-sidebar-count">{activeSessions.length}</span>
-            </div>
-            <div className="wp-sessions-list">
-              {activeSessions.map(s => (
-                <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} onAcknowledge={onSessionAcknowledge} />
-              ))}
-              {activeSessions.length === 0 && (
-                <div className="wp-empty-sessions">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                  <p>{t('暂无 Agent', 'No active agents')}</p>
-                </div>
-              )}
-            </div>
+              {activeSessions.length > 0 && <span className="wp-tab-count">{activeSessions.length}</span>}
+            </button>
+            <button
+              className={`wp-tab-item${activeTab === 'reminders' ? ' active' : ''}`}
+              onClick={() => setActiveTab('reminders')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+              </svg>
+              {activeReminderCount > 0 && <span className="wp-tab-count">{activeReminderCount}</span>}
+            </button>
+            <button
+              className={`wp-tab-item${activeTab === 'tasks' ? ' active' : ''}`}
+              onClick={() => setActiveTab('tasks')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              {activeTasks.length > 0 && <span className="wp-tab-count">{activeTasks.length}</span>}
+            </button>
+            <div className="wp-tab-spacer" />
+            <button className="wp-tab-close-btn" onClick={onClose} title={t('关闭', 'Close')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
 
           {/* ── Divider ── */}
           <div className="wp-divider" />
 
-          {/* ── Right: Tasks ── */}
-          <div className="wp-main">
-            <div className="wp-main-header">
-              <div className="wp-main-header-left">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="wp-sidebar-icon">
-                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-                <span>{t('任务', 'Tasks')}</span>
-                <span className="wp-sidebar-count">{activeTasks.length}</span>
-              </div>
-            </div>
-
-            {/* Add task input */}
-            <AddTaskInput onAdd={onTaskCreate} />
-
-            {/* Task list */}
-            <div className="wp-task-list">
-              {activeTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isTiming={timingId === task.id}
-                  onToggleComplete={onTaskToggleComplete}
-                  onStartStop={onTaskStartStop}
-                  onEdit={(tk) => setEditingTask(tk)}
-                  onDelete={onTaskDelete}
-                />
-              ))}
-              {activeTasks.length === 0 && (
-                <div className="wp-empty-tasks">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                  <p>{t('暂无任务', 'No tasks yet')}</p>
+          {/* ── Right: Content area ── */}
+          <div className="wp-content">
+            {/* ── Agent Sessions tab ── */}
+            {activeTab === 'agent' && (
+              <>
+                <div className="wp-content-header">
+                  <span className="wp-content-title">{t('Agent Sessions', 'Agent Sessions')}</span>
+                  <span className="wp-content-count">{activeSessions.length}</span>
                 </div>
-              )}
-            </div>
+                <div className="wp-scroll-area">
+                  {activeSessions.map(s => (
+                    <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} onAcknowledge={onSessionAcknowledge} />
+                  ))}
+                  {activeSessions.length === 0 && (
+                    <div className="wp-empty">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+                      </svg>
+                      <p>{t('暂无 Agent', 'No active agents')}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ── Reminders tab ── */}
+            {activeTab === 'reminders' && (
+              <>
+                <div className="wp-content-header">
+                  <span className="wp-content-title">{t('提醒', 'Reminders')}</span>
+                  <span className="wp-content-count">{activeReminderCount}</span>
+                  <button className="wp-content-add" onClick={() => { setEditingReminder(null); setShowReminderForm(true); }}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                    <span>{t('添加', 'Add')}</span>
+                  </button>
+                </div>
+                <div className="wp-scroll-area">
+                  {activeReminders.map(r => (
+                    <ReminderCard
+                      key={r.id}
+                      reminder={r}
+                      onToggle={onReminderToggle}
+                      onPauseResume={onReminderPauseResume}
+                      onDismiss={onReminderDismiss}
+                      onDelete={onReminderDelete}
+                      onEdit={(rm) => { setEditingReminder(rm); setShowReminderForm(true); }}
+                    />
+                  ))}
+                  {activeReminders.length === 0 && (
+                    <div className="wp-empty">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                      </svg>
+                      <p>{t('暂无提醒', 'No reminders')}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ── Tasks tab ── */}
+            {activeTab === 'tasks' && (
+              <>
+                <div className="wp-content-header">
+                  <span className="wp-content-title">{t('任务', 'Tasks')}</span>
+                  <span className="wp-content-count">{activeTasks.length}</span>
+                </div>
+                <AddTaskInput onAdd={onTaskCreate} />
+                <div className="wp-scroll-area wp-scroll-tasks">
+                  {activeTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      isTiming={timingId === task.id}
+                      onToggleComplete={onTaskToggleComplete}
+                      onStartStop={onTaskStartStop}
+                      onEdit={(tk) => setEditingTask(tk)}
+                      onDelete={onTaskDelete}
+                    />
+                  ))}
+                  {activeTasks.length === 0 && (
+                    <div className="wp-empty">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                      </svg>
+                      <p>{t('暂无任务', 'No tasks yet')}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
+      {/* ── Task Editor modal ── */}
       {editingTask && (
         <TaskEditor
           task={editingTask}
           onSave={(id, data) => { onTaskUpdate(id, data); setEditingTask(null); }}
           onCancel={() => setEditingTask(null)}
+        />
+      )}
+
+      {/* ── Reminder Form modal ── */}
+      {showReminderForm && (
+        <ReminderFormModal
+          reminder={editingReminder}
+          availableActions={availableActions}
+          onSave={(data) => {
+            onReminderCreate(data);
+            setShowReminderForm(false);
+            setEditingReminder(null);
+          }}
+          onCancel={() => { setShowReminderForm(false); setEditingReminder(null); }}
         />
       )}
     </div>

@@ -90,6 +90,7 @@
       "audio/fallback/needs_decision.mp3",
       "preload.js",
       "chat-preload.js",
+      "workspace-preload.js",
       "node_modules/ws/**/*",
       "node_modules/node-pty/**/*",
       "node_modules/xterm/**/*",

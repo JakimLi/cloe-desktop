@@ -16,7 +16,6 @@ import TabSwitcher from './TabSwitcher';
 import TabBar, { TabCloseConfirm } from './TabBar';
 import { useTerminalTabs } from './useTerminalTabs';
 import { matchesShortcut, parseShortcutParts, isModifierKeyUp } from './utils/shortcut';
-import AgentSessionModal from './AgentSessionModal';
 import WorkspacePanel from './WorkspacePanel';
 
 const API_BASE = 'http://127.0.0.1:19851';
@@ -541,6 +540,19 @@ export default function App() {
   const [agentSessions, setAgentSessions] = useState([]);
   const [agentModalVisible, setAgentModalVisible] = useState(false);
 
+  // Workspace panel: in terminal/canvas mode use overlay; otherwise open standalone window
+  const toggleWorkspace = useCallback(() => {
+    if (visible) {
+      // Terminal/canvas is open → overlay inside main window
+      setAgentModalVisible(prev => !prev);
+    } else {
+      // Only character visible → standalone window via IPC
+      if (window.electronAPI?.toggleWorkspaceWindow) {
+        window.electronAPI.toggleWorkspaceWindow();
+      }
+    }
+  }, [visible]);
+
   // Sync sessions from WS events
   useEffect(() => {
     const handler = (e) => {
@@ -585,11 +597,11 @@ export default function App() {
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
       e.stopPropagation();
-      setAgentModalVisible(prev => !prev);
+      toggleWorkspace();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, []);
+  }, [toggleWorkspace]);
 
   // ESC to close agent modal
   useEffect(() => {
@@ -634,6 +646,107 @@ export default function App() {
       method: 'POST',
     }).catch(() => {});
   }, [API_BASE]);
+
+  // ── Reminders ──
+  const [workspaceReminders, setWorkspaceReminders] = useState([]);
+
+  // Sync reminders from WS events
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e.detail;
+      if (!msg || !msg.type) return;
+      if (msg.type === 'reminder-updated' || msg.type === 'reminder-triggered' ||
+          msg.type === 'reminder-dismissed' || msg.type === 'reminder-stopped') {
+        if (msg.reminder) {
+          setWorkspaceReminders(prev => {
+            const idx = prev.findIndex(r => r.id === msg.reminder.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = msg.reminder;
+              return next;
+            }
+            return [...prev, msg.reminder];
+          });
+        }
+      } else if (msg.type === 'reminder-deleted') {
+        if (msg.id) {
+          setWorkspaceReminders(prev => prev.filter(r => r.id !== msg.id));
+        }
+      }
+    };
+    window.addEventListener('cloe-reminder', handler);
+    return () => window.removeEventListener('cloe-reminder', handler);
+  }, []);
+
+  // Initial fetch reminders
+  useEffect(() => {
+    fetch(`${API_BASE}/reminders`)
+      .then(r => r.json())
+      .then(data => { if (data.reminders) setWorkspaceReminders(data.reminders); })
+      .catch(() => {});
+  }, []);
+
+  const handleReminderCreate = useCallback((data) => {
+    fetch(`${API_BASE}/reminders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(r => r.json()).then(d => {
+      if (d.reminder) setWorkspaceReminders(prev => {
+        const idx = prev.findIndex(r => r.id === d.reminder.id);
+        if (idx >= 0) { const next = [...prev]; next[idx] = d.reminder; return next; }
+        return [...prev, d.reminder];
+      });
+    }).catch(() => {});
+  }, []);
+
+  const handleReminderToggle = useCallback((id) => {
+    fetch(`${API_BASE}/reminders/${encodeURIComponent(id)}/toggle`, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.reminder) setWorkspaceReminders(prev => {
+          const idx = prev.findIndex(r => r.id === d.reminder.id);
+          if (idx >= 0) { const next = [...prev]; next[idx] = d.reminder; return next; }
+          return [...prev, d.reminder];
+        });
+      }).catch(() => {});
+  }, []);
+
+  const handleReminderPauseResume = useCallback((id, action) => {
+    fetch(`${API_BASE}/reminders/${encodeURIComponent(id)}/${action}`, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.reminder) setWorkspaceReminders(prev => {
+          const idx = prev.findIndex(r => r.id === d.reminder.id);
+          if (idx >= 0) { const next = [...prev]; next[idx] = d.reminder; return next; }
+          return [...prev, d.reminder];
+        });
+      }).catch(() => {});
+  }, []);
+
+  const handleReminderDismiss = useCallback((id) => {
+    // Cancel pending TTS for this reminder
+    fetch(`${API_BASE}/tts-scheduler/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceKey: 'reminder:' + id }),
+    }).catch(() => {});
+    fetch(`${API_BASE}/reminders/${encodeURIComponent(id)}/dismiss`, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.reminder) setWorkspaceReminders(prev => {
+          const idx = prev.findIndex(r => r.id === d.reminder.id);
+          if (idx >= 0) { const next = [...prev]; next[idx] = d.reminder; return next; }
+          return [...prev, d.reminder];
+        });
+      }).catch(() => {});
+  }, []);
+
+  const handleReminderDelete = useCallback((id) => {
+    fetch(`${API_BASE}/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      .then(() => setWorkspaceReminders(prev => prev.filter(r => r.id !== id)))
+      .catch(() => {});
+  }, []);
 
   // ── Tasks ──
   const [workspaceTasks, setWorkspaceTasks] = useState([]);
@@ -823,22 +936,6 @@ export default function App() {
   if (!visible) {
     return (
       <>
-        <WorkspacePanel
-          visible={agentModalVisible}
-          sessions={agentSessions}
-          tasks={workspaceTasks}
-          timingId={taskTimingId}
-          onSessionSetTitle={handleAgentSetTitle}
-          onSessionCancel={handleAgentCancel}
-          onSessionAcknowledge={handleAgentAcknowledge}
-          onTaskCreate={handleTaskCreate}
-          onTaskUpdate={handleTaskUpdate}
-          onTaskDelete={handleTaskDelete}
-          onTaskToggleComplete={handleTaskToggleComplete}
-          onTaskStartStop={handleTaskStartStop}
-          onTaskReorder={handleTaskReorder}
-          onClose={() => setAgentModalVisible(false)}
-        />
         <MuteToast toast={muteToast} />
         <PauseToast toast={pauseToast} />
       </>
@@ -891,6 +988,7 @@ export default function App() {
         visible={agentModalVisible}
         sessions={agentSessions}
         tasks={workspaceTasks}
+        reminders={workspaceReminders}
         timingId={taskTimingId}
         onSessionSetTitle={handleAgentSetTitle}
         onSessionCancel={handleAgentCancel}
@@ -901,6 +999,11 @@ export default function App() {
         onTaskToggleComplete={handleTaskToggleComplete}
         onTaskStartStop={handleTaskStartStop}
         onTaskReorder={handleTaskReorder}
+        onReminderCreate={handleReminderCreate}
+        onReminderToggle={handleReminderToggle}
+        onReminderPauseResume={handleReminderPauseResume}
+        onReminderDismiss={handleReminderDismiss}
+        onReminderDelete={handleReminderDelete}
         onClose={() => setAgentModalVisible(false)}
       />
       <MuteToast toast={muteToast} />

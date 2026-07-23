@@ -1,4 +1,10 @@
-/* ==================== Workspace Panel — Split Layout ==================== */
+/* ==================== Workspace Panel — Vertical Tab Layout ==================== */
+
+.wp-window-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+}
 
 .wp-backdrop {
   position: fixed;
@@ -16,22 +22,38 @@
   to   { opacity: 1; }
 }
 
-/* ── Modal — wider for split layout ── */
+/* ── Modal — two modes: standalone window vs overlay ── */
 
-.wp-modal {
-  width: 640px;
+/* Overlay mode (inside terminal/canvas) */
+.wp-modal-overlay {
+  width: 680px;
   max-width: 94vw;
-  max-height: 80vh;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(40px) saturate(1.5);
-  -webkit-backdrop-filter: blur(40px) saturate(1.5);
+  height: 520px;
+  max-height: 82vh;
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: wp-modal-in 0.22s ease-out;
+}
+
+/* Standalone window mode (fills BrowserWindow, own rounded corners, no shadow) */
+.wp-modal-window {
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  margin: 10px;
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+/* Shared modal base */
+.wp-modal {
+  background: rgba(18, 18, 24, 0.92);
+  backdrop-filter: blur(40px) saturate(1.5);
+  -webkit-backdrop-filter: blur(40px) saturate(1.5);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: wp-modal-in 0.22s ease-out;
 }
 
 @keyframes wp-modal-in {
@@ -39,43 +61,7 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* ── Header ── */
-
-.wp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px 12px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
-  flex-shrink: 0;
-}
-
-.wp-title {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-}
-
-.wp-close {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.25);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-
-.wp-close:hover {
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-/* ── Body — split layout ── */
+/* ── Body — tab rail + content ── */
 
 .wp-body {
   flex: 1;
@@ -84,70 +70,114 @@
   overflow: hidden;
 }
 
-/* ── Left sidebar — Agent Sessions ── */
+/* ==================== Vertical Tab Rail ==================== */
 
-.wp-sidebar {
-  width: 220px;
+.wp-tab-rail {
+  width: 52px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  align-items: center;
+  padding: 12px 0 8px;
+  gap: 4px;
+  border-right: 0.5px solid rgba(255, 255, 255, 0.06);
 }
 
-.wp-sidebar-header,
-.wp-main-header {
+/* Tab rail is draggable only in standalone window mode (pointer events for reliability) */
+.wp-modal-window .wp-tab-rail {
+  cursor: grab;
+}
+
+.wp-modal-window .wp-tab-rail:active {
+  cursor: grabbing;
+}
+
+.wp-tab-item {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 12px 14px 8px;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 10px;
-  font-weight: 600;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  flex-shrink: 0;
+  justify-content: center;
+  transition: all 0.15s;
+  -webkit-app-region: no-drag;
 }
 
-.wp-sidebar-icon {
-  opacity: 0.6;
+.wp-tab-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
 }
 
-.wp-sidebar-count,
-.wp-main-header .wp-sidebar-count {
+.wp-tab-item.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.wp-tab-item.active::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 0 2px 2px 0;
+}
+
+.wp-tab-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.1);
   padding: 1px 5px;
   border-radius: 8px;
   min-width: 14px;
   text-align: center;
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
 }
 
-.wp-main-header {
-  justify-content: space-between;
+.wp-tab-spacer {
+  flex: 1;
 }
 
-.wp-main-header-left {
+.wp-tab-close-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  transition: all 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.wp-tab-close-btn:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Divider ── */
 
 .wp-divider {
-  width: 0.5px;
-  background: rgba(255, 255, 255, 0.06);
-  flex-shrink: 0;
+  display: none; /* tab rail has its own border-right */
 }
 
-/* ── Right main — Tasks ── */
+/* ==================== Content Area ==================== */
 
-.wp-main {
+.wp-content {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -155,66 +185,106 @@
   overflow: hidden;
 }
 
-/* ==================== Session Cards ==================== */
-
-.wp-sessions-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 8px 8px;
+.wp-content-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px 10px;
+  flex-shrink: 0;
 }
 
-.wp-sessions-list::-webkit-scrollbar { width: 3px; }
-.wp-sessions-list::-webkit-scrollbar-track { background: transparent; }
-.wp-sessions-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 2px; }
+.wp-content-title {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
+
+.wp-content-count {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 8px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.wp-content-add {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  cursor: pointer;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.wp-content-add:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Scroll area (shared by all tabs) ── */
+
+.wp-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+  min-height: 0;
+}
+
+.wp-scroll-area::-webkit-scrollbar { width: 3px; }
+.wp-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.wp-scroll-area::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 2px; }
+
+/* ==================== Session Cards ==================== */
 
 .wp-session-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 8px;
-  border-radius: 9px;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
   transition: background 0.12s;
 }
 
 .wp-session-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.wp-session-card.wp-session-action {
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* Status icon — small rounded square with colored border */
+.wp-session-card.wp-session-action {
+  background: rgba(245, 166, 35, 0.04);
+}
+
 .wp-session-status-icon {
   flex-shrink: 0;
 }
 
 .wp-session-icon-bg {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
 }
 
 .wp-pulse {
-  animation: wp-dot-pulse 2s ease-in-out infinite;
+  animation: wp-pulse-ring 2s ease-out infinite;
 }
 
-@keyframes wp-dot-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-
-.wp-spin {
-  animation: wp-spin 1.2s linear infinite;
-}
-
-@keyframes wp-spin {
-  to { transform: rotate(360deg); }
+@keyframes wp-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70%  { box-shadow: 0 0 0 4px transparent; opacity: 0.5; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
 }
 
 .wp-session-body {
@@ -223,45 +293,47 @@
 }
 
 .wp-session-name {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  cursor: text;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.12s;
+  cursor: pointer;
 }
 
-.wp-session-name:hover { color: rgba(255, 255, 255, 1); }
+.wp-session-name:hover {
+  color: rgba(255, 255, 255, 1);
+}
 
 .wp-session-meta {
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.25);
   font-size: 10px;
   margin-top: 2px;
   display: flex;
-  gap: 4px;
+  gap: 5px;
   align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
 }
 
 .wp-session-source {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 90px;
+  max-width: 120px;
 }
 
 .wp-session-dot-sep {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .wp-session-badge {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 8px;
 }
 
@@ -273,7 +345,8 @@
   transition: opacity 0.12s;
 }
 
-.wp-session-card:hover .wp-session-btns { opacity: 1; }
+.wp-session-card:hover .wp-session-btns,
+.wp-session-card.wp-session-action .wp-session-btns { opacity: 1; }
 
 .wp-session-ack,
 .wp-session-cancel {
@@ -281,154 +354,72 @@
   border: none;
   cursor: pointer;
   padding: 4px;
-  border-radius: 5px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.12s;
-}
-
-.wp-session-ack {
-  color: rgba(61, 214, 140, 0.6);
-}
-
-.wp-session-ack:hover {
-  color: rgba(61, 214, 140, 1);
-  background: rgba(61, 214, 140, 0.12);
-}
-
-.wp-session-cancel {
-  color: rgba(255, 255, 255, 0.15);
-}
-
-.wp-session-cancel:hover {
-  color: rgba(255, 100, 100, 0.8);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* ==================== Add Task Input ==================== */
-
-.wp-add-task {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 14px 8px;
-  flex-shrink: 0;
-}
-
-.wp-add-input {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.04);
-  border: 0.5px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  padding: 7px 11px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.wp-add-input::placeholder { color: rgba(255, 255, 255, 0.2); }
-.wp-add-input:focus { border-color: rgba(255, 255, 255, 0.15); }
-
-.wp-add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  flex-shrink: 0;
   transition: all 0.15s;
 }
 
-.wp-add-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.8);
+.wp-session-ack { color: rgba(61, 214, 140, 0.6); }
+.wp-session-ack:hover { color: rgba(61, 214, 140, 1); background: rgba(61, 214, 140, 0.12); }
+
+.wp-session-cancel { color: rgba(255, 255, 255, 0.15); }
+.wp-session-cancel:hover { color: rgba(255, 100, 100, 0.7); background: rgba(255, 255, 255, 0.04); }
+
+/* ==================== Task List & Cards ==================== */
+
+.wp-scroll-tasks {
+  padding: 0 10px 10px;
 }
-
-.wp-add-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-/* ==================== Task List ==================== */
-
-.wp-task-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 8px 8px;
-  min-height: 0;
-}
-
-.wp-task-list::-webkit-scrollbar { width: 3px; }
-.wp-task-list::-webkit-scrollbar-track { background: transparent; }
-.wp-task-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 2px; }
-
-/* ==================== Task Card ==================== */
 
 .wp-task-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  padding: 9px 10px;
-  border-radius: 9px;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
   transition: background 0.12s;
-  position: relative;
-  cursor: default;
 }
 
-.wp-task-card:hover { background: rgba(255, 255, 255, 0.04); }
+.wp-task-card:hover { background: rgba(255, 255, 255, 0.03); }
 
 .wp-task-card.completed .wp-task-title {
   text-decoration: line-through;
-  opacity: 0.3;
+  color: rgba(255, 255, 255, 0.25);
 }
 
-.wp-task-card.timing {
-  background: rgba(77, 158, 255, 0.04);
-}
-
-/* Checkbox */
 .wp-task-check {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
   border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
   background: transparent;
   cursor: pointer;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition: all 0.15s;
   padding: 0;
-  margin-top: 1px;
-  color: transparent;
-}
-
-.wp-task-check:hover {
-  border-color: rgba(61, 214, 140, 0.6);
-  background: rgba(61, 214, 140, 0.06);
 }
 
 .wp-task-check.checked {
-  border-color: #3dd68c;
-  background: #3dd68c;
-  color: rgba(0, 0, 0, 0.8);
+  border-color: rgba(61, 214, 140, 0.5);
+  background: rgba(61, 214, 140, 0.15);
+  color: #3dd68c;
 }
 
-/* Main content */
+.wp-task-check:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 .wp-task-main {
   flex: 1;
   min-width: 0;
   cursor: pointer;
-  padding: 0 2px;
 }
 
 .wp-task-title-row {
@@ -438,24 +429,22 @@
 }
 
 .wp-task-title {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.12s;
 }
 
-.wp-task-main:hover .wp-task-title { color: rgba(255, 255, 255, 0.95); }
-
 .wp-task-timer {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 3px;
   font-size: 10px;
-  font-family: 'SF Mono', 'Menlo', monospace;
   color: #4d9eff;
+  font-family: 'SF Mono', 'Menlo', monospace;
   flex-shrink: 0;
 }
 
@@ -481,7 +470,6 @@
   margin-top: 2px;
 }
 
-/* Actions */
 .wp-task-actions {
   display: flex;
   align-items: center;
@@ -497,10 +485,10 @@
 
 .wp-task-play,
 .wp-task-delete {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
   display: flex;
@@ -517,12 +505,11 @@
 .wp-task-delete { color: rgba(255, 255, 255, 0.15); }
 .wp-task-delete:hover { color: rgba(255, 100, 100, 0.7); background: rgba(255, 255, 255, 0.04); }
 
-/* Progress bar */
 .wp-task-progress {
   position: absolute;
   bottom: 0;
-  left: 36px;
-  right: 40px;
+  left: 40px;
+  right: 44px;
   height: 1.5px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 1px;
@@ -548,44 +535,23 @@
 
 /* ==================== Empty States ==================== */
 
-.wp-empty-sessions {
+.wp-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
-  gap: 8px;
+  padding: 48px 20px;
+  gap: 12px;
 }
 
-.wp-empty-sessions svg {
-  opacity: 0.1;
+.wp-empty svg {
+  opacity: 0.08;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.wp-empty p {
   color: rgba(255, 255, 255, 0.2);
-}
-
-.wp-empty-sessions p {
-  color: rgba(255, 255, 255, 0.15);
-  font-size: 11px;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-}
-
-.wp-empty-tasks {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  gap: 10px;
-}
-
-.wp-empty-tasks svg {
-  opacity: 0.12;
-  color: rgba(255, 255, 255, 0.2);
-}
-
-.wp-empty-tasks p {
-  color: rgba(255, 255, 255, 0.15);
-  font-size: 12px;
+  font-size: 13px;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
 }
@@ -604,13 +570,13 @@
 }
 
 .wp-editor {
-  width: 380px;
-  background: rgba(20, 20, 28, 0.95);
+  width: 400px;
+  background: rgba(22, 22, 30, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 16px;
+  padding: 18px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   animation: wp-modal-in 0.15s ease-out;
 }
@@ -619,54 +585,50 @@
   width: 100%;
   background: rgba(255, 255, 255, 0.06);
   border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 7px;
+  border-radius: 8px;
   color: rgba(255, 255, 255, 0.9);
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  padding: 8px 10px;
+  padding: 8px 12px;
   outline: none;
   box-sizing: border-box;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .wp-editor-title:focus { border-color: rgba(255, 255, 255, 0.2); }
-.wp-editor-title::placeholder { color: rgba(255, 255, 255, 0.2); }
 
 .wp-editor-content {
   width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  border: 0.5px solid rgba(255, 255, 255, 0.08);
-  border-radius: 7px;
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  padding: 8px 10px;
+  padding: 8px 12px;
   outline: none;
   box-sizing: border-box;
-  resize: vertical;
-  min-height: 80px;
-  line-height: 1.5;
+  resize: none;
+  margin-bottom: 14px;
 }
 
 .wp-editor-content:focus { border-color: rgba(255, 255, 255, 0.2); }
-.wp-editor-content::placeholder { color: rgba(255, 255, 255, 0.15); }
 
 .wp-editor-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 8px;
 }
 
 .wp-editor-cancel,
 .wp-editor-save {
-  padding: 6px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
+  padding: 6px 16px;
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: all 0.15s;
 }
 
 .wp-editor-cancel {
@@ -676,7 +638,7 @@
 
 .wp-editor-cancel:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .wp-editor-save {
@@ -686,6 +648,62 @@
 
 .wp-editor-save:hover {
   background: rgba(77, 158, 255, 0.85);
+}
+
+.wp-editor-save:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ==================== Add Task Input ==================== */
+
+.wp-add-task {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 8px;
+  flex-shrink: 0;
+}
+
+.wp-add-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  padding: 7px 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.wp-add-input:focus { border-color: rgba(255, 255, 255, 0.2); }
+.wp-add-input::placeholder { color: rgba(255, 255, 255, 0.2); }
+
+.wp-add-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.wp-add-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.wp-add-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* ==================== Inline Input (shared) ==================== */
@@ -704,3 +722,367 @@
 
 .wp-inline-input:focus { border-color: rgba(255, 255, 255, 0.2); }
 .wp-inline-input::placeholder { color: rgba(255, 255, 255, 0.2); }
+
+/* ==================== Spinner ==================== */
+
+.wp-spin {
+  animation: wp-spin-anim 0.8s linear infinite;
+}
+
+@keyframes wp-spin-anim {
+  to { transform: rotate(360deg); }
+}
+
+/* ==================== Reminder Cards (full layout) ==================== */
+
+.wp-rm-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+
+.wp-rm-card:hover { background: rgba(255, 255, 255, 0.03); }
+.wp-rm-card.wp-rm-triggered { background: rgba(61, 214, 140, 0.06); }
+.wp-rm-card.wp-rm-off { opacity: 0.4; }
+.wp-rm-card.wp-rm-done { opacity: 0.3; }
+
+.wp-rm-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.wp-rm-ico-timer { color: #4d9eff; background: rgba(77, 158, 255, 0.08); }
+.wp-rm-ico-drop { color: #3dd68c; background: rgba(61, 214, 140, 0.08); }
+
+.wp-rm-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.wp-rm-name {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-rm-meta {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+  margin-top: 3px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
+
+.wp-rm-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.wp-rm-next {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #4d9eff;
+  opacity: 0.7;
+}
+
+.wp-rm-action-tag {
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.wp-rm-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wp-rm-badge {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.wp-rm-btns {
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.wp-rm-card:hover .wp-rm-btns,
+.wp-rm-card.wp-rm-triggered .wp-rm-btns { opacity: 1; }
+
+.wp-rm-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.wp-rm-btn:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wp-rm-btn-on { color: rgba(61, 214, 140, 0.5); }
+.wp-rm-btn-on:hover { color: rgba(61, 214, 140, 0.8); }
+
+.wp-rm-btn-accent { color: rgba(61, 214, 140, 0.6); }
+.wp-rm-btn-accent:hover { color: rgba(61, 214, 140, 1); background: rgba(61, 214, 140, 0.12); }
+
+.wp-rm-btn-danger:hover { color: rgba(255, 100, 100, 0.7); }
+
+/* ==================== Reminder Form Modal ==================== */
+
+.wp-rm-form-modal {
+  width: 460px;
+  background: rgba(22, 22, 30, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  animation: wp-modal-in 0.15s ease-out;
+}
+
+.wp-rm-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.wp-rm-form-title {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
+
+.wp-rm-form-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.wp-rm-form-close:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.wp-rm-form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.wp-rm-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.wp-rm-field-sm {
+  max-width: 140px;
+}
+
+.wp-rm-label {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wp-rm-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  padding: 6px 10px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.wp-rm-input:focus { border-color: rgba(255, 255, 255, 0.2); }
+.wp-rm-input::placeholder { color: rgba(255, 255, 255, 0.2); }
+
+.wp-rm-input-narrow { max-width: 70px; }
+
+.wp-rm-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wp-rm-unit {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.wp-rm-select {
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff55' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+.wp-rm-select option {
+  background: #1a1a24;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Segmented control */
+.wp-rm-segments {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.wp-rm-seg {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.wp-rm-seg:hover { color: rgba(255, 255, 255, 0.6); }
+.wp-rm-seg.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Toggles */
+.wp-rm-form-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.wp-rm-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.wp-rm-toggle-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
+
+.wp-rm-toggle-desc {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.25);
+  margin-top: 2px;
+}
+
+.wp-rm-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.wp-rm-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.wp-rm-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.wp-rm-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.wp-rm-toggle input:checked + .wp-rm-toggle-slider {
+  background: rgba(77, 158, 255, 0.5);
+}
+
+.wp-rm-toggle input:checked + .wp-rm-toggle-slider::before {
+  transform: translateX(16px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Form footer */
+.wp-rm-form-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

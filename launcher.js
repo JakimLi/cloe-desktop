@@ -2893,7 +2893,86 @@ ipcMain.on('chat-window-close', () => {
 });
 ipcMain.on('chat-window-toggle', () => toggleChatWindow());
 ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
-ipcMain.handle('get-chat-nickname', () => loadConfig().chatNickname || '');
+
+// ==================== Workspace Window (standalone BrowserWindow) ====================
+let workspaceWin = null;
+
+function createWorkspaceWindow() {
+  // If window exists, toggle visibility
+  if (workspaceWin && !workspaceWin.isDestroyed()) {
+    if (workspaceWin.isVisible()) {
+      workspaceWin.hide();
+    } else {
+      workspaceWin.show();
+      workspaceWin.focus();
+    }
+    try { win?.webContents.send('workspace-window-state', workspaceWin.isVisible()); } catch {}
+    return;
+  }
+
+  const display = screen.getPrimaryDisplay();
+  const winWidth = 680;
+  const winHeight = 520;
+  // Center on screen: window center = screen center
+  const centerX = Math.round(display.bounds.x + (display.bounds.width - winWidth) / 2);
+  const centerY = Math.round(display.bounds.y + (display.bounds.height - winHeight) / 2);
+
+  workspaceWin = new BrowserWindow({
+    width: winWidth,
+    height: winHeight,
+    x: centerX,
+    y: centerY,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: false,
+    resizable: true,
+    minWidth: 400,
+    minHeight: 300,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'workspace-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+
+  workspaceWin.setMenuBarVisibility(false);
+
+  if (!app.isPackaged) {
+    workspaceWin.loadURL('http://localhost:5173/src/workspace.html');
+  } else {
+    workspaceWin.loadFile(path.join(__dirname, 'dist', 'src', 'workspace.html'));
+  }
+
+  workspaceWin.once('ready-to-show', () => { workspaceWin.show(); });
+
+  workspaceWin.on('closed', () => {
+    workspaceWin = null;
+    try { win?.webContents.send('workspace-window-state', false); } catch {}
+  });
+
+  try { win?.webContents.send('workspace-window-state', true); } catch {}
+}
+
+ipcMain.on('workspace-window-toggle', () => createWorkspaceWindow());
+ipcMain.on('workspace-window-close', () => {
+  if (workspaceWin && !workspaceWin.isDestroyed()) {
+    workspaceWin.hide();
+    try { win?.webContents.send('workspace-window-state', false); } catch {}
+  }
+});
+ipcMain.on('workspace-window-move', (_e, payload) => {
+  if (workspaceWin && !workspaceWin.isDestroyed() && payload) {
+    const dx = Math.round(payload.dx || 0);
+    const dy = Math.round(payload.dy || 0);
+    const [x, y] = workspaceWin.getPosition();
+    workspaceWin.setPosition(x + dx, y + dy);
+  }
+});
+
+ipcMain.handle('chat-get-nickname', () => loadConfig().chatNickname || '');
 
 // Chat window opacity toggle (transparent / opaque)
 const CHAT_TRANSPARENT_OPACITY = 0.6;

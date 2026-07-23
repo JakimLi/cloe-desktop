@@ -50,6 +50,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('chat-window-state', h);
     return () => ipcRenderer.removeListener('chat-window-state', h);
   },
+  // Workspace window (separate BrowserWindow)
+  toggleWorkspaceWindow: () => ipcRenderer.send('workspace-window-toggle'),
+  onWorkspaceWindowState: (cb) => {
+    const h = (_e, isOpen) => cb(isOpen);
+    ipcRenderer.on('workspace-window-state', h);
+    return () => ipcRenderer.removeListener('workspace-window-state', h);
+  },
   // External message injection (from Hermes via /chat/message)
   onExternalChatMessage: (cb) => {
     const h = (_e, msg) => cb(msg);

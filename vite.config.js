@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, 'index.html'),
         chat: resolve(__dirname, 'src/chat.html'),
+        workspace: resolve(__dirname, 'src/workspace.html'),
       },
     },
   },
