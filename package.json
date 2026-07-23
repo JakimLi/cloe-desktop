@@ -93,7 +93,8 @@
       "node_modules/ws/**/*",
       "node_modules/node-pty/**/*",
       "node_modules/xterm/**/*",
-      "node_modules/@xterm/**/*"
+      "node_modules/@xterm/**/*",
+      "task-engine.js"
     ],
     "extraResources": [
       {

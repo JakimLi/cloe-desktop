@@ -814,6 +814,10 @@ function connectWebSocket() {
         if (msg.type && msg.type.startsWith('agent-session-')) {
           window.dispatchEvent(new CustomEvent('cloe-agent-session', { detail: msg }));
         }
+        // Forward task events to React layer
+        if (msg.type && msg.type.startsWith('task-')) {
+          window.dispatchEvent(new CustomEvent('cloe-task', { detail: msg }));
+        }
         // Forward mute state changes to React layer
         if (msg.type === 'mute-state-changed') {
           window.dispatchEvent(new CustomEvent('cloe-mute-state', { detail: msg }));

@@ -20,6 +20,7 @@ const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const reminderEngine = require('./reminder-engine');
 const agentTracker = require('./agent-tracker');
+const taskEngine = require('./task-engine');
 const muteState = require('./mute-state');
 // ==================== Config ====================
 const WS_PORT = 19850;
@@ -1016,6 +1017,10 @@ function createBridgeServers() {
 
   // --- Agent Session Tracker ---
   agentTracker.setBroadcast(broadcastToClients);
+
+  // --- Task Engine ---
+  taskEngine.setBroadcast(broadcastToClients);
+  taskEngine.loadTasks();
 
   // --- HTTP ---
   const server = http.createServer((req, res) => {
@@ -2374,6 +2379,11 @@ function createBridgeServers() {
 
     // --- Agent Session Tracker Routes ---
     if (agentTracker.handleAgentRoute(req, res)) {
+      return;
+    }
+
+    // --- Task Engine Routes ---
+    if (taskEngine.handleTaskRoute(req, res)) {
       return;
     }
 

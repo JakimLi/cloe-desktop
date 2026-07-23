@@ -17,6 +17,7 @@ import TabBar, { TabCloseConfirm } from './TabBar';
 import { useTerminalTabs } from './useTerminalTabs';
 import { matchesShortcut, parseShortcutParts, isModifierKeyUp } from './utils/shortcut';
 import AgentSessionModal from './AgentSessionModal';
+import WorkspacePanel from './WorkspacePanel';
 
 const API_BASE = 'http://127.0.0.1:19851';
 
@@ -618,6 +619,116 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
+  // ── Tasks ──
+  const [workspaceTasks, setWorkspaceTasks] = useState([]);
+  const [taskTimingId, setTaskTimingId] = useState(null);
+
+  // Sync tasks from WS events
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e.detail;
+      if (!msg || !msg.type) return;
+
+      if (msg.type === 'task-state-sync') {
+        // Full state sync from engine
+        setWorkspaceTasks(msg.tasks || []);
+        setTaskTimingId(msg.timing_id || null);
+        return;
+      }
+
+      if (msg.type === 'task-timer-tick') {
+        setWorkspaceTasks(prev => prev.map(t =>
+          t.id === msg.task_id ? { ...t, elapsed_seconds: msg.elapsed_seconds } : t
+        ));
+        return;
+      }
+
+      if (msg.type === 'task-created' || msg.type === 'task-updated' ||
+          msg.type === 'task-completed' || msg.type === 'task-reopened' ||
+          msg.type === 'task-timing-started' || msg.type === 'task-timing-stopped') {
+        if (msg.task) {
+          setWorkspaceTasks(prev => {
+            const idx = prev.findIndex(t => t.id === msg.task.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = msg.task;
+              return next;
+            }
+            return [...prev, msg.task];
+          });
+        }
+        if (msg.type === 'task-timing-started') setTaskTimingId(msg.task?.id);
+        if (msg.type === 'task-timing-stopped') setTaskTimingId(null);
+        return;
+      }
+
+      if (msg.type === 'task-deleted') {
+        if (msg.task_id) {
+          setWorkspaceTasks(prev => prev.filter(t => t.id !== msg.task_id));
+        }
+        return;
+      }
+    };
+    window.addEventListener('cloe-task', handler);
+    return () => window.removeEventListener('cloe-task', handler);
+  }, []);
+
+  // Initial fetch tasks on first open
+  useEffect(() => {
+    if (!visible) return;
+    fetch(`${API_BASE}/tasks`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.tasks) setWorkspaceTasks(data.tasks);
+        if (data.timing_id !== undefined) setTaskTimingId(data.timing_id);
+      })
+      .catch(() => {});
+  }, [visible]);
+
+  const handleTaskCreate = useCallback((title) => {
+    fetch(`${API_BASE}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    }).catch(() => {});
+  }, []);
+
+  const handleTaskUpdate = useCallback((id, data) => {
+    fetch(`${API_BASE}/tasks/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch(() => {});
+  }, []);
+
+  const handleTaskDelete = useCallback((id) => {
+    fetch(`${API_BASE}/tasks/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).catch(() => {});
+  }, []);
+
+  const handleTaskToggleComplete = useCallback((id, isCompleted) => {
+    const action = isCompleted ? 'reopen' : 'complete';
+    fetch(`${API_BASE}/tasks/${encodeURIComponent(id)}/${action}`, {
+      method: 'POST',
+    }).catch(() => {});
+  }, []);
+
+  const handleTaskStartStop = useCallback((id, isTiming) => {
+    const action = isTiming ? 'stop' : 'start';
+    fetch(`${API_BASE}/tasks/${encodeURIComponent(id)}/${action}`, {
+      method: 'POST',
+    }).catch(() => {});
+  }, []);
+
+  const handleTaskReorder = useCallback((fromIdx, toIdx) => {
+    fetch(`${API_BASE}/tasks/reorder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_idx: fromIdx, to_idx: toIdx }),
+    }).catch(() => {});
+  }, []);
+
   // ── Global Mute Toggle ──
   const [muted, setMuted] = useState(false);
   const [muteToast, setMuteToast] = useState(null); // { muted: boolean, ts: number }
@@ -696,11 +807,19 @@ export default function App() {
   if (!visible) {
     return (
       <>
-        <AgentSessionModal
+        <WorkspacePanel
           visible={agentModalVisible}
           sessions={agentSessions}
-          onSetTitle={handleAgentSetTitle}
-          onCancel={handleAgentCancel}
+          tasks={workspaceTasks}
+          timingId={taskTimingId}
+          onSessionSetTitle={handleAgentSetTitle}
+          onSessionCancel={handleAgentCancel}
+          onTaskCreate={handleTaskCreate}
+          onTaskUpdate={handleTaskUpdate}
+          onTaskDelete={handleTaskDelete}
+          onTaskToggleComplete={handleTaskToggleComplete}
+          onTaskStartStop={handleTaskStartStop}
+          onTaskReorder={handleTaskReorder}
           onClose={() => setAgentModalVisible(false)}
         />
         <MuteToast toast={muteToast} />
@@ -751,11 +870,19 @@ export default function App() {
         }}
         onCancel={() => setPendingCloseTab(null)}
       />
-      <AgentSessionModal
+      <WorkspacePanel
         visible={agentModalVisible}
         sessions={agentSessions}
-        onSetTitle={handleAgentSetTitle}
-        onCancel={handleAgentCancel}
+        tasks={workspaceTasks}
+        timingId={taskTimingId}
+        onSessionSetTitle={handleAgentSetTitle}
+        onSessionCancel={handleAgentCancel}
+        onTaskCreate={handleTaskCreate}
+        onTaskUpdate={handleTaskUpdate}
+        onTaskDelete={handleTaskDelete}
+        onTaskToggleComplete={handleTaskToggleComplete}
+        onTaskStartStop={handleTaskStartStop}
+        onTaskReorder={handleTaskReorder}
         onClose={() => setAgentModalVisible(false)}
       />
       <MuteToast toast={muteToast} />
