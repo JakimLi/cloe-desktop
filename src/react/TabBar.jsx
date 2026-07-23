@@ -5,6 +5,9 @@
  * hover close button, drag-to-reorder, and a + button to create new tabs.
  * Only rendered in terminal mode.
  *
+ * Reorder uses pointer events (NOT HTML5 draggable) because draggable
+ * conflicts with Electron's -webkit-app-region: drag on the titlebar.
+ *
  * Close confirmation is handled by the parent (App.jsx) via pendingCloseTab,
  * so both the close button and the Cmd+W shortcut share the same flow.
  */
@@ -12,11 +15,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './tab-bar.css';
 
+// Drag threshold in pixels — must move this far before treating as drag (not click)
+const DRAG_THRESHOLD = 5;
+
 export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename, onReorder }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
-  const dragRef = useRef({ dragging: false, fromIdx: -1 });
+
+  // Pointer-based reorder state
+  const [dragState, setDragState] = useState(null);
+  // dragState: null | { fromIdx, startX, startY, currentIdx, before: boolean, active: boolean }
+  const dragRef = useRef(null);
+  const itemRefs = useRef([]);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -43,52 +54,87 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
     setEditingId(null);
   };
 
-  // ── Drag reorder ──
-  const onDragStart = useCallback((e, idx) => {
-    // Don't start drag while editing
-    if (editingId) { e.preventDefault(); return; }
-    dragRef.current = { dragging: true, fromIdx: idx };
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(idx));
-    // Delay adding class so the drag image captures the original style
-    requestAnimationFrame(() => e.target.closest('.tab-bar-item')?.classList.add('dragging'));
+  // ── Pointer-based reorder ──
+  // Mouse down on a tab: record position. If mouse moves >threshold, start drag.
+  // Mouse move during drag: update indicator. Mouse up: commit or cancel.
+  const onPointerDown = useCallback((e, idx) => {
+    if (editingId) return;
+    // Only left button
+    if (e.button !== 0) return;
+
+    dragRef.current = {
+      fromIdx: idx,
+      startX: e.clientX,
+      startY: e.clientY,
+      currentIdx: idx,
+      before: false,
+      active: false,
+    };
   }, [editingId]);
 
-  const onDragOver = useCallback((e, idx) => {
-    const ref = dragRef.current;
-    if (!ref.dragging || ref.fromIdx === idx) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    // Remove previous drop indicator
-    document.querySelectorAll('.tab-bar-item.drop-before, .tab-bar-item.drop-after')
-      .forEach(el => el.classList.remove('drop-before', 'drop-after'));
-    // Add indicator: before or after based on mouse position relative to target center
-    const item = e.target.closest('.tab-bar-item');
-    if (!item) return;
-    const rect = item.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
-    if (e.clientX < midX) {
-      item.classList.add('drop-before');
-    } else {
-      item.classList.add('drop-after');
-    }
-  }, []);
+  // Global pointermove + pointerup listeners active during potential/drag
+  useEffect(() => {
+    const onMove = (e) => {
+      const ref = dragRef.current;
+      if (!ref) return;
 
-  const onDrop = useCallback((e, toIdx) => {
-    e.preventDefault();
-    document.querySelectorAll('.tab-bar-item.drop-before, .tab-bar-item.drop-after')
-      .forEach(el => el.classList.remove('drop-before', 'drop-after'));
-    const ref = dragRef.current;
-    if (!ref.dragging) return;
-    ref.dragging = false;
-    if (ref.fromIdx !== toIdx) onReorder(ref.fromIdx, toIdx);
+      const dx = e.clientX - ref.startX;
+      const dy = e.clientY - ref.startY;
+      const dist = Math.hypot(dx, dy);
+
+      // Activate drag after threshold
+      if (!ref.active && dist > DRAG_THRESHOLD) {
+        ref.active = true;
+        setDragState({ fromIdx: ref.fromIdx, currentIdx: ref.fromIdx, before: false });
+      }
+
+      if (!ref.active) return;
+
+      // Find which tab the pointer is over
+      let newIdx = -1;
+      let before = false;
+      for (let i = 0; i < itemRefs.current.length; i++) {
+        const el = itemRefs.current[i];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right) {
+          newIdx = i;
+          before = e.clientX < rect.left + rect.width / 2;
+          break;
+        }
+      }
+
+      if (newIdx !== -1 && (newIdx !== ref.currentIdx || before !== ref.before)) {
+        ref.currentIdx = newIdx;
+        ref.before = before;
+        setDragState({ fromIdx: ref.fromIdx, currentIdx: newIdx, before });
+      }
+    };
+
+    const onUp = () => {
+      const ref = dragRef.current;
+      dragRef.current = null;
+
+      if (ref && ref.active) {
+        // Commit reorder
+        if (ref.fromIdx !== ref.currentIdx) {
+          // Adjust target: if dropping after a tab that's before the source, index is same;
+          // if before a tab that's after source, index is same. Let parent handle logic.
+          onReorder(ref.fromIdx, ref.currentIdx);
+        }
+      }
+      // If not active, it was a click — handled by onClick
+
+      setDragState(null);
+    };
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
   }, [onReorder]);
-
-  const onDragEnd = useCallback((e) => {
-    dragRef.current = { dragging: false, fromIdx: -1 };
-    document.querySelectorAll('.tab-bar-item.dragging, .tab-bar-item.drop-before, .tab-bar-item.drop-after')
-      .forEach(el => el.classList.remove('dragging', 'drop-before', 'drop-after'));
-  }, []);
 
   return (
     <div className="tab-bar">
@@ -97,18 +143,22 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
           const isActive = tab.id === activeTabId;
           const isEditing = editingId === tab.id;
           const canClose = tabs.length > 1;
+          const isDragging = dragState && dragState.fromIdx === idx;
+          const isDropBefore = dragState && dragState.active && dragState.currentIdx === idx && dragState.before && dragState.fromIdx !== idx;
+          const isDropAfter = dragState && dragState.active && dragState.currentIdx === idx && !dragState.before && dragState.fromIdx !== idx;
 
           return (
             <div
               key={tab.id}
-              className={`tab-bar-item${isActive ? ' active' : ''}`}
-              draggable={!isEditing}
-              onClick={() => !isEditing && onSelect(tab.id)}
+              ref={(el) => { itemRefs.current[idx] = el; }}
+              className={`tab-bar-item${isActive ? ' active' : ''}${isDragging ? ' dragging' : ''}${isDropBefore ? ' drop-before' : ''}${isDropAfter ? ' drop-after' : ''}`}
+              onPointerDown={(e) => !isEditing && onPointerDown(e, idx)}
+              onClick={() => {
+                // Suppress click if this was a drag
+                if (dragState && dragState.active) return;
+                if (!isEditing) onSelect(tab.id);
+              }}
               onDoubleClick={() => startEdit(tab)}
-              onDragStart={(e) => onDragStart(e, idx)}
-              onDragOver={(e) => onDragOver(e, idx)}
-              onDrop={(e) => onDrop(e, idx)}
-              onDragEnd={onDragEnd}
             >
               {isEditing ? (
                 <input
