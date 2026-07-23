@@ -304,7 +304,6 @@ export default function WorkspacePanel({
 
   const activeSessions = sessions || [];
   const activeTasks = tasks || [];
-  const hasSessions = activeSessions.length > 0;
 
   return (
     <div className="wp-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
@@ -321,26 +320,32 @@ export default function WorkspacePanel({
 
         {/* ── Body: left sidebar (sessions) + right main (tasks) ── */}
         <div className="wp-body">
-          {/* ── Left: Agent Sessions ── */}
-          {hasSessions && (
-            <div className="wp-sidebar">
-              <div className="wp-sidebar-header">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="wp-sidebar-icon">
-                  <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-                <span>{t('Agent', 'Agent')}</span>
-                <span className="wp-sidebar-count">{activeSessions.length}</span>
-              </div>
-              <div className="wp-sessions-list">
-                {activeSessions.map(s => (
-                  <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} onAcknowledge={onSessionAcknowledge} />
-                ))}
-              </div>
+          {/* ── Left: Agent Sessions (always visible, empty state when no sessions) ── */}
+          <div className="wp-sidebar">
+            <div className="wp-sidebar-header">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="wp-sidebar-icon">
+                <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span>{t('Agent', 'Agent')}</span>
+              <span className="wp-sidebar-count">{activeSessions.length}</span>
             </div>
-          )}
+            <div className="wp-sessions-list">
+              {activeSessions.map(s => (
+                <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} onAcknowledge={onSessionAcknowledge} />
+              ))}
+              {activeSessions.length === 0 && (
+                <div className="wp-empty-sessions">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                  <p>{t('暂无 Agent', 'No active agents')}</p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* ── Divider ── */}
-          {hasSessions && <div className="wp-divider" />}
+          <div className="wp-divider" />
 
           {/* ── Right: Tasks ── */}
           <div className="wp-main">

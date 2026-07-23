@@ -34,11 +34,6 @@
   animation: wp-modal-in 0.22s ease-out;
 }
 
-/* No sessions → full-width tasks only */
-.wp-modal:not(:has(.wp-sidebar)) .wp-main {
-  flex: 1;
-}
-
 @keyframes wp-modal-in {
   from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: scale(1); }
@@ -551,7 +546,28 @@
   100% { transform: translateX(400%); }
 }
 
-/* ==================== Empty State ==================== */
+/* ==================== Empty States ==================== */
+
+.wp-empty-sessions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  gap: 8px;
+}
+
+.wp-empty-sessions svg {
+  opacity: 0.1;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.wp-empty-sessions p {
+  color: rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
 
 .wp-empty-tasks {
   display: flex;
