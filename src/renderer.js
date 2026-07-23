@@ -826,6 +826,10 @@ function connectWebSocket() {
         if (msg.type === 'global-pause-changed') {
           window.dispatchEvent(new CustomEvent('cloe-global-pause', { detail: msg }));
         }
+        // Forward TTS scheduler events to React layer
+        if (msg.type && msg.type.startsWith('tts-')) {
+          window.dispatchEvent(new CustomEvent('cloe-tts-scheduler', { detail: msg }));
+        }
       } catch (e) { console.error('WS parse:', e); }
     };
 

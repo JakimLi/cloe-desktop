@@ -113,15 +113,60 @@ function triggerReminder(reminder) {
     broadcast({ type: 'action', action: r.action });
   }
 
-  // Generate TTS voice message if enabled
+  // Generate TTS voice message if enabled (deferred via tts-scheduler)
   if (r.tts) {
     // Check global mute switch
     const { isMuted } = require('./mute-state');
     if (isMuted()) {
       console.log('[Reminder] TTS skipped: global mute is on');
     } else {
-      generateReminderTTS(r);
+      // Use tts-scheduler for conditional/delayed TTS
+      const ttsScheduler = require('./tts-scheduler');
+      const sourceKey = `reminder:${r.id}`;
+      const message = getReminderTTSMessage(r);
+      ttsScheduler.scheduleTTS(sourceKey, message, () => generateReminderTTS(r), {
+        source: 'reminder',
+        id: r.id,
+      });
     }
+  }
+}
+
+/**
+ * Get the TTS message text for a reminder (extracted for pre-scheduling).
+ */
+function getReminderTTSMessage(r) {
+  const WORK_MESSAGES = [
+    () => `${r.name}时间到啦`,
+    () => `${r.name}时间到了哦`,
+    () => `${r.name}的时间到了`,
+    () => `${r.name}该动一下了`,
+    () => `${r.name}到时间啦`,
+    () => `${r.name}该起来啦`,
+  ];
+  const BREAK_MESSAGES = [
+    '休息时间到啦，放松一下吧',
+    '休息时间到了，歇会儿吧',
+    '可以休息啦，别太累了',
+    '该休息了，放松放松',
+    '到休息时间啦，活动活动',
+    '休息一下吧，你辛苦了',
+  ];
+  const DONE_MESSAGES = [
+    () => `${r.name}全部完成啦，辛苦了`,
+    () => `${r.name}全做完啦，真棒`,
+    () => `${r.name}搞定啦，辛苦啦`,
+    () => `${r.name}全部搞定，收工吧`,
+    () => `${r.name}完成啦，你太厉害了`,
+    () => `${r.name}全部完成，休息一下吧`,
+  ];
+
+  if (r.mode === 'countdown' && r.phase === 'break') {
+    return BREAK_MESSAGES[Math.floor(Math.random() * BREAK_MESSAGES.length)];
+  } else if (r.mode === 'countdown' && r.total_rounds > 0 && r.round >= r.total_rounds) {
+    return DONE_MESSAGES[Math.floor(Math.random() * DONE_MESSAGES.length)]();
+  } else {
+    return WORK_MESSAGES[Math.floor(Math.random() * WORK_MESSAGES.length)]();
   }
 }
 
@@ -132,15 +177,7 @@ function generateReminderTTS(r) {
   const { execFile } = require('child_process');
   const path = require('path');
 
-  // Build a natural language message
-  let message;
-  if (r.mode === 'countdown' && r.phase === 'break') {
-    message = '休息时间到啦，放松一下吧';
-  } else if (r.mode === 'countdown' && r.total_rounds > 0 && r.round >= r.total_rounds) {
-    message = `${r.name}全部完成啦，辛苦了`;
-  } else {
-    message = `${r.name}时间到啦`;
-  }
+  const message = getReminderTTSMessage(r);
 
   const scriptPath = path.join(os.homedir(), '.hermes', 'skills', 'creative', 'cloe-desktop-action', 'scripts', 'generate_tts.py');
   execFile('python3', [scriptPath, '--text', message, '--speak'], {

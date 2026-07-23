@@ -94,7 +94,8 @@
       "node_modules/node-pty/**/*",
       "node_modules/xterm/**/*",
       "node_modules/@xterm/**/*",
-      "task-engine.js"
+      "task-engine.js",
+      "tts-scheduler.js"
     ],
     "extraResources": [
       {

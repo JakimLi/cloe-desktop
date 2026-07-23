@@ -613,11 +613,27 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
+  const handleAgentAcknowledge = useCallback((id) => {
+    // Cancel pending TTS for this agent session (user is looking at it)
+    fetch(`${API_BASE}/tts-scheduler/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'agent', id }),
+    }).catch(() => {});
+  }, []);
+
   const handleAgentCancel = useCallback((id) => {
+    // Cancel pending TTS when cancelling session
+    fetch(`${API_BASE}/tts-scheduler/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'agent', id }),
+    }).catch(() => {});
+
     fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/cancel`, {
       method: 'POST',
     }).catch(() => {});
-  }, []);
+  }, [API_BASE]);
 
   // ── Tasks ──
   const [workspaceTasks, setWorkspaceTasks] = useState([]);
@@ -814,6 +830,7 @@ export default function App() {
           timingId={taskTimingId}
           onSessionSetTitle={handleAgentSetTitle}
           onSessionCancel={handleAgentCancel}
+          onSessionAcknowledge={handleAgentAcknowledge}
           onTaskCreate={handleTaskCreate}
           onTaskUpdate={handleTaskUpdate}
           onTaskDelete={handleTaskDelete}
@@ -877,6 +894,7 @@ export default function App() {
         timingId={taskTimingId}
         onSessionSetTitle={handleAgentSetTitle}
         onSessionCancel={handleAgentCancel}
+        onSessionAcknowledge={handleAgentAcknowledge}
         onTaskCreate={handleTaskCreate}
         onTaskUpdate={handleTaskUpdate}
         onTaskDelete={handleTaskDelete}

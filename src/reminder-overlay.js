@@ -84,12 +84,26 @@
   // ==================== API Calls ====================
 
   function dismissReminder(id) {
+    // Cancel any pending deferred TTS for this reminder (user saw the card)
+    fetch('http://127.0.0.1:19851/tts-scheduler/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceKey: 'reminder:' + id }),
+    }).catch(() => {});
+
     fetch('http://127.0.0.1:19851/reminders/' + encodeURIComponent(id) + '/dismiss', {
       method: 'POST',
     }).catch((e) => console.error('[Reminder] dismiss failed:', e));
   }
 
   function stopReminder(id) {
+    // Cancel any pending deferred TTS for this reminder
+    fetch('http://127.0.0.1:19851/tts-scheduler/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceKey: 'reminder:' + id }),
+    }).catch(() => {});
+
     fetch('http://127.0.0.1:19851/reminders/' + encodeURIComponent(id) + '/stop', {
       method: 'POST',
     }).catch((e) => console.error('[Reminder] stop failed:', e));

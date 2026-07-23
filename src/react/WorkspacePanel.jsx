@@ -59,7 +59,7 @@ const SESSION_STATUS = {
   needs_decision: { label: t('待确认', 'Waiting'),   color: '#f5a623', pulse: true },
 };
 
-function SessionCard({ session, onSetTitle, onCancel }) {
+function SessionCard({ session, onSetTitle, onCancel, onAcknowledge }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(session.title || '');
   const inputRef = useRef(null);
@@ -111,6 +111,14 @@ function SessionCard({ session, onSetTitle, onCancel }) {
           </>
         )}
       </div>
+      {/* Acknowledge button: only for turn_complete / needs_decision */}
+      {(session.status === 'turn_complete' || session.status === 'needs_decision') && onAcknowledge && (
+        <button className="wp-session-ack" onClick={() => onAcknowledge(session.id)} title={t('知道了', 'Acknowledge')}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+      )}
       <button className="wp-session-cancel" onClick={() => onCancel(session.id)} title={t('取消监听', 'Cancel')}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -351,6 +359,7 @@ export default function WorkspacePanel({
   timingId,
   onSessionSetTitle,
   onSessionCancel,
+  onSessionAcknowledge,
   onTaskCreate,
   onTaskUpdate,
   onTaskDelete,
@@ -414,7 +423,7 @@ export default function WorkspacePanel({
             </div>
             <div className="wp-sessions-list">
               {activeSessions.map(s => (
-                <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} />
+                <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} onAcknowledge={onSessionAcknowledge} />
               ))}
             </div>
           </div>

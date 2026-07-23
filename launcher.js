@@ -20,6 +20,7 @@ const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const reminderEngine = require('./reminder-engine');
 const agentTracker = require('./agent-tracker');
+const ttsScheduler = require('./tts-scheduler');
 const taskEngine = require('./task-engine');
 const muteState = require('./mute-state');
 // ==================== Config ====================
@@ -1017,6 +1018,9 @@ function createBridgeServers() {
 
   // --- Agent Session Tracker ---
   agentTracker.setBroadcast(broadcastToClients);
+
+  // --- TTS Scheduler ---
+  ttsScheduler.setBroadcast(broadcastToClients);
 
   // --- Task Engine ---
   taskEngine.setBroadcast(broadcastToClients);
@@ -2379,6 +2383,11 @@ function createBridgeServers() {
 
     // --- Agent Session Tracker Routes ---
     if (agentTracker.handleAgentRoute(req, res)) {
+      return;
+    }
+
+    // --- TTS Scheduler Routes ---
+    if (ttsScheduler.handleTTSRoute(req, res)) {
       return;
     }
 

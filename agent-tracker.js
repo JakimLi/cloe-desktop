@@ -65,6 +65,31 @@ function speakFallback(event) {
   req.end();
 }
 
+function getAgentTTSMessage(session, event) {
+  const displayName = session.title || session.source_label || session.source;
+  const TURN_END_SUFFIXES = [
+    '完成了一轮',
+    '跑完啦',
+    '这轮搞定啦',
+    '做完了',
+    '一轮搞定',
+    '搞定啦，你要看看吗',
+  ];
+  const NEEDS_DECISION_SUFFIXES = [
+    '需要你决策',
+    '在等你拿主意',
+    '需要你拍个板',
+    '卡住了，等你决定',
+    '有个事要你定一下',
+    '在等你决定呢',
+  ];
+  const suffixes = event === 'turn-end' ? TURN_END_SUFFIXES
+    : event === 'needs-decision' ? NEEDS_DECISION_SUFFIXES
+    : null;
+  if (!suffixes) return null;
+  return `${displayName}${suffixes[Math.floor(Math.random() * suffixes.length)]}`;
+}
+
 function generateAgentTTS(session, event) {
   // Check global mute switch
   const { isMuted } = require('./mute-state');
@@ -73,15 +98,8 @@ function generateAgentTTS(session, event) {
     return;
   }
 
-  const displayName = session.title || session.source_label || session.source;
-  let message;
-  if (event === 'turn-end') {
-    message = `${displayName}完成了一轮`;
-  } else if (event === 'needs-decision') {
-    message = `${displayName}需要你决策`;
-  } else {
-    return;
-  }
+  const message = getAgentTTSMessage(session, event);
+  if (!message) return;
 
   const { execFile } = require('child_process');
   const scriptPath = path.join(os.homedir(), '.hermes', 'skills', 'creative',
@@ -135,7 +153,20 @@ function notifyTurnEnd(id, data) {
   session.last_updated = new Date().toISOString();
 
   broadcast({ type: 'agent-session-updated', session: toPublic(session) });
-  generateAgentTTS(session, 'turn-end');
+
+  // Deferred TTS via tts-scheduler (cancelled if user acknowledges within delay)
+  const { isMuted } = require('./mute-state');
+  if (!isMuted()) {
+    const ttsScheduler = require('./tts-scheduler');
+    const sourceKey = `agent:${id}:turn-end`;
+    const message = getAgentTTSMessage(session, 'turn-end');
+    if (message) {
+      ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(session, 'turn-end'), {
+        source: 'agent',
+        id,
+      });
+    }
+  }
 
   return session;
 }
@@ -148,7 +179,20 @@ function notifyNeedsDecision(id, data) {
   session.last_updated = new Date().toISOString();
 
   broadcast({ type: 'agent-session-updated', session: toPublic(session) });
-  generateAgentTTS(session, 'needs-decision');
+
+  // Deferred TTS via tts-scheduler (cancelled if user acknowledges within delay)
+  const { isMuted } = require('./mute-state');
+  if (!isMuted()) {
+    const ttsScheduler = require('./tts-scheduler');
+    const sourceKey = `agent:${id}:needs-decision`;
+    const message = getAgentTTSMessage(session, 'needs-decision');
+    if (message) {
+      ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(session, 'needs-decision'), {
+        source: 'agent',
+        id,
+      });
+    }
+  }
 
   return session;
 }

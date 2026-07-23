@@ -220,6 +220,28 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Acknowledge button (green checkmark) */
+.wp-session-ack {
+  background: rgba(61, 214, 140, 0.1);
+  border: none;
+  color: rgba(61, 214, 140, 0.7);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.12s;
+}
+
+.wp-session-card:hover .wp-session-ack { opacity: 1; }
+.wp-session-ack:hover {
+  color: rgba(61, 214, 140, 1);
+  background: rgba(61, 214, 140, 0.15);
+}
+
 /* ==================== Add Task Input ==================== */
 
 .wp-add-task {

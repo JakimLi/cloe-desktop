@@ -159,6 +159,31 @@ function renderPreferences() {
             </label>
           </div>
         </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.conditionalTTS')}</div>
+            <div class="pref-desc">${I18n.t('prefs.conditionalTTSDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <label class="toggle">
+              <input type="checkbox" id="pref-conditional-tts" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('prefs.ttsDelay')}</div>
+            <div class="pref-desc">${I18n.t('prefs.ttsDelayDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <div style="display:flex;align-items:center;gap:10px;min-width:200px;">
+              <input type="range" id="pref-tts-delay" min="0" max="10" step="1" value="3"
+                style="flex:1;accent-color:var(--accent);cursor:pointer;">
+              <span id="pref-tts-delay-value" style="font-size:13px;font-weight:600;min-width:36px;text-align:right;color:var(--text);">3s</span>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -498,6 +523,47 @@ function renderPreferences() {
   terminalToggle.addEventListener('change', () => {
     localStorage.setItem('cloe-terminal-visible', terminalToggle.checked);
   });
+
+  // ── Conditional TTS settings ──
+  const conditionalTTSToggle = document.getElementById('pref-conditional-tts');
+  const ttsDelaySlider = document.getElementById('pref-tts-delay');
+  const ttsDelayValue = document.getElementById('pref-tts-delay-value');
+
+  async function loadTTSSchedulerConfig() {
+    try {
+      const res = await fetch(`${API_CONFIG_BASE}/tts-scheduler/config`);
+      if (!res.ok) return;
+      const cfg = await res.json();
+      conditionalTTSToggle.checked = cfg.conditional_tts !== false;
+      const delaySec = Math.round((cfg.tts_delay || 3000) / 1000);
+      ttsDelaySlider.value = delaySec;
+      ttsDelayValue.textContent = delaySec + 's';
+    } catch (_) {}
+  }
+
+  conditionalTTSToggle.addEventListener('change', () => {
+    fetch(`${API_CONFIG_BASE}/tts-scheduler/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conditional_tts: conditionalTTSToggle.checked }),
+    }).catch(() => {});
+  });
+
+  let ttsDelayDebounce;
+  ttsDelaySlider.addEventListener('input', () => {
+    const val = parseInt(ttsDelaySlider.value, 10);
+    ttsDelayValue.textContent = val + 's';
+    clearTimeout(ttsDelayDebounce);
+    ttsDelayDebounce = setTimeout(() => {
+      fetch(`${API_CONFIG_BASE}/tts-scheduler/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tts_delay: val * 1000 }),
+      }).catch(() => {});
+    }, 200);
+  });
+
+  loadTTSSchedulerConfig();
 
 }
 
