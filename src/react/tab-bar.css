@@ -63,6 +63,31 @@
   border-radius: 2px 2px 0 0;
 }
 
+/* ── Drag reorder ── */
+.tab-bar-item.dragging {
+  opacity: 0.4;
+}
+
+.tab-bar-item.drop-before::before,
+.tab-bar-item.drop-after::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  background: var(--terminal-accent, #26c6da);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.tab-bar-item.drop-before::before {
+  left: -1px;
+}
+
+.tab-bar-item.drop-after::before {
+  right: -1px;
+}
+
 .tab-bar-title {
   overflow: hidden;
   text-overflow: ellipsis;

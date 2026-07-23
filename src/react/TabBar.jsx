@@ -2,20 +2,21 @@
  * TabBar — Inline tab bar embedded in the titlebar.
  *
  * Shows all terminal tabs, supports click-to-switch, double-click-to-rename,
- * hover close button, and a + button to create new tabs.
+ * hover close button, drag-to-reorder, and a + button to create new tabs.
  * Only rendered in terminal mode.
  *
  * Close confirmation is handled by the parent (App.jsx) via pendingCloseTab,
  * so both the close button and the Cmd+W shortcut share the same flow.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './tab-bar.css';
 
-export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename }) {
+export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose, onRename, onReorder }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
+  const dragRef = useRef({ dragging: false, fromIdx: -1 });
 
   // Focus input when editing starts
   useEffect(() => {
@@ -42,10 +43,57 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
     setEditingId(null);
   };
 
+  // ── Drag reorder ──
+  const onDragStart = useCallback((e, idx) => {
+    // Don't start drag while editing
+    if (editingId) { e.preventDefault(); return; }
+    dragRef.current = { dragging: true, fromIdx: idx };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+    // Delay adding class so the drag image captures the original style
+    requestAnimationFrame(() => e.target.closest('.tab-bar-item')?.classList.add('dragging'));
+  }, [editingId]);
+
+  const onDragOver = useCallback((e, idx) => {
+    const ref = dragRef.current;
+    if (!ref.dragging || ref.fromIdx === idx) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // Remove previous drop indicator
+    document.querySelectorAll('.tab-bar-item.drop-before, .tab-bar-item.drop-after')
+      .forEach(el => el.classList.remove('drop-before', 'drop-after'));
+    // Add indicator: before or after based on mouse position relative to target center
+    const item = e.target.closest('.tab-bar-item');
+    if (!item) return;
+    const rect = item.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    if (e.clientX < midX) {
+      item.classList.add('drop-before');
+    } else {
+      item.classList.add('drop-after');
+    }
+  }, []);
+
+  const onDrop = useCallback((e, toIdx) => {
+    e.preventDefault();
+    document.querySelectorAll('.tab-bar-item.drop-before, .tab-bar-item.drop-after')
+      .forEach(el => el.classList.remove('drop-before', 'drop-after'));
+    const ref = dragRef.current;
+    if (!ref.dragging) return;
+    ref.dragging = false;
+    if (ref.fromIdx !== toIdx) onReorder(ref.fromIdx, toIdx);
+  }, [onReorder]);
+
+  const onDragEnd = useCallback((e) => {
+    dragRef.current = { dragging: false, fromIdx: -1 };
+    document.querySelectorAll('.tab-bar-item.dragging, .tab-bar-item.drop-before, .tab-bar-item.drop-after')
+      .forEach(el => el.classList.remove('dragging', 'drop-before', 'drop-after'));
+  }, []);
+
   return (
     <div className="tab-bar">
       <div className="tab-bar-list">
-        {tabs.map((tab) => {
+        {tabs.map((tab, idx) => {
           const isActive = tab.id === activeTabId;
           const isEditing = editingId === tab.id;
           const canClose = tabs.length > 1;
@@ -54,8 +102,13 @@ export default function TabBar({ tabs, activeTabId, onSelect, onCreate, onClose,
             <div
               key={tab.id}
               className={`tab-bar-item${isActive ? ' active' : ''}`}
+              draggable={!isEditing}
               onClick={() => !isEditing && onSelect(tab.id)}
               onDoubleClick={() => startEdit(tab)}
+              onDragStart={(e) => onDragStart(e, idx)}
+              onDragOver={(e) => onDragOver(e, idx)}
+              onDrop={(e) => onDrop(e, idx)}
+              onDragEnd={onDragEnd}
             >
               {isEditing ? (
                 <input

@@ -95,7 +95,7 @@ export default function App() {
   // ── Terminal multi-tab state ──
   const {
     tabs, activeTabId, setActiveTabId,
-    createTab, closeTab, updateTabTitle, nextTab, prevTab,
+    createTab, closeTab, updateTabTitle, nextTab, prevTab, reorderTab,
   } = useTerminalTabs();
 
   // ── Tab close confirmation (shared by shortcut + TabBar) ──
@@ -728,6 +728,7 @@ export default function App() {
             onCreate={createTab}
             onClose={requestCloseTab}
             onRename={updateTabTitle}
+            onReorder={reorderTab}
           />
         )}
       </OverlayTitlebar>

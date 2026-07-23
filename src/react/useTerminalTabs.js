@@ -63,6 +63,17 @@ export function useTerminalTabs() {
     setActiveTabId(tabs[(idx - 1 + tabs.length) % tabs.length].id);
   }, [tabs, activeTabId]);
 
+  /** Reorder a tab from one position to another (drag-and-drop). */
+  const reorderTab = useCallback((fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    setTabs(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, []);
+
   return {
     tabs,
     activeTabId,
@@ -72,5 +83,6 @@ export function useTerminalTabs() {
     updateTabTitle,
     nextTab,
     prevTab,
+    reorderTab,
   };
 }
