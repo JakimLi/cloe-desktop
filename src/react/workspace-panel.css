@@ -1,4 +1,4 @@
-/* ==================== Workspace Panel — Minimal Glass ==================== */
+/* ==================== Workspace Panel — Split Layout ==================== */
 
 .wp-backdrop {
   position: fixed;
@@ -16,10 +16,12 @@
   to   { opacity: 1; }
 }
 
+/* ── Modal — wider for split layout ── */
+
 .wp-modal {
-  width: 520px;
-  max-width: 92vw;
-  max-height: 72vh;
+  width: 640px;
+  max-width: 94vw;
+  max-height: 80vh;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(40px) saturate(1.5);
   -webkit-backdrop-filter: blur(40px) saturate(1.5);
@@ -32,12 +34,17 @@
   animation: wp-modal-in 0.22s ease-out;
 }
 
+/* No sessions → full-width tasks only */
+.wp-modal:not(:has(.wp-sidebar)) .wp-main {
+  flex: 1;
+}
+
 @keyframes wp-modal-in {
   from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* ---------- Header ---------- */
+/* ── Header ── */
 
 .wp-header {
   display: flex;
@@ -73,53 +80,92 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* ---------- Scrollable Body ---------- */
+/* ── Body — split layout ── */
 
-.wp-section {
-  flex-shrink: 0;
+.wp-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.wp-tasks-section {
-  flex: 1;
-  min-height: 0;
+/* ── Left sidebar — Agent Sessions ── */
+
+.wp-sidebar {
+  width: 220px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.wp-section-header {
+.wp-sidebar-header,
+.wp-main-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px 6px;
+  gap: 6px;
+  padding: 12px 14px 8px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
   flex-shrink: 0;
 }
 
-.wp-section-label {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 11px;
-  font-weight: 500;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.wp-sidebar-icon {
+  opacity: 0.6;
 }
 
-.wp-section-count {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.25);
+.wp-sidebar-count,
+.wp-main-header .wp-sidebar-count {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 8px;
-  min-width: 16px;
+  min-width: 14px;
   text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
 }
 
-/* ==================== Agent Sessions ==================== */
+.wp-main-header {
+  justify-content: space-between;
+}
+
+.wp-main-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Divider ── */
+
+.wp-divider {
+  width: 0.5px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+/* ── Right main — Tasks ── */
+
+.wp-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ==================== Session Cards ==================== */
 
 .wp-sessions-list {
-  padding: 0 6px 6px;
+  flex: 1;
   overflow-y: auto;
-  max-height: 180px;
+  padding: 0 8px 8px;
 }
 
 .wp-sessions-list::-webkit-scrollbar { width: 3px; }
@@ -129,9 +175,9 @@
 .wp-session-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: 9px;
   transition: background 0.12s;
 }
 
@@ -139,12 +185,24 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-.wp-session-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+.wp-session-card.wp-session-action {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Status icon — small rounded square with colored border */
+.wp-session-status-icon {
   flex-shrink: 0;
-  position: relative;
+}
+
+.wp-session-icon-bg {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .wp-pulse {
@@ -153,7 +211,15 @@
 
 @keyframes wp-dot-pulse {
   0%, 100% { opacity: 1; }
-  50%      { opacity: 0.4; }
+  50%      { opacity: 0.45; }
+}
+
+.wp-spin {
+  animation: wp-spin 1.2s linear infinite;
+}
+
+@keyframes wp-spin {
+  to { transform: rotate(360deg); }
 }
 
 .wp-session-body {
@@ -161,37 +227,22 @@
   min-width: 0;
 }
 
-.wp-session-title-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .wp-session-name {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 12px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   cursor: text;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 260px;
   transition: color 0.12s;
 }
 
-.wp-session-name:hover { color: rgba(255, 255, 255, 0.95); }
-
-.wp-session-badge {
-  font-size: 10px;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-  padding: 0px 6px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-}
+.wp-session-name:hover { color: rgba(255, 255, 255, 1); }
 
 .wp-session-meta {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.22);
   font-size: 10px;
   margin-top: 2px;
   display: flex;
@@ -199,47 +250,65 @@
   align-items: center;
 }
 
+.wp-session-source {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+
+.wp-session-dot-sep {
+  opacity: 0.5;
+}
+
+.wp-session-badge {
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+.wp-session-btns {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.wp-session-card:hover .wp-session-btns { opacity: 1; }
+
+.wp-session-ack,
 .wp-session-cancel {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.15);
   cursor: pointer;
-  padding: 3px;
+  padding: 4px;
   border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  opacity: 0;
   transition: all 0.12s;
 }
 
-.wp-session-card:hover .wp-session-cancel { opacity: 1; }
+.wp-session-ack {
+  color: rgba(61, 214, 140, 0.6);
+}
+
+.wp-session-ack:hover {
+  color: rgba(61, 214, 140, 1);
+  background: rgba(61, 214, 140, 0.12);
+}
+
+.wp-session-cancel {
+  color: rgba(255, 255, 255, 0.15);
+}
+
 .wp-session-cancel:hover {
   color: rgba(255, 100, 100, 0.8);
   background: rgba(255, 255, 255, 0.04);
-}
-
-/* Acknowledge button (green checkmark) */
-.wp-session-ack {
-  background: rgba(61, 214, 140, 0.1);
-  border: none;
-  color: rgba(61, 214, 140, 0.7);
-  cursor: pointer;
-  padding: 3px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: all 0.12s;
-}
-
-.wp-session-card:hover .wp-session-ack { opacity: 1; }
-.wp-session-ack:hover {
-  color: rgba(61, 214, 140, 1);
-  background: rgba(61, 214, 140, 0.15);
 }
 
 /* ==================== Add Task Input ==================== */
@@ -248,7 +317,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px 6px;
+  padding: 4px 14px 8px;
   flex-shrink: 0;
 }
 
@@ -256,33 +325,28 @@
   flex: 1;
   background: rgba(255, 255, 255, 0.04);
   border: 0.5px solid rgba(255, 255, 255, 0.06);
-  border-radius: 7px;
-  color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  padding: 6px 10px;
+  padding: 7px 11px;
   outline: none;
   transition: border-color 0.15s;
 }
 
-.wp-add-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
-}
-
-.wp-add-input:focus {
-  border-color: rgba(255, 255, 255, 0.15);
-}
+.wp-add-input::placeholder { color: rgba(255, 255, 255, 0.2); }
+.wp-add-input:focus { border-color: rgba(255, 255, 255, 0.15); }
 
 .wp-add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: none;
-  border-radius: 7px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s;
@@ -290,7 +354,7 @@
 
 .wp-add-btn:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .wp-add-btn:disabled {
@@ -303,7 +367,7 @@
 .wp-task-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 6px 8px;
+  padding: 0 8px 8px;
   min-height: 0;
 }
 
@@ -316,40 +380,24 @@
 .wp-task-card {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: 9px;
+  padding: 9px 10px;
+  border-radius: 9px;
   transition: background 0.12s;
   position: relative;
   cursor: default;
 }
 
-.wp-task-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
+.wp-task-card:hover { background: rgba(255, 255, 255, 0.04); }
 
 .wp-task-card.completed .wp-task-title {
   text-decoration: line-through;
-  opacity: 0.35;
+  opacity: 0.3;
 }
 
 .wp-task-card.timing {
   background: rgba(77, 158, 255, 0.04);
 }
-
-/* Drag handle */
-.wp-task-handle {
-  cursor: grab;
-  padding-top: 2px;
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.15);
-  opacity: 0;
-  transition: opacity 0.12s;
-}
-
-.wp-task-card:hover .wp-task-handle { opacity: 1; }
-
-.wp-task-card.completed .wp-task-handle { display: none; }
 
 /* Checkbox */
 .wp-task-check {
@@ -380,7 +428,7 @@
   color: rgba(0, 0, 0, 0.8);
 }
 
-/* Main content area */
+/* Main content */
 .wp-task-main {
   flex: 1;
   min-width: 0;
@@ -395,7 +443,7 @@
 }
 
 .wp-task-title {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   white-space: nowrap;
@@ -409,7 +457,7 @@
 .wp-task-timer {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-size: 10px;
   font-family: 'SF Mono', 'Menlo', monospace;
   color: #4d9eff;
@@ -424,7 +472,7 @@
 }
 
 .wp-task-preview {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.22);
   font-size: 11px;
   margin-top: 3px;
   white-space: nowrap;
@@ -449,16 +497,16 @@
   transition: opacity 0.12s;
 }
 
-.wp-task-card:hover .wp-task-actions { opacity: 1; }
+.wp-task-card:hover .wp-task-actions,
 .wp-task-card.timing .wp-task-actions { opacity: 1; }
 
-.wp-task-play {
+.wp-task-play,
+.wp-task-delete {
   width: 22px;
   height: 22px;
   border: none;
   border-radius: 5px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.25);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -467,43 +515,20 @@
   padding: 0;
 }
 
-.wp-task-play:hover {
-  background: rgba(77, 158, 255, 0.12);
-  color: #4d9eff;
-}
+.wp-task-play { color: rgba(255, 255, 255, 0.25); }
+.wp-task-play:hover { background: rgba(77, 158, 255, 0.12); color: #4d9eff; }
+.wp-task-play.active { background: rgba(77, 158, 255, 0.15); color: #4d9eff; }
 
-.wp-task-play.active {
-  background: rgba(77, 158, 255, 0.15);
-  color: #4d9eff;
-}
+.wp-task-delete { color: rgba(255, 255, 255, 0.15); }
+.wp-task-delete:hover { color: rgba(255, 100, 100, 0.7); background: rgba(255, 255, 255, 0.04); }
 
-.wp-task-delete {
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.15);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.12s;
-  padding: 0;
-}
-
-.wp-task-delete:hover {
-  color: rgba(255, 100, 100, 0.7);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* Progress bar (timing animation) */
+/* Progress bar */
 .wp-task-progress {
   position: absolute;
   bottom: 0;
   left: 36px;
   right: 40px;
-  height: 2px;
+  height: 1.5px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 1px;
   overflow: hidden;
@@ -512,8 +537,9 @@
 .wp-task-progress-bar {
   height: 100%;
   width: 30%;
-  background: linear-gradient(90deg, transparent, #4d9eff, transparent);
+  background: #4d9eff;
   border-radius: 1px;
+  opacity: 0.6;
 }
 
 .wp-timing-animate {
@@ -525,31 +551,6 @@
   100% { transform: translateX(400%); }
 }
 
-/* Drag reorder indicators */
-.wp-task-card.wp-task-dragging {
-  opacity: 0.3;
-}
-
-.wp-task-card.wp-task-drop-before::after,
-.wp-task-card.wp-task-drop-after::after {
-  content: '';
-  position: absolute;
-  left: 36px;
-  right: 40px;
-  height: 1.5px;
-  background: #4d9eff;
-  border-radius: 1px;
-  pointer-events: none;
-}
-
-.wp-task-card.wp-task-drop-before::after {
-  top: -1px;
-}
-
-.wp-task-card.wp-task-drop-after::after {
-  bottom: -1px;
-}
-
 /* ==================== Empty State ==================== */
 
 .wp-empty-tasks {
@@ -557,12 +558,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
+  padding: 40px 20px;
   gap: 10px;
 }
 
 .wp-empty-tasks svg {
-  opacity: 0.15;
+  opacity: 0.12;
   color: rgba(255, 255, 255, 0.2);
 }
 
@@ -587,7 +588,7 @@
 }
 
 .wp-editor {
-  width: 360px;
+  width: 380px;
   background: rgba(20, 20, 28, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -641,16 +642,20 @@
   margin-top: 10px;
 }
 
-.wp-editor-cancel {
-  padding: 5px 14px;
+.wp-editor-cancel,
+.wp-editor-save {
+  padding: 6px 16px;
   border: none;
   border-radius: 6px;
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   transition: all 0.12s;
+}
+
+.wp-editor-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .wp-editor-cancel:hover {
@@ -659,15 +664,8 @@
 }
 
 .wp-editor-save {
-  padding: 5px 14px;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   background: rgba(77, 158, 255, 0.7);
   color: rgba(255, 255, 255, 0.95);
-  cursor: pointer;
-  transition: all 0.12s;
 }
 
 .wp-editor-save:hover {
