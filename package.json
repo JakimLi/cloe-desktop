@@ -96,7 +96,8 @@
       "node_modules/xterm/**/*",
       "node_modules/@xterm/**/*",
       "task-engine.js",
-      "tts-scheduler.js"
+      "tts-scheduler.js",
+      "weather-engine.js"
     ],
     "extraResources": [
       {

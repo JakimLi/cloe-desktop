@@ -162,17 +162,32 @@ async function geocodeCity(cityName) {
  * Reference: https://open-meteo.com/en/docs (WMO Weather interpretation codes)
  */
 function mapWmoCode(code, temp, visibility, windSpeed, precipitation) {
-  if ([96, 99].includes(code)) return 'thunderstorm';
-  if ([95].includes(code)) return 'thunderstorm';
+  // Thunderstorm
+  if ([95, 96, 99].includes(code)) return 'thunderstorm';
+  // Rain
   if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return 'rain';
-  if ([56, 57, 66, 67].includes(code)) return 'rain'; // freezing rain → rain
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snow';
+  // Freezing rain → icy
+  if ([56, 57, 66, 67].includes(code)) return 'icy';
+  // Snow
+  if ([71, 73, 75, 77, 85, 86].includes(code)) {
+    // If temp is very low, treat as icy instead of snow
+    if (temp !== undefined && temp <= -5) return 'icy';
+    return 'snow';
+  }
+  // Fog
   if ([45, 48].includes(code)) return 'fog';
+  // Sandstorm
   if (visibility !== undefined && windSpeed !== undefined && precipitation !== undefined) {
     if (visibility < 2000 && windSpeed > 40 && precipitation < 1) return 'sandstorm';
   }
+  // Cloudy (overcast / partly cloudy)
   if ([2, 3].includes(code)) return 'cloudy';
-  if ([0, 1].includes(code)) return 'clear';
+  // Clear (sunny)
+  if ([0, 1].includes(code)) {
+    // If very cold and clear, could be icy conditions
+    if (temp !== undefined && temp <= -5) return 'icy';
+    return 'clear';
+  }
   return 'clear';
 }
 
@@ -268,7 +283,7 @@ async function fetchQWeather(lat, lon, apiKey) {
 function describeWeather(type, code) {
   const map = {
     clear: '晴', cloudy: '多云', rain: '雨', snow: '雪',
-    fog: '雾', thunderstorm: '雷雨', sandstorm: '沙尘暴',
+    fog: '雾', thunderstorm: '雷雨', sandstorm: '沙尘暴', icy: '结冰',
   };
   return map[type] || '晴';
 }
@@ -397,6 +412,43 @@ function handleWeatherRoute(req, res) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       });
+    return true;
+  }
+
+  // POST /weather/inject — inject fake weather for testing
+  if (req.method === 'POST' && urlPath === '/weather/inject') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const wt = data.weatherType || 'rain';
+        const templates = {
+          rain: { weatherCode: 61, weatherType: 'rain', text: '测试-雨', temp: 20, rain: 5, precipitation: 5, cloudCover: 80, visibility: 5000, windSpeed: 10, windDir: 90, humidity: 85, isDay: true },
+          snow: { weatherCode: 71, weatherType: 'snow', text: '测试-雪', temp: -3, snowfall: 3, precipitation: 3, cloudCover: 90, visibility: 3000, windSpeed: 5, windDir: 0, humidity: 75, isDay: true },
+          fog: { weatherCode: 45, weatherType: 'fog', text: '测试-雾', temp: 10, cloudCover: 100, visibility: 500, windSpeed: 2, windDir: 0, humidity: 95, isDay: true },
+          thunderstorm: { weatherCode: 95, weatherType: 'thunderstorm', text: '测试-雷暴', temp: 22, rain: 15, precipitation: 15, cloudCover: 95, visibility: 2000, windSpeed: 20, windDir: 180, humidity: 90, isDay: true },
+          clear: { weatherCode: 0, weatherType: 'clear', text: '晴', temp: 25, cloudCover: 5, visibility: 20000, windSpeed: 3, windDir: 45, humidity: 40, isDay: true },
+          cloudy: { weatherCode: 3, weatherType: 'cloudy', text: '多云', temp: 18, cloudCover: 75, visibility: 12000, windSpeed: 8, windDir: 90, humidity: 60, isDay: true },
+          icy: { weatherCode: 77, weatherType: 'icy', text: '测试-结冰', temp: -8, snowfall: 0, precipitation: 0, cloudCover: 60, visibility: 8000, windSpeed: 6, windDir: 0, humidity: 85, isDay: true },
+          // Night variants
+          'clear-night': { weatherCode: 0, weatherType: 'clear', text: '晴(夜)', temp: 20, cloudCover: 5, visibility: 20000, windSpeed: 2, windDir: 0, humidity: 50, isDay: false },
+          'cloudy-night': { weatherCode: 3, weatherType: 'cloudy', text: '多云(夜)', temp: 15, cloudCover: 75, visibility: 12000, windSpeed: 5, windDir: 90, humidity: 60, isDay: false },
+          'rain-night': { weatherCode: 61, weatherType: 'rain', text: '雨(夜)', temp: 18, rain: 5, precipitation: 5, cloudCover: 85, visibility: 5000, windSpeed: 10, windDir: 90, humidity: 85, isDay: false },
+          'snow-night': { weatherCode: 71, weatherType: 'snow', text: '雪(夜)', temp: -3, snowfall: 3, precipitation: 3, cloudCover: 90, visibility: 3000, windSpeed: 5, windDir: 0, humidity: 75, isDay: false },
+        };
+        const fake = templates[wt] || templates.rain;
+        const w = { provider: 'inject', city: '测试', feelsLike: fake.temp, windGusts: fake.windSpeed * 2, showers: 0, snowfall: fake.snowfall || 0, ...fake };
+        cachedWeather = w;
+        broadcast({ type: 'weather-update', weather: w });
+        console.log(`[Weather] Injected: ${wt}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ weather: w }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
     return true;
   }
 

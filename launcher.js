@@ -8,7 +8,7 @@
  * 3. Handle window drag via IPC
  */
 
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog, desktopCapturer } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const os = require('os');
@@ -2363,13 +2363,88 @@ function createBridgeServers() {
     }
 
     // GET /screenshot — capture window content as PNG (for debugging)
+    //    /screenshot?bg=1 — temporarily add opaque background for better capture of transparent windows
     if (req.method === 'GET' && (urlPath === '/screenshot' || urlPath === '/chat-screenshot')) {
       const targetWin = urlPath === '/chat-screenshot' ? chatWin : win;
       if (!targetWin || targetWin.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
-      targetWin.webContents.capturePage().then(img => {
+
+      const wantBg = parsedUrl.query && parsedUrl.query.bg;
+      const capture = () => targetWin.webContents.capturePage().then(img => {
         res.writeHead(200, { 'Content-Type': 'image/png' });
         res.end(img.toPNG());
       }).catch(err => {
+        jsonRes(res, 500, { error: err.message });
+      });
+
+      if (wantBg) {
+        // Inject a temporary opaque background behind everything, capture, then remove
+        targetWin.webContents.executeJavaScript(`
+          (function(){
+            var d = document.createElement('div');
+            d.id = '__screenshot_bg';
+            d.style.cssText = 'position:fixed;inset:0;z-index:0;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);';
+            document.body.insertBefore(d, document.body.firstChild);
+          })();
+        `).then(() => {
+          setTimeout(() => {
+            capture().then(() => {
+              targetWin.webContents.executeJavaScript(`
+                document.getElementById('__screenshot_bg')?.remove();
+              `).catch(() => {});
+            });
+          }, 300);
+        }).catch(() => capture());
+      } else {
+        capture();
+      }
+      return;
+    }
+
+    // GET /dom-screenshot — take a screenshot via renderer-side Canvas (fallback for transparent windows)
+    if (req.method === 'GET' && urlPath === '/dom-screenshot') {
+      const targetWin = win;
+      if (!targetWin || targetWin.isDestroyed()) { jsonRes(res, 503, { error: 'No window' }); return; }
+      // Inject an opaque bg, draw all DOM images to a canvas, export as PNG
+      const code = `(function(){
+        return new Promise(function(resolve){
+          try {
+            var canvas = document.createElement('canvas');
+            var dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            var ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            // Draw opaque background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+            // Draw weather canvas if exists
+            var wc = document.getElementById('weather-canvas');
+            if (wc) { try { ctx.drawImage(wc, 0, 0, window.innerWidth, window.innerHeight); } catch(e) {} }
+            // Draw all visible images
+            var imgs = document.querySelectorAll('img');
+            var pending = imgs.length;
+            if (pending === 0) { resolve(canvas.toDataURL('image/png')); return; }
+            imgs.forEach(function(img) {
+              if (img.complete && img.naturalWidth > 0) {
+                var r = img.getBoundingClientRect();
+                if (r.width > 0) { try { ctx.drawImage(img, r.x, r.y, r.width, r.height); } catch(e) {} }
+              }
+              pending--;
+              if (pending === 0) resolve(canvas.toDataURL('image/png'));
+            });
+          } catch(e) { resolve('ERROR:' + e.message); }
+        });
+      })();`;
+      targetWin.webContents.executeJavaScript(code, true).then(function(dataUrl) {
+        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/png')) {
+          var base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+          var buf = Buffer.from(base64Data, 'base64');
+          res.writeHead(200, { 'Content-Type': 'image/png' });
+          res.end(buf);
+        } else {
+          jsonRes(res, 500, { error: 'Failed to capture: ' + dataUrl });
+        }
+      }).catch(function(err) {
         jsonRes(res, 500, { error: err.message });
       });
       return;
