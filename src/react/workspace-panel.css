@@ -519,31 +519,25 @@
 .wp-task-delete:hover { color: rgba(255, 100, 100, 0.7); background: rgba(255, 255, 255, 0.04); }
 
 .wp-task-progress {
-  position: absolute;
-  bottom: 0;
-  left: 40px;
-  right: 44px;
-  height: 1.5px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 1px;
-  overflow: hidden;
+  display: none; /* legacy progress bar — replaced by gradient bg */
 }
 
-.wp-task-progress-bar {
-  height: 100%;
-  width: 30%;
-  background: #4d9eff;
-  border-radius: 1px;
-  opacity: 0.6;
+/* Running task — animated gradient background */
+.wp-task-card.timing {
+  background: linear-gradient(110deg,
+    rgba(77, 158, 255, 0.08) 0%,
+    rgba(77, 158, 255, 0.18) 30%,
+    rgba(120, 180, 255, 0.22) 50%,
+    rgba(77, 158, 255, 0.18) 70%,
+    rgba(77, 158, 255, 0.08) 100%);
+  background-size: 200% 100%;
+  animation: wp-gradient-flow 3s ease-in-out infinite;
+  border-color: rgba(77, 158, 255, 0.25);
 }
 
-.wp-timing-animate {
-  animation: wp-progress-slide 2s ease-in-out infinite;
-}
-
-@keyframes wp-progress-slide {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
+@keyframes wp-gradient-flow {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ==================== Empty States ==================== */

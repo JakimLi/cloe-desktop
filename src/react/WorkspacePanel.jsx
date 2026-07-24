@@ -232,7 +232,6 @@ function TaskCard({ task, isTiming, onToggleComplete, onStartStop, onEdit, onDel
         </button>
       </div>
 
-      {isTiming && <div className="wp-task-progress"><div className="wp-task-progress-bar wp-timing-animate" /></div>}
     </div>
   );
 }
