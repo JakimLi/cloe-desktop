@@ -434,7 +434,9 @@ function handleWeatherRoute(req, res) {
         };
 
         const base = baseTemplates[wt] || baseTemplates.rain;
+        const previewHour = data.previewHour !== undefined ? data.previewHour : null;
         const w = { provider: 'preview', city: '预览', feelsLike: base.temp, windGusts: base.windSpeed * 2, showers: 0, snowfall: base.snowfall || 0, ...base, isDay: !isNight };
+        if (previewHour !== null) w.previewHour = previewHour;
         cachedWeather = w;
         broadcast({ type: 'weather-update', weather: w });
 

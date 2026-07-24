@@ -111,6 +111,12 @@ function renderWeather() {
               <input type="radio" name="preview-time" value="night"> ${t('🌙 夜晚', '🌙 Night')}
             </label>
           </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px;">
+            <span style="font-size:13px;white-space:nowrap;">🕐 ${t('时间', 'Time')}</span>
+            <input type="range" id="preview-hour-slider" min="0" max="23" step="1" value="12" style="flex:1;cursor:pointer;">
+            <span id="preview-hour-label" style="font-size:14px;font-weight:600;min-width:50px;text-align:center;">12:00</span>
+            <span id="preview-hour-dn" style="font-size:13px;min-width:28px;">☀️</span>
+          </div>
           <div id="weather-preview-grid" style="display:flex;flex-wrap:wrap;gap:8px;padding-left:0;margin-bottom:12px;">
             ${[
               ['clear', '☀️ ' + t('晴天', 'Clear')],
@@ -233,19 +239,62 @@ function renderWeather() {
   });
 
   // --- Preview buttons ---
-  function getPreviewIsNight() {
-    const checked = document.querySelector('input[name="preview-time"]:checked');
-    return checked ? checked.value === 'night' : false;
+  const hourSlider = document.getElementById('preview-hour-slider');
+  const hourLabel = document.getElementById('preview-hour-label');
+  const hourDn = document.getElementById('preview-hour-dn');
+
+  function getPreviewHour() {
+    return parseInt(hourSlider.value, 10);
   }
+
+  function updateHourDisplay() {
+    const h = getPreviewHour();
+    hourLabel.textContent = `${String(h).padStart(2, '0')}:00`;
+    const isNight = h < 6 || h >= 19;
+    hourDn.textContent = isNight ? '🌙' : '☀️';
+    // Sync radio buttons
+    const radio = document.querySelector(`input[name="preview-time"][value="${isNight ? 'night' : 'day'}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  function getPreviewIsNight() {
+    const h = getPreviewHour();
+    return h < 6 || h >= 19;
+  }
+
+  // Update display when slider changes, and re-preview if currently previewing
+  hourSlider.addEventListener('input', () => {
+    updateHourDisplay();
+    // If a weather preview button is currently "active" (highlighted), re-trigger it
+    const activeBtn = document.querySelector('.weather-preview-btn.active-preview');
+    if (activeBtn) activeBtn.click();
+  });
+  updateHourDisplay();
+
+  // Radio buttons also sync the slider
+  document.querySelectorAll('input[name="preview-time"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const isNight = radio.value === 'night';
+      // Jump slider to a representative hour
+      hourSlider.value = isNight ? '21' : '12';
+      updateHourDisplay();
+      const activeBtn = document.querySelector('.weather-preview-btn.active-preview');
+      if (activeBtn) activeBtn.click();
+    });
+  });
 
   document.querySelectorAll('.weather-preview-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const wt = btn.dataset.wt;
       const isNight = getPreviewIsNight();
+      const previewHour = getPreviewHour();
+      // Mark active
+      document.querySelectorAll('.weather-preview-btn').forEach(b => b.classList.remove('active-preview'));
+      btn.classList.add('active-preview');
       fetch(`${API_WEATHER_BASE}/weather/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weatherType: wt, isNight }),
+        body: JSON.stringify({ weatherType: wt, isNight, previewHour }),
       }).catch(() => {});
     });
   });
@@ -263,20 +312,23 @@ function renderWeather() {
     btn.addEventListener('click', () => {
       const st = btn.dataset.st;
       const isNight = getPreviewIsNight();
+      const previewHour = getPreviewHour();
       // Some specials only make sense at night, override isNight for those
       const forceNight = st === 'meteor' || st === 'fireball' || st === 'aurora';
       const actualNight = forceNight ? true : isNight;
+      const actualHour = forceNight ? 23 : previewHour;
       const backdrop = SPECIAL_BACKDROP[st] || 'clear';
       fetch(`${API_WEATHER_BASE}/weather/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weatherType: backdrop, specialType: st, isNight: actualNight }),
+        body: JSON.stringify({ weatherType: backdrop, specialType: st, isNight: actualNight, previewHour: actualHour }),
       }).catch(() => {});
     });
   });
 
   // --- End preview button ---
   document.getElementById('weather-preview-end-btn').addEventListener('click', () => {
+    document.querySelectorAll('.weather-preview-btn').forEach(b => b.classList.remove('active-preview'));
     fetch(`${API_WEATHER_BASE}/weather/preview-end`, { method: 'POST' }).catch(() => {});
   });
 

@@ -48,12 +48,23 @@
   let weatherEnabled = true; // Independent toggle — controlled by showWeather config
   let isDay = true;
   let dayNightFactor = 1.0; // 1.0 = full day, 0.0 = full night
+  let previewHour = null;   // null = use real time; 0-23 = override for preview
 
   // ==================== Day/Night Cycle ====================
 
+  function getCurrentHour() {
+    if (previewHour !== null) return previewHour;
+    return new Date().getHours() + new Date().getMinutes() / 60;
+  }
+
   function computeDayNight(weather) {
-    const hour = new Date().getHours() + new Date().getMinutes() / 60;
-    isDay = weather.isDay !== undefined ? weather.isDay : (hour >= 6 && hour < 19);
+    if (previewHour !== null) {
+      const h = previewHour;
+      isDay = weather.isDay !== undefined ? weather.isDay : (h >= 6 && h < 19);
+    } else {
+      const hour = new Date().getHours() + new Date().getMinutes() / 60;
+      isDay = weather.isDay !== undefined ? weather.isDay : (hour >= 6 && hour < 19);
+    }
 
     if (isDay) {
       dayNightFactor = 1;
@@ -64,8 +75,8 @@
 
   function getSunPosition() {
     // Sun arcs from east (left) at 6am to west (right) at 7pm
-    const hour = new Date().getHours() + new Date().getMinutes() / 60;
-    const t = Math.max(0, Math.min(1, (hour - 6) / 12)); // 0 at sunrise, 1 at sunset
+    const hour = getCurrentHour();
+    const t = Math.max(0, Math.min(1, (hour - 6) / 13)); // 0 at sunrise, 1 at sunset
     const x = t * width;
     const y = height * 0.5 - Math.sin(t * Math.PI) * height * 0.35;
     return { x, y };
@@ -73,7 +84,7 @@
 
   function getMoonPosition() {
     // Moon arcs from east at 19pm to west at 5am
-    let hour = new Date().getHours() + new Date().getMinutes() / 60;
+    let hour = getCurrentHour();
     if (hour < 5) hour += 24; // 0-5am becomes 24-29
     const t = Math.max(0, Math.min(1, (hour - 19) / 10)); // 0 at sunset, 1 at sunrise
     const x = t * width;
@@ -1246,6 +1257,7 @@
     const msg = e.detail;
     if (!msg) return;
     if (msg.type === 'weather-update' && msg.weather) {
+      previewHour = (msg.weather.previewHour !== undefined) ? msg.weather.previewHour : null;
       applyWeatherData(msg.weather);
     }
     if (msg.type === 'weather-config-changed' && msg.config) {
