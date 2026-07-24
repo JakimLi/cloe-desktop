@@ -136,12 +136,6 @@ function WorkspaceApp() {
     }).catch(() => {});
   }, []);
 
-  const handleAgentAcknowledge = useCallback((id) => {
-    fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/acknowledge`, {
-      method: 'POST',
-    }).catch(() => {});
-  }, []);
-
   const handleAgentCancel = useCallback((id) => {
     fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -365,7 +359,6 @@ function WorkspaceApp() {
       timingId={timingId}
       onSessionSetTitle={handleAgentSetTitle}
       onSessionCancel={handleAgentCancel}
-      onSessionAcknowledge={handleAgentAcknowledge}
       onTaskCreate={handleTaskCreate}
       onTaskUpdate={handleTaskUpdate}
       onTaskDelete={handleTaskDelete}

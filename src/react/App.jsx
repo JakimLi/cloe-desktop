@@ -76,6 +76,50 @@ const toastStyle = {
 };
 const toastTextStyle = { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 };
 
+const toastBtnStyle = {
+  background: 'transparent', border: 'none', cursor: 'pointer',
+  color: 'rgba(255,255,255,0.3)', padding: 4, borderRadius: 6,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'background 0.15s, color 0.15s',
+};
+const toastAckBtnStyle = {
+  ...toastBtnStyle,
+};
+
+function SessionToast({ toast, onAcknowledge }) {
+  if (!toast) return null;
+  const isDecision = toast.status === 'needs_decision';
+  const text = isDecision ? `${toast.name} · 待确认` : `${toast.name} · 已完成`;
+  const color = isDecision ? '#f5a623' : '#3dd68c';
+  return (
+    <div style={toastStyle}>
+      {isDecision ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+      <span style={toastTextStyle}>{text}</span>
+      <button
+        style={toastAckBtnStyle}
+        onClick={() => onAcknowledge(toast.id)}
+        title="知道了"
+        onMouseEnter={e => { e.currentTarget.style.background = `${color}1f`; e.currentTarget.style.color = color; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
@@ -539,6 +583,7 @@ export default function App() {
   // ── Agent Session Tracker ──
   const [agentSessions, setAgentSessions] = useState([]);
   const [agentModalVisible, setAgentModalVisible] = useState(false);
+  const [sessionToast, setSessionToast] = useState(null);
 
   // Workspace panel: in terminal/canvas mode use overlay; otherwise open standalone window
   const toggleWorkspace = useCallback(() => {
@@ -569,6 +614,11 @@ export default function App() {
             }
             return [...prev, msg.session];
           });
+          // Show toast when session transitions to turn_complete or needs_decision
+          const s = msg.session;
+          if ((s.status === 'turn_complete' || s.status === 'needs_decision')) {
+            setSessionToast({ id: s.id, name: s.title || s.source_label || 'Agent', status: s.status, ts: Date.now() });
+          }
         }
       } else if (msg.type === 'agent-session-ended' || msg.type === 'agent-session-cancelled') {
         if (msg.session_id) {
@@ -632,7 +682,15 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source: 'agent', id }),
     }).catch(() => {});
-  }, []);
+    setSessionToast(null);
+  }, [API_BASE]);
+
+  // Auto-dismiss session toast after 5s
+  useEffect(() => {
+    if (!sessionToast) return;
+    const timer = setTimeout(() => setSessionToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [sessionToast]);
 
   const handleAgentCancel = useCallback((id) => {
     // Cancel pending TTS when cancelling session
@@ -938,6 +996,7 @@ export default function App() {
       <>
         <MuteToast toast={muteToast} />
         <PauseToast toast={pauseToast} />
+        <SessionToast toast={sessionToast} onAcknowledge={handleAgentAcknowledge} />
       </>
     );
   }
@@ -992,7 +1051,6 @@ export default function App() {
         timingId={taskTimingId}
         onSessionSetTitle={handleAgentSetTitle}
         onSessionCancel={handleAgentCancel}
-        onSessionAcknowledge={handleAgentAcknowledge}
         onTaskCreate={handleTaskCreate}
         onTaskUpdate={handleTaskUpdate}
         onTaskDelete={handleTaskDelete}
@@ -1008,6 +1066,7 @@ export default function App() {
       />
       <MuteToast toast={muteToast} />
       <PauseToast toast={pauseToast} />
+      <SessionToast toast={sessionToast} onAcknowledge={handleAgentAcknowledge} />
     </div>
   );
 }

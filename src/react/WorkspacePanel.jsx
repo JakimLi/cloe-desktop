@@ -94,7 +94,7 @@ function SessionIcon({ icon, color }) {
   );
 }
 
-function SessionCard({ session, onSetTitle, onCancel, onAcknowledge }) {
+function SessionCard({ session, onSetTitle, onCancel }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(session.title || '');
   const inputRef = useRef(null);
@@ -158,13 +158,6 @@ function SessionCard({ session, onSetTitle, onCancel, onAcknowledge }) {
         {cfg.label}
       </div>
       <div className="wp-session-btns">
-        {needsAction && onAcknowledge && (
-          <button className="wp-session-ack" onClick={() => onAcknowledge(session.id)} title={t('知道了', 'Acknowledge')}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </button>
-        )}
         <button className="wp-session-cancel" onClick={() => onCancel(session.id)} title={t('取消监听', 'Cancel')}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -526,7 +519,6 @@ export default function WorkspacePanel({
   timingId,
   onSessionSetTitle,
   onSessionCancel,
-  onSessionAcknowledge,
   onTaskCreate,
   onTaskUpdate,
   onTaskDelete,
@@ -632,7 +624,7 @@ export default function WorkspacePanel({
                 </div>
                 <div className="wp-scroll-area">
                   {activeSessions.map(s => (
-                    <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} onAcknowledge={onSessionAcknowledge} />
+                    <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} />
                   ))}
                   {activeSessions.length === 0 && (
                     <div className="wp-empty">
