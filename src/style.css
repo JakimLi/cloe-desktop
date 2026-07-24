@@ -20,6 +20,8 @@ html, body {
   cursor: grab;
   -webkit-app-region: no-drag;
   --character-scale: 1;
+  position: relative;
+  z-index: 2;
 }
 
 #gif-container:active {

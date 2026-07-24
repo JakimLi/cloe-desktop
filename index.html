@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
+  <!-- Weather effects canvas (behind character) — managed by weather-canvas.js -->
+  <canvas id="weather-canvas" style="position:fixed;inset:0;z-index:1;pointer-events:none;transition:opacity 0.3s ease;"></canvas>
+
   <!-- Character layer (bottom) — managed by renderer.js (Vanilla JS) -->
   <div id="gif-container">
     <img id="cloe-gif-a" class="cloe-gif-layer" src="/gifs/blink.gif" alt="">
@@ -27,6 +30,8 @@
   <div id="ws-status" title="WebSocket">●</div>
   <button id="settings-btn" title="设置">⚙</button>
 
+  <!-- weather-canvas: particle effects behind character -->
+  <script type="module" src="/src/weather-canvas.js"></script>
   <!-- renderer.js: GIF animations, audio, WebSocket, idle loop, drag -->
   <script type="module" src="/src/renderer.js"></script>
   <!-- Reminder overlay: card UI + WS listener (loaded after renderer.js) -->

@@ -23,6 +23,7 @@ const agentTracker = require('./agent-tracker');
 const ttsScheduler = require('./tts-scheduler');
 const taskEngine = require('./task-engine');
 const muteState = require('./mute-state');
+const weatherEngine = require('./weather-engine');
 // ==================== Config ====================
 const WS_PORT = 19850;
 const HTTP_PORT = 19851;
@@ -1021,6 +1022,10 @@ function createBridgeServers() {
 
   // --- TTS Scheduler ---
   ttsScheduler.setBroadcast(broadcastToClients);
+
+  // --- Weather Engine ---
+  weatherEngine.setBroadcast(broadcastToClients);
+  weatherEngine.init();
 
   // --- Task Engine ---
   taskEngine.setBroadcast(broadcastToClients);
@@ -2388,6 +2393,11 @@ function createBridgeServers() {
 
     // --- TTS Scheduler Routes ---
     if (ttsScheduler.handleTTSRoute(req, res)) {
+      return;
+    }
+
+    // --- Weather Routes ---
+    if (weatherEngine.handleWeatherRoute(req, res)) {
       return;
     }
 

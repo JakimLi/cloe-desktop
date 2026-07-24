@@ -37,6 +37,10 @@
           <span class="sidebar-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
           <span class="sidebar-item-label">Reminders</span>
         </button>
+        <button id="sidebar-weather" class="sidebar-item" data-tab="weather">
+          <span class="sidebar-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14"/></svg></span>
+          <span class="sidebar-item-label">Weather</span>
+        </button>
       </div>
     </nav>
 
@@ -114,6 +118,11 @@
       <!-- Reminders Tab -->
       <div id="tab-reminders" class="tab-panel">
         <div id="reminders-content"></div>
+      </div>
+
+      <!-- Weather Tab -->
+      <div id="tab-weather" class="tab-panel">
+        <div id="weather-content"></div>
       </div>
 
       <!-- Plugin Rules Tab -->
@@ -329,6 +338,7 @@
   <script src="./preferences.js"></script>
   <script src="./shortcuts.js"></script>
   <script src="./reminders.js"></script>
+  <script src="./weather.js"></script>
   <script src="./plugin-rules.js"></script>
   <script src="./manager.js"></script>
 </body>

@@ -830,6 +830,10 @@ function connectWebSocket() {
         if (msg.type && msg.type.startsWith('reminder-')) {
           window.dispatchEvent(new CustomEvent('cloe-reminder', { detail: msg }));
         }
+        // Forward weather events to weather canvas
+        if (msg.type && msg.type.startsWith('weather-')) {
+          window.dispatchEvent(new CustomEvent('cloe-weather', { detail: msg }));
+        }
         // Forward TTS scheduler events to React layer
         if (msg.type && msg.type.startsWith('tts-')) {
           window.dispatchEvent(new CustomEvent('cloe-tts-scheduler', { detail: msg }));

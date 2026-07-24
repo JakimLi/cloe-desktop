@@ -34,6 +34,11 @@ function switchTab(tabId) {
   if (tabId === 'reminders' && typeof initRemindersTab === 'function') {
     initRemindersTab();
   }
+
+  // Lazy-load weather tab
+  if (tabId === 'weather' && typeof initWeatherTab === 'function') {
+    initWeatherTab();
+  }
 }
 
 // ==================== i18n Update ====================
