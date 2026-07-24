@@ -19,6 +19,7 @@ const CONFIG_FILE = path.join(os.homedir(), '.cloe', 'weather.json');
 
 const DEFAULT_CONFIG = {
   enabled: false,
+  showWeather: true,         // Independent toggle for weather canvas visibility
   provider: 'open-meteo',   // 'open-meteo' | 'qweather'
   apiKey: '',                // QWeather API key (not needed for open-meteo)
   city: 'auto',              // 'auto' (timezone detection) or explicit city name
@@ -65,6 +66,7 @@ function broadcast(msg) {
 // ==================== State ====================
 
 let cachedWeather = null;
+let previewRestoreTimer = null;
 let pollTimer = null;
 let cityLocation = null;  // { lat, lon, name } resolved city coords
 
@@ -374,6 +376,7 @@ function handleWeatherRoute(req, res) {
         const data = JSON.parse(body || '{}');
         const updates = {};
         if (data.enabled !== undefined) updates.enabled = !!data.enabled;
+        if (data.showWeather !== undefined) updates.showWeather = !!data.showWeather;
         if (data.provider !== undefined) updates.provider = data.provider;
         if (data.apiKey !== undefined) updates.apiKey = String(data.apiKey || '');
         if (data.city !== undefined) updates.city = String(data.city || 'auto');
@@ -391,6 +394,78 @@ function handleWeatherRoute(req, res) {
         res.end(JSON.stringify({ error: 'invalid JSON' }));
       }
     });
+    return true;
+  }
+
+  // POST /weather/toggle — flip enabled state
+  if (req.method === 'POST' && urlPath === '/weather/toggle') {
+    const cfg = getConfig();
+    const newCfg = updateConfig({ enabled: !cfg.enabled });
+    onConfigChanged();
+    broadcast({ type: 'weather-config-changed', config: newCfg });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(newCfg));
+    return true;
+  }
+
+  // POST /weather/preview — preview a specific weather type (no auto-restore)
+  if (req.method === 'POST' && urlPath === '/weather/preview') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const wt = data.weatherType || 'rain';
+        const specialType = data.specialType || null;
+        const isNight = data.isNight === true;
+
+        // Cancel any previous restore timer
+        if (previewRestoreTimer) { clearTimeout(previewRestoreTimer); previewRestoreTimer = null; }
+
+        // Build base weather from type
+        const baseTemplates = {
+          rain: { weatherCode: 61, weatherType: 'rain', text: '预览-雨', temp: isNight ? 18 : 20, rain: 5, precipitation: 5, cloudCover: 80, visibility: 5000, windSpeed: 10, windDir: 90, humidity: 85 },
+          snow: { weatherCode: 71, weatherType: 'snow', text: '预览-雪', temp: isNight ? -5 : -3, snowfall: 3, precipitation: 3, cloudCover: 90, visibility: 3000, windSpeed: 5, windDir: 0, humidity: 75 },
+          fog: { weatherCode: 45, weatherType: 'fog', text: '预览-雾', temp: 10, cloudCover: 100, visibility: 500, windSpeed: 2, windDir: 0, humidity: 95 },
+          thunderstorm: { weatherCode: 95, weatherType: 'thunderstorm', text: '预览-雷暴', temp: 22, rain: 15, precipitation: 15, cloudCover: 95, visibility: 2000, windSpeed: 20, windDir: 180, humidity: 90 },
+          clear: { weatherCode: 0, weatherType: 'clear', text: '晴', temp: isNight ? 20 : 25, cloudCover: 5, visibility: 20000, windSpeed: isNight ? 2 : 3, windDir: 45, humidity: isNight ? 50 : 40 },
+          cloudy: { weatherCode: 3, weatherType: 'cloudy', text: '多云', temp: isNight ? 15 : 18, cloudCover: 75, visibility: 12000, windSpeed: isNight ? 5 : 8, windDir: 90, humidity: 60 },
+          icy: { weatherCode: 77, weatherType: 'icy', text: '预览-结冰', temp: -8, snowfall: 0, precipitation: 0, cloudCover: 60, visibility: 8000, windSpeed: 6, windDir: 0, humidity: 85 },
+        };
+
+        const base = baseTemplates[wt] || baseTemplates.rain;
+        const w = { provider: 'preview', city: '预览', feelsLike: base.temp, windGusts: base.windSpeed * 2, showers: 0, snowfall: base.snowfall || 0, ...base, isDay: !isNight };
+        cachedWeather = w;
+        broadcast({ type: 'weather-update', weather: w });
+
+        // If special type requested, tell the canvas to show it immediately
+        if (specialType) {
+          broadcast({ type: 'weather-special-preview', specialType });
+        } else {
+          broadcast({ type: 'weather-special-preview', specialType: null });
+        }
+
+        console.log(`[Weather] Preview: ${wt}${specialType ? '+' + specialType : ''} ${isNight ? '(night)' : '(day)'}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return true;
+  }
+
+  // POST /weather/preview-end — end preview, restore real weather
+  if (req.method === 'POST' && urlPath === '/weather/preview-end') {
+    if (previewRestoreTimer) { clearTimeout(previewRestoreTimer); previewRestoreTimer = null; }
+    broadcast({ type: 'weather-special-preview', specialType: null });
+    testFetch().then(realW => {
+      broadcast({ type: 'weather-update', weather: realW });
+    }).catch(() => {});
+    console.log('[Weather] Preview ended, restoring real weather');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
     return true;
   }
 

@@ -20,7 +20,7 @@ function renderWeather() {
         <div class="pref-item">
           <div class="pref-info">
             <div class="pref-label">${t('启用天气特效', 'Enable Weather Effects')}</div>
-            <div class="pref-desc">${t('根据当前天气在桌面显示雨雪等动态特效', 'Show dynamic particle effects based on current weather')}</div>
+            <div class="pref-desc">${t('根据当前天气在桌面显示雨雪等动态特效，独立于窗口透明度', 'Show dynamic particle effects based on current weather, independent of window opacity')}</div>
           </div>
           <div class="pref-control">
             <label class="toggle">
@@ -92,6 +92,63 @@ function renderWeather() {
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <h2 class="pref-section-title">${t('特效预览', 'Effect Preview')}</h2>
+      <div class="pref-group">
+        <div class="pref-item" style="flex-direction:column;align-items:stretch;">
+          <div class="pref-info" style="margin-bottom:10px;">
+            <div class="pref-label">${t('点击预览天气特效', 'Click to preview weather effects')}</div>
+            <div class="pref-desc">${t('选择白天或夜晚，点击天气类型预览。点击「结束预览」恢复真实天气', 'Choose day or night, click a weather type to preview. Click "End Preview" to restore real weather')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
+              <input type="radio" name="preview-time" value="day" checked> ${t('☀️ 白天', '☀️ Day')}
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
+              <input type="radio" name="preview-time" value="night"> ${t('🌙 夜晚', '🌙 Night')}
+            </label>
+          </div>
+          <div id="weather-preview-grid" style="display:flex;flex-wrap:wrap;gap:8px;padding-left:0;margin-bottom:12px;">
+            ${[
+              ['clear', '☀️ ' + t('晴天', 'Clear')],
+              ['cloudy', '☁️ ' + t('多云', 'Cloudy')],
+              ['rain', '🌧️ ' + t('雨', 'Rain')],
+              ['snow', '❄️ ' + t('雪', 'Snow')],
+              ['fog', '🌫️ ' + t('雾', 'Fog')],
+              ['thunderstorm', '⛈️ ' + t('雷暴', 'Thunderstorm')],
+              ['icy', '🧊 ' + t('结冰', 'Icy')],
+            ].map(([wt, label]) => `<button type="button" class="btn btn-secondary btn-sm weather-preview-btn" data-wt="${wt}">${label}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="pref-item" style="flex-direction:column;align-items:stretch;">
+          <div class="pref-info" style="margin-bottom:10px;">
+            <div class="pref-label">${t('特殊天象', 'Special Phenomena')}</div>
+            <div class="pref-desc">${t('罕见的天气奇观，叠加在当前预览的天气之上', 'Rare weather phenomena, overlaid on current preview weather')}</div>
+          </div>
+          <div id="weather-special-grid" style="display:flex;flex-wrap:wrap;gap:8px;padding-left:0;margin-bottom:12px;">
+            ${[
+              ['meteor', '🌠 ' + t('流星雨', 'Meteor Shower')],
+              ['fireball', '🔥 ' + t('火流星', 'Fireball')],
+              ['aurora', '🌌 ' + t('极光', 'Aurora')],
+              ['rainbow', '🌈 ' + t('彩虹', 'Rainbow')],
+              ['sundog', '☀️ ' + t('日晕', 'Sundog')],
+            ].map(([st, label]) => `<button type="button" class="btn btn-secondary btn-sm weather-special-btn" data-st="${st}">${label}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${t('结束预览', 'End Preview')}</div>
+            <div class="pref-desc">${t('恢复当前真实天气', 'Restore current real weather')}</div>
+          </div>
+          <div class="pref-control">
+            <button type="button" class="btn btn-primary btn-sm" id="weather-preview-end-btn">${t('结束预览', 'End Preview')}</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -173,6 +230,54 @@ function renderWeather() {
       testResult.style.color = 'var(--danger, #e57373)';
     }
     testBtn.disabled = false;
+  });
+
+  // --- Preview buttons ---
+  function getPreviewIsNight() {
+    const checked = document.querySelector('input[name="preview-time"]:checked');
+    return checked ? checked.value === 'night' : false;
+  }
+
+  document.querySelectorAll('.weather-preview-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wt = btn.dataset.wt;
+      const isNight = getPreviewIsNight();
+      fetch(`${API_WEATHER_BASE}/weather/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weatherType: wt, isNight }),
+      }).catch(() => {});
+    });
+  });
+
+  // --- Special phenomena preview ---
+  // Special phenomena need matching conditions, so we pick the right weather backdrop
+  const SPECIAL_BACKDROP = {
+    meteor: 'clear',
+    fireball: 'clear',
+    aurora: 'clear',
+    rainbow: 'rain',
+    sundog: 'clear',
+  };
+  document.querySelectorAll('.weather-special-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const st = btn.dataset.st;
+      const isNight = getPreviewIsNight();
+      // Some specials only make sense at night, override isNight for those
+      const forceNight = st === 'meteor' || st === 'fireball' || st === 'aurora';
+      const actualNight = forceNight ? true : isNight;
+      const backdrop = SPECIAL_BACKDROP[st] || 'clear';
+      fetch(`${API_WEATHER_BASE}/weather/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weatherType: backdrop, specialType: st, isNight: actualNight }),
+      }).catch(() => {});
+    });
+  });
+
+  // --- End preview button ---
+  document.getElementById('weather-preview-end-btn').addEventListener('click', () => {
+    fetch(`${API_WEATHER_BASE}/weather/preview-end`, { method: 'POST' }).catch(() => {});
   });
 
   loadConfig();

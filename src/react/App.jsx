@@ -991,6 +991,20 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
+  // Weather toggle shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      const stored = localStorage.getItem('cloe-weather-toggle-shortcut') || '';
+      if (!stored) return;
+      if (!matchesShortcut(e, stored)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      fetch(`${API_BASE}/weather/toggle`, { method: 'POST' }).catch(() => {});
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   if (!visible) {
     return (
       <>

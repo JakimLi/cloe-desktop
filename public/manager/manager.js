@@ -59,6 +59,9 @@ function updateAllText() {
   if (document.getElementById('sidebar-reminders')) {
     document.getElementById('sidebar-reminders').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.reminders');
   }
+  if (document.getElementById('sidebar-weather')) {
+    document.getElementById('sidebar-weather').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.weather');
+  }
 
   // Update actions tab text
   const actionsTitle = document.getElementById('actions-title');

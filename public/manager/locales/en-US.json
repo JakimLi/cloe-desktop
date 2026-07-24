@@ -10,7 +10,8 @@
     "pluginRules": "Plugin Rules",
     "idlePlaylist": "Idle Playlist",
     "shortcuts": "Shortcuts",
-    "reminders": "Reminders"
+    "reminders": "Reminders",
+    "weather": "Weather"
   },
   "setCount": "{{count}} set(s)",
   "actionCount": "{{count}} actions",
@@ -329,7 +330,12 @@
     "globalPauseToggleShortcutDesc": "Toggle pause/resume for all running reminders (manually paused and stopped are excluded)",
     "globalPauseToggleShortcutEmpty": "Click to set shortcut…",
     "globalPauseToggleShortcutHint": "Press a key combination",
-    "globalPauseToggleShortcutClear": "Clear"
+    "globalPauseToggleShortcutClear": "Clear",
+    "weatherToggleShortcut": "Weather Effects Toggle",
+    "weatherToggleShortcutDesc": "Quickly toggle weather effects on/off",
+    "weatherToggleShortcutEmpty": "Click to set shortcut…",
+    "weatherToggleShortcutHint": "Press a key combination",
+    "weatherToggleShortcutClear": "Clear"
   },
   "pluginRules": {
     "throttle": "Throttle",

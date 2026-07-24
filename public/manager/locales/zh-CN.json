@@ -10,7 +10,8 @@
     "pluginRules": "插件规则",
     "idlePlaylist": "待机播放",
     "shortcuts": "快捷键",
-    "reminders": "提醒"
+    "reminders": "提醒",
+    "weather": "天气"
   },
   "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
@@ -329,7 +330,12 @@
     "globalPauseToggleShortcutDesc": "按此快捷键暂停/恢复所有进行中的提醒（手动暂停和停止的不受影响）",
     "globalPauseToggleShortcutEmpty": "点击设置快捷键…",
     "globalPauseToggleShortcutHint": "点击输入框后按下想要的组合键",
-    "globalPauseToggleShortcutClear": "清除"
+    "globalPauseToggleShortcutClear": "清除",
+    "weatherToggleShortcut": "天气特效开关",
+    "weatherToggleShortcutDesc": "快速打开/关闭天气特效",
+    "weatherToggleShortcutEmpty": "点击设置快捷键…",
+    "weatherToggleShortcutHint": "点击输入框后按下想要的组合键",
+    "weatherToggleShortcutClear": "清除"
   },
   "pluginRules": {
     "throttle": "触发节流",

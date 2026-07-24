@@ -201,7 +201,8 @@ html, body {
 #tab-preferences,
 #tab-shortcuts,
 #tab-plugin-rules,
-#tab-reminders {
+#tab-reminders,
+#tab-weather {
   padding: 28px 32px 64px;
 }
 

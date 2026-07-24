@@ -31,6 +31,8 @@ var SHORTCUT_DEFS = [
   // Reminder Controls
   { id: 'reminder-dismiss', lsKey: 'cloe-reminder-dismiss-shortcut', section: 'reminder' },
   { id: 'reminder-stop', lsKey: 'cloe-reminder-stop-shortcut', section: 'reminder' },
+  // Weather Controls
+  { id: 'weather-toggle', lsKey: 'cloe-weather-toggle-shortcut', section: 'window' },
 ];
 
 function shortcutLabelKey(id) {
@@ -58,6 +60,7 @@ function shortcutLabelKey(id) {
     'char-scale-down': 'charScaleDownShortcut',
     'reminder-dismiss': 'reminderDismissShortcut',
     'reminder-stop': 'reminderStopShortcut',
+    'weather-toggle': 'weatherToggleShortcut',
   };
   return map[id];
 }
