@@ -32,7 +32,9 @@
     card.dataset.id = reminder.id;
 
     // Icon based on mode
-    const icon = reminder.mode === 'countdown' ? '🍅' : '💧';
+    const icon = reminder.mode === 'countdown'
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 
     // Round info: show for both modes when total_rounds > 0
     const roundInfo = (reminder.total_rounds > 0)
@@ -46,8 +48,12 @@
         <div class="reminder-card-meta">${formatDuration(reminder.duration)}${roundInfo ? ' · ' + roundInfo : ''}</div>
       </div>
       <div class="reminder-card-actions">
-        <button class="reminder-btn reminder-btn-dismiss" data-id="${reminder.id}" title="知道了">✓</button>
-        <button class="reminder-btn reminder-btn-stop" data-id="${reminder.id}" title="关闭提醒">✕</button>
+        <button class="reminder-btn reminder-btn-dismiss" data-id="${reminder.id}" title="知道了">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <button class="reminder-btn reminder-btn-stop" data-id="${reminder.id}" title="关闭提醒">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     `;
 

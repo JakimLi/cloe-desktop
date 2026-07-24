@@ -119,9 +119,13 @@ function SessionCard({ session, onSetTitle, onCancel, onAcknowledge }) {
   return (
     <div className={`wp-session-card${needsAction ? ' wp-session-action' : ''}`}>
       <div className="wp-session-status-icon">
-        <div className={`wp-session-icon-bg ${cfg.pulse ? 'wp-pulse' : ''}`} style={{ borderColor: cfg.color }}>
-          <SessionIcon icon={cfg.icon} color={cfg.color} />
-        </div>
+        {session.status === 'working' ? (
+          <div className="wp-session-dot-blink" style={{ background: cfg.color }} />
+        ) : (
+          <div className={`wp-session-icon-bg ${cfg.pulse ? 'wp-pulse' : ''}`} style={{ borderColor: cfg.color }}>
+            <SessionIcon icon={cfg.icon} color={cfg.color} />
+          </div>
+        )}
       </div>
       <div className="wp-session-body">
         {editingTitle ? (
@@ -593,7 +597,7 @@ export default function WorkspacePanel({
               onClick={() => setActiveTab('reminders')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
               {activeReminderCount > 0 && <span className="wp-tab-count">{activeReminderCount}</span>}
             </button>
@@ -668,7 +672,7 @@ export default function WorkspacePanel({
                   {activeReminders.length === 0 && (
                     <div className="wp-empty">
                       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                       </svg>
                       <p>{t('暂无提醒', 'No reminders')}</p>
                     </div>

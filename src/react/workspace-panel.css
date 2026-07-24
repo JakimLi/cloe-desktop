@@ -287,6 +287,19 @@
   100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
 }
 
+.wp-session-dot-blink {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 8px;
+  animation: wp-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes wp-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
 .wp-session-body {
   flex: 1;
   min-width: 0;
