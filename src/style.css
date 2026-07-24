@@ -490,6 +490,36 @@ body.canvas-mode .terminal-overlay.overlay-opaque {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.theme-category-tabs {
+  display: flex;
+  padding: 8px 8px 4px;
+  gap: 4px;
+}
+
+.theme-tab {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.theme-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.theme-tab.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 1);
+}
+
 .theme-dropdown-list {
   overflow-y: auto;
   padding: 4px;

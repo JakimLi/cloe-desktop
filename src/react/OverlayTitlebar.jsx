@@ -15,6 +15,7 @@ const TRANSPARENCY_LABELS = {
 
 function ThemePicker({ mode }) {
   const [open, setOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('dark');
   const ref = useRef(null);
   const currentTheme = localStorage.getItem('cloe-terminal-theme') || 'cloe';
 
@@ -28,10 +29,17 @@ function ThemePicker({ mode }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  // Sync active category with current theme
+  useEffect(() => {
+    const t = TERMINAL_THEMES.find(t => t.id === currentTheme);
+    if (t && t.category) setActiveCategory(t.category);
+  }, [currentTheme]);
+
   // Don't show theme picker in canvas mode
   if (mode === 'canvas') return null;
 
   const current = TERMINAL_THEMES.find(t => t.id === currentTheme) || TERMINAL_THEMES[0];
+  const filteredThemes = TERMINAL_THEMES.filter(t => (t.category || 'dark') === activeCategory);
 
   return (
     <div className="theme-picker" ref={ref}>
@@ -52,9 +60,18 @@ function ThemePicker({ mode }) {
       </button>
       {open && (
         <div className="theme-dropdown">
-          <div className="theme-dropdown-header">Color Themes</div>
+          <div className="theme-category-tabs">
+            <button
+              className={`theme-tab ${activeCategory === 'dark' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('dark')}
+            >🌙 Dark</button>
+            <button
+              className={`theme-tab ${activeCategory === 'light' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('light')}
+            >☀️ Light</button>
+          </div>
           <div className="theme-dropdown-list">
-            {TERMINAL_THEMES.map(t => (
+            {filteredThemes.map(t => (
               <button
                 key={t.id}
                 className={`theme-option ${t.id === currentTheme ? 'active' : ''}`}
