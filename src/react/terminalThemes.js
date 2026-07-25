@@ -367,7 +367,7 @@ export const TERMINAL_THEMES = [
     desc: 'Cyan accent on soft white',
     category: 'light',
     swatch: ['#f5f7fa', '#00897b', '#2e7d32', '#f9a825', '#1565c0', '#6a1b9a'],
-    bg: 'rgba(245, 247, 250, 0.88)',
+    bg: 'rgba(245, 247, 250, 0.55)',
     theme: {
       background: 'transparent',
       foreground: '#37474f',
@@ -399,7 +399,7 @@ export const TERMINAL_THEMES = [
     desc: 'Warm cream background, precise tones',
     category: 'light',
     swatch: ['#fdf6e3', '#dc322f', '#859900', '#b58900', '#268bd2', '#6c71c4'],
-    bg: 'rgba(253, 246, 227, 0.90)',
+    bg: 'rgba(253, 246, 227, 0.6)',
     theme: {
       background: 'transparent',
       foreground: '#657b83',
@@ -431,7 +431,7 @@ export const TERMINAL_THEMES = [
     desc: 'Warm retro earth tones, bright variant',
     category: 'light',
     swatch: ['#fbf1c7', '#cc241d', '#98971a', '#d79921', '#458588', '#b16286'],
-    bg: 'rgba(251, 241, 199, 0.90)',
+    bg: 'rgba(251, 241, 199, 0.6)',
     theme: {
       background: 'transparent',
       foreground: '#3c3836',
@@ -463,7 +463,7 @@ export const TERMINAL_THEMES = [
     desc: 'Clean professional light',
     category: 'light',
     swatch: ['#f6f8fa', '#cf222e', '#1a7f37', '#9a6700', '#0969da', '#8250df'],
-    bg: 'rgba(255, 255, 255, 0.90)',
+    bg: 'rgba(255, 255, 255, 0.55)',
     theme: {
       background: 'transparent',
       foreground: '#24292f',
@@ -495,7 +495,7 @@ export const TERMINAL_THEMES = [
     desc: 'Soothing pastel for light mode',
     category: 'light',
     swatch: ['#eff1f5', '#d20f39', '#40a02b', '#df8e1d', '#1e66f5', '#ea76cb'],
-    bg: 'rgba(239, 241, 245, 0.90)',
+    bg: 'rgba(239, 241, 245, 0.6)',
     theme: {
       background: 'transparent',
       foreground: '#4c4f69',
@@ -527,7 +527,7 @@ export const TERMINAL_THEMES = [
     desc: 'Atom editor classic light theme',
     category: 'light',
     swatch: ['#fafafa', '#e45649', '#50a14f', '#c18401', '#4078f2', '#a626a4'],
-    bg: 'rgba(250, 250, 250, 0.90)',
+    bg: 'rgba(250, 250, 250, 0.55)',
     theme: {
       background: 'transparent',
       foreground: '#383a42',
@@ -559,7 +559,7 @@ export const TERMINAL_THEMES = [
     desc: 'Bright Tokyo daytime counterpart',
     category: 'light',
     swatch: ['#e1e2e7', '#8c4351', '#485e30', '#8f5e15', '#34548a', '#5a4a78'],
-    bg: 'rgba(225, 226, 231, 0.90)',
+    bg: 'rgba(225, 226, 231, 0.6)',
     theme: {
       background: 'transparent',
       foreground: '#343b58',
@@ -591,7 +591,7 @@ export const TERMINAL_THEMES = [
     desc: 'Bright arctic, north-bluish light palette',
     category: 'light',
     swatch: ['#eceff4', '#bf616a', '#a3be8c', '#ebcb8b', '#81a1c1', '#b48ead'],
-    bg: 'rgba(236, 239, 244, 0.90)',
+    bg: 'rgba(236, 239, 244, 0.6)',
     theme: {
       background: 'transparent',
       foreground: '#2e3440',
