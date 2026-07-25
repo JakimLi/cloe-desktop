@@ -222,6 +222,33 @@ function useShortcut(storageKey, handler) {
    ═══════════════════════════════════════════════════════ */
 
 const API_BASE = 'http://127.0.0.1:19851';
+const CHAT_APPEARANCE_STORAGE_KEY = 'cloe-chat-appearance';
+const LEGACY_CHAT_TRANSPARENT_STORAGE_KEY = 'cloe-chat-transparent';
+const CHAT_APPEARANCE_ORDER = ['opaque', 'glass', 'light'];
+
+function isValidChatAppearance(value) {
+  return CHAT_APPEARANCE_ORDER.includes(value);
+}
+
+function getInitialChatAppearance() {
+  const stored = localStorage.getItem(CHAT_APPEARANCE_STORAGE_KEY);
+  if (isValidChatAppearance(stored)) return stored;
+  return localStorage.getItem(LEGACY_CHAT_TRANSPARENT_STORAGE_KEY) === 'true' ? 'glass' : 'opaque';
+}
+
+function persistChatAppearance(mode) {
+  localStorage.setItem(CHAT_APPEARANCE_STORAGE_KEY, mode);
+  localStorage.setItem(LEGACY_CHAT_TRANSPARENT_STORAGE_KEY, String(mode === 'glass'));
+}
+
+function getNextChatAppearance(mode) {
+  const currentIndex = CHAT_APPEARANCE_ORDER.indexOf(mode);
+  return CHAT_APPEARANCE_ORDER[(currentIndex + 1 + CHAT_APPEARANCE_ORDER.length) % CHAT_APPEARANCE_ORDER.length];
+}
+
+function getChatOpacity(mode) {
+  return mode === 'glass' ? 0.6 : 1.0;
+}
 
 function ChatApp() {
   // Session identity — set by launcher when creating the window
@@ -244,7 +271,7 @@ function ChatApp() {
   const [models, setModels] = useState([]);
   const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
   const [focusedIndex, setFocusedIndex] = useState(null);
-  const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
+  const [appearance, setAppearance] = useState(getInitialChatAppearance);
   const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [cropperSrc, setCropperSrc] = useState(null);
@@ -252,6 +279,22 @@ function ChatApp() {
 
   const endRef = useRef(null);
   const textareaRef = useRef(null);
+  const isLightTheme = appearance === 'light';
+  const isGlassTheme = appearance === 'glass';
+
+  const cycleAppearance = useCallback(() => {
+    setAppearance((current) => {
+      const next = getNextChatAppearance(current);
+      persistChatAppearance(next);
+      return next;
+    });
+  }, []);
+
+  const appearanceButtonTitle = appearance === 'opaque'
+    ? 'Switch to translucent'
+    : appearance === 'glass'
+      ? 'Switch to light theme'
+      : 'Switch to dark theme';
 
   // ── Receive session ID from launcher ──
   // The session ID is sent via 'chat-window-session' IPC after the window loads.
@@ -296,7 +339,7 @@ function ChatApp() {
 
   // ── Shortcuts ──
   useShortcut('cloe-chat-shortcut', () => window.electronAPI?.quickChatSession?.());
-  useShortcut('cloe-transparency-shortcut', () => setTransparent(p => { const n = !p; localStorage.setItem('cloe-chat-transparent', String(n)); return n; }));
+  useShortcut('cloe-transparency-shortcut', cycleAppearance);
   useShortcut('cloe-chat-pin-shortcut', () => setPenetrate(p => { const n = !p; localStorage.setItem('cloe-chat-penetrate', String(n)); return n; }));
   useShortcut('cloe-chat-focus-shortcut', () => textareaRef.current?.focus());
 
@@ -313,10 +356,17 @@ function ChatApp() {
   }, [focusedIndex]);
 
   // ── Opacity / penetrate ──
-  useEffect(() => { window.electronAPI?.setChatOpacity?.(transparent ? 0.6 : 1.0); }, [transparent]);
+  useEffect(() => { window.electronAPI?.setChatOpacity?.(getChatOpacity(appearance)); }, [appearance]);
   useEffect(() => { window.electronAPI?.setFullscreenPenetrate?.(penetrate); }, [penetrate]);
+  useEffect(() => {
+    document.documentElement.classList.toggle('chat-theme-light', isLightTheme);
+    document.body.classList.toggle('chat-theme-light', isLightTheme);
+    return () => {
+      document.documentElement.classList.remove('chat-theme-light');
+      document.body.classList.remove('chat-theme-light');
+    };
+  }, [isLightTheme]);
 
-  const toggleOpacity = useCallback(() => setTransparent(p => { const n = !p; localStorage.setItem('cloe-chat-transparent', String(n)); return n; }), []);
   const togglePenetrate = useCallback(() => setPenetrate(p => { const n = !p; localStorage.setItem('cloe-chat-penetrate', String(n)); return n; }), []);
 
   // ── Avatar ──
@@ -546,17 +596,18 @@ function ChatApp() {
   );
 
   return (
-    <div className={`chat-root${transparent ? ' chat-root-transparent' : ''}`}>
+    <div className={`chat-root chat-theme-${isLightTheme ? 'light' : 'dark'}${isGlassTheme ? ' chat-root-transparent' : ''}`}>
       <div className="chat-titlebar" data-tauri-drag-region>
         <div className="chat-titlebar-left">
           {renderTitlebarAvatar()}
           <span className="chat-title">{nickname}</span>
         </div>
         <div className="chat-titlebar-right">
-          <button className={`chat-btn${transparent ? ' chat-btn-active' : ''}`} onClick={toggleOpacity} title={transparent ? 'Make opaque' : 'Make transparent'}>
+          <button className={`chat-btn${appearance !== 'opaque' ? ' chat-btn-active' : ''}`} onClick={cycleAppearance} title={appearanceButtonTitle}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {isLightTheme && <circle cx="12" cy="12" r="7" fill="currentColor" fillOpacity="0.16" stroke="none" />}
               <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-              <path d="M12 2v20" opacity={transparent ? 0.4 : 1} />
+              <path d="M12 2v20" opacity={isLightTheme ? 0.12 : isGlassTheme ? 0.4 : 1} />
             </svg>
           </button>
           <button className={`chat-btn${penetrate ? ' chat-btn-active' : ''}`} onClick={togglePenetrate} title={penetrate ? 'Disable fullscreen overlay' : 'Float over fullscreen'}>
@@ -612,13 +663,13 @@ function ChatApp() {
       )}
 
       <div className="chat-input-area">
-        <textarea ref={textareaRef} className="chat-textarea" value={input} onChange={onInputChange} onKeyDown={onKeyDown} placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`} disabled={connected === false} rows={1} />
+        <textarea ref={textareaRef} className="chat-textarea" value={input} onChange={onInputChange} onKeyDown={onKeyDown} placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`} disabled={connected === false} rows={1} spellCheck={false} />
         <div className="chat-input-toolbar">
           <div className="chat-input-actions">
             {models.length > 1 && (
               <div className="chat-model-select-wrapper">
                 <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-                <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model">
+                <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model" spellCheck={false}>
                   {models.map(m => (<option key={m} value={m}>{m}</option>))}
                 </select>
               </div>

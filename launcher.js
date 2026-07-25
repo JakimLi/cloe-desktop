@@ -3092,6 +3092,17 @@ function createChatWindowForSession(sessionId) {
     chatWindow.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
   }
 
+  // Disable spellcheck so macOS doesn't draw red squiggles under the model
+  // name shown in the <select>, or under typed text.
+  try {
+    chatWindow.webContents.session.setSpellCheckerEnabled(false);
+    chatWindow.webContents.on('did-attach-webview', () => {
+      chatWindow.webContents.session.setSpellCheckerEnabled(false);
+    });
+  } catch (e) {
+    console.error('[chat] disable spellcheck failed:', e.message);
+  }
+
   // Send the session ID to the window — use 'did-finish-load' as primary
   // and a small delay fallback in case the React app isn't ready yet
   chatWindow.webContents.once('did-finish-load', () => {
