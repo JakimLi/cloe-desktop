@@ -36,8 +36,12 @@ function WorkspaceApp() {
             if (idx >= 0) { const next = [...prev]; next[idx] = msg.session; return next; }
             return [...prev, msg.session];
           });
-        } else if (msg.type === 'agent-session-removed' && msg.id) {
-          setSessions(prev => prev.filter(s => s.id !== msg.id));
+        } else if (
+          (msg.type === 'agent-session-removed' && msg.id) ||
+          ((msg.type === 'agent-session-ended' || msg.type === 'agent-session-cancelled') && msg.session_id)
+        ) {
+          const removedId = msg.id || msg.session_id;
+          setSessions(prev => prev.filter(s => s.id !== removedId));
         }
       }
     };
@@ -139,6 +143,14 @@ function WorkspaceApp() {
   const handleAgentCancel = useCallback((id) => {
     fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    }).catch(() => {});
+  }, []);
+
+  const handleAgentMute = useCallback((id, muted) => {
+    fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/mute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ muted }),
     }).catch(() => {});
   }, []);
 
@@ -392,6 +404,7 @@ function WorkspaceApp() {
       timingId={timingId}
       onSessionSetTitle={handleAgentSetTitle}
       onSessionCancel={handleAgentCancel}
+      onSessionMute={handleAgentMute}
       onSessionOpen={handleSessionOpen}
       onSessionDelete={handleSessionDelete}
       onSessionCreate={handleSessionCreate}

@@ -95,7 +95,7 @@ function SessionIcon({ icon, color }) {
   );
 }
 
-function SessionCard({ session, onSetTitle, onCancel, onOpen, onDelete }) {
+function SessionCard({ session, onSetTitle, onCancel, onMute, onOpen, onDelete }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(session.title || '');
   const inputRef = useRef(null);
@@ -165,6 +165,25 @@ function SessionCard({ session, onSetTitle, onCancel, onOpen, onDelete }) {
       <div className="wp-session-btns">
         {isInternal ? (
           <>
+            <button
+              className={`wp-session-mute${session.muted ? ' active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onMute?.(session.id, !session.muted); }}
+              title={session.muted ? t('取消静音', 'Unmute session') : t('静音提醒', 'Mute session alerts')}
+            >
+              {session.muted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              )}
+            </button>
             <button className="wp-session-open" onClick={(e) => { e.stopPropagation(); onOpen?.(session.id); }} title={t('打开窗口', 'Open window')}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -179,11 +198,32 @@ function SessionCard({ session, onSetTitle, onCancel, onOpen, onDelete }) {
             </button>
           </>
         ) : (
-          <button className="wp-session-cancel" onClick={(e) => { e.stopPropagation(); onCancel(session.id); }} title={t('取消监听', 'Cancel')}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <>
+            <button
+              className={`wp-session-mute${session.muted ? ' active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onMute?.(session.id, !session.muted); }}
+              title={session.muted ? t('取消静音', 'Unmute session') : t('静音提醒', 'Mute session alerts')}
+            >
+              {session.muted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              )}
+            </button>
+            <button className="wp-session-cancel" onClick={(e) => { e.stopPropagation(); onCancel(session.id); }} title={t('取消监听', 'Cancel')}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -540,6 +580,7 @@ export default function WorkspacePanel({
   timingId,
   onSessionSetTitle,
   onSessionCancel,
+  onSessionMute,
   onSessionOpen,
   onSessionDelete,
   onSessionCreate,
@@ -674,6 +715,7 @@ export default function WorkspacePanel({
                         session={s}
                         onSetTitle={onSessionSetTitle}
                         onCancel={onSessionCancel}
+                        onMute={onSessionMute}
                         onOpen={onSessionOpen}
                         onDelete={onSessionDelete}
                       />

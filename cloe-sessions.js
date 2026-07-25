@@ -91,10 +91,11 @@ function toPublic(session) {
     hermesSessionId: session.hermesSessionId || null,
     messages: session.messages || [],
     contextPct: session.contextPct || 0,
+    muted: !!session.muted,
     status: session.status || 'idle',
     turn_count: session.turn_count || 0,
     created_at: session.created_at,
-    last_updated: session.last_updated,
+    last_updated: session.last_updated || session.lastUpdated || session.created_at,
   };
 }
 
@@ -110,10 +111,11 @@ function createSession(data = {}) {
     hermesSessionId: data.hermesSessionId || null,
     messages: data.messages || [],
     contextPct: 0,
+    muted: !!data.muted,
     status: 'idle',
     turn_count: 0,
     created_at: now,
-    lastUpdated: now,
+    last_updated: now,
   };
   sessions.set(id, session);
   scheduleSave();
@@ -128,7 +130,7 @@ function getSession(id) {
 function updateSession(id, updates) {
   const session = sessions.get(id);
   if (!session) return null;
-  Object.assign(session, updates, { lastUpdated: new Date().toISOString() });
+  Object.assign(session, updates, { last_updated: new Date().toISOString() });
   scheduleSave();
   broadcast({ type: 'agent-session-updated', session: toPublic(session) });
   return session;
@@ -158,7 +160,7 @@ function notifyTurnEnd(id) {
   if (!session) return null;
   session.status = 'turn_complete';
   session.turn_count = (session.turn_count || 0) + 1;
-  session.lastUpdated = new Date().toISOString();
+  session.last_updated = new Date().toISOString();
   scheduleSave();
   const pub = toPublic(session);
   broadcast({ type: 'agent-session-updated', session: pub });
@@ -175,7 +177,7 @@ function notifyWorking(id) {
   const session = sessions.get(id);
   if (!session) return null;
   session.status = 'working';
-  session.lastUpdated = new Date().toISOString();
+  session.last_updated = new Date().toISOString();
   scheduleSave();
   broadcast({ type: 'agent-session-updated', session: toPublic(session) });
   return session;

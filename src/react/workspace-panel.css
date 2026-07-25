@@ -392,6 +392,7 @@
 }
 
 .wp-session-ack,
+.wp-session-mute,
 .wp-session-cancel,
 .wp-session-open {
   background: none;
@@ -407,6 +408,13 @@
 
 .wp-session-ack { color: rgba(61, 214, 140, 0.6); }
 .wp-session-ack:hover { color: rgba(61, 214, 140, 1); background: rgba(61, 214, 140, 0.12); }
+
+.wp-session-mute { color: rgba(255, 255, 255, 0.22); }
+.wp-session-mute:hover { color: rgba(255, 255, 255, 0.82); background: rgba(255, 255, 255, 0.06); }
+.wp-session-mute.active {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.14);
+}
 
 .wp-session-open { color: rgba(90, 200, 250, 0.55); }
 .wp-session-open:hover { color: #5ac8fa; background: rgba(90, 200, 250, 0.12); }

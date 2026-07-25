@@ -94,14 +94,20 @@ function getAgentTTSMessage(session, event) {
 }
 
 function generateAgentTTS(session, event) {
+  const liveSession = getSessionForTTS(session?.id) || session;
+
   // Check global mute switch
   const { isMuted } = require('./mute-state');
   if (isMuted()) {
     console.log('[agent-tracker] TTS skipped: global mute is on');
     return;
   }
+  if (liveSession?.muted) {
+    console.log('[agent-tracker] TTS skipped: session mute is on');
+    return;
+  }
 
-  const message = getAgentTTSMessage(session, event);
+  const message = getAgentTTSMessage(liveSession, event);
   if (!message) return;
 
   const { execFile } = require('child_process');
@@ -127,19 +133,29 @@ function generateAgentTTS(session, event) {
  */
 function scheduleSessionTTS(session, event) {
   try {
+    const liveSession = getSessionForTTS(session?.id) || session;
     const { isMuted } = require('./mute-state');
     if (isMuted()) return;
+    if (liveSession?.muted) return;
     const ttsScheduler = require('./tts-scheduler');
-    const sourceKey = `agent:${session.id}:${event}`;
-    const message = getAgentTTSMessage(session, event);
+    const sourceKey = `agent:${liveSession.id}:${event}`;
+    const message = getAgentTTSMessage(liveSession, event);
     if (!message) return;
-    ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(session, event), {
+    ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(liveSession, event), {
       source: 'agent',
-      id: session.id,
+      id: liveSession.id,
     });
   } catch (e) {
     console.error('[agent-tracker] scheduleSessionTTS failed:', e.message);
   }
+}
+
+function getSessionForTTS(id) {
+  if (!id) return null;
+  const internal = cloeSessions.getSession(id);
+  if (internal) return cloeSessions.toPublic(internal);
+  const external = sessions.get(id);
+  return external ? toPublic(external) : null;
 }
 
 // ==================== Session Operations ====================
@@ -157,6 +173,7 @@ function createSession(data) {
     source_label: data.source_label || data.source || 'Unknown',
     status: 'working',
     title: existing ? existing.title : (data.title || ''),
+    muted: existing ? !!existing.muted : !!data.muted,
     created_at: existing ? existing.created_at : now,
     last_updated: now,
     turn_count: existing ? existing.turn_count : 0,
@@ -233,6 +250,31 @@ function setTitle(id, title) {
   return session;
 }
 
+function setSessionMuted(id, muted) {
+  const internal = cloeSessions.getSession(id);
+  if (internal) {
+    const updated = cloeSessions.updateSession(id, { muted: !!muted });
+    if (updated && muted) {
+      try { require('./tts-scheduler').cancelBySource('agent', id); } catch {}
+    }
+    return updated ? cloeSessions.toPublic(updated) : null;
+  }
+
+  const session = sessions.get(id);
+  if (!session) return null;
+
+  session.muted = !!muted;
+  session.last_updated = new Date().toISOString();
+  sessions.set(id, session);
+  broadcast({ type: 'agent-session-updated', session: toPublic(session) });
+
+  if (muted) {
+    try { require('./tts-scheduler').cancelBySource('agent', id); } catch {}
+  }
+
+  return toPublic(session);
+}
+
 function listSessions() {
   // Merge external (ephemeral) + internal (persisted cloe-desktop) sessions
   const external = [];
@@ -250,6 +292,7 @@ function toPublic(session) {
     source: session.source || 'unknown',
     source_label: session.source_label || session.source || 'Unknown',
     isInternal: session.source === 'cloe-desktop',
+    muted: !!session.muted,
     status: session.status,
     title: session.title,
     created_at: session.created_at,
@@ -319,6 +362,24 @@ function handleAgentRoute(req, res) {
       const session = setTitle(id, data?.title || '');
       if (!session) { jsonRes(res, 404, { error: 'session not found' }); return; }
       jsonRes(res, 200, { ok: true, session: toPublic(session) });
+    });
+    return true;
+  }
+
+  // POST /agent-sessions/:id/mute
+  const muteMatch = req.method === 'POST' && urlPath.match(/^\/agent-sessions\/([^/]+)\/mute$/);
+  if (muteMatch) {
+    const id = decodeURIComponent(muteMatch[1]);
+    readJsonBody(req, (err, data) => {
+      if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+      const muted = data?.muted;
+      if (typeof muted !== 'boolean') {
+        jsonRes(res, 400, { error: 'muted boolean required' });
+        return;
+      }
+      const session = setSessionMuted(id, muted);
+      if (!session) { jsonRes(res, 404, { error: 'session not found' }); return; }
+      jsonRes(res, 200, { ok: true, session });
     });
     return true;
   }
@@ -433,5 +494,6 @@ module.exports = {
   _endSession: endSession,
   _cancelSession: cancelSession,
   _setTitle: setTitle,
+  _setSessionMuted: setSessionMuted,
   _listSessions: listSessions,
 };

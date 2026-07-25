@@ -584,6 +584,7 @@ export default function App() {
   const [agentSessions, setAgentSessions] = useState([]);
   const [agentModalVisible, setAgentModalVisible] = useState(false);
   const [sessionToast, setSessionToast] = useState(null);
+  const agentSessionsRef = useRef(new Map());
 
   // Workspace panel: in terminal/canvas mode use overlay; otherwise open standalone window
   const toggleWorkspace = useCallback(() => {
@@ -605,6 +606,7 @@ export default function App() {
       if (!msg || !msg.type) return;
       if (msg.type === 'agent-session-registered' || msg.type === 'agent-session-updated' || msg.type === 'agent-session-title-set') {
         if (msg.session) {
+          const prevSession = agentSessionsRef.current.get(msg.session.id);
           setAgentSessions(prev => {
             const idx = prev.findIndex(s => s.id === msg.session.id);
             if (idx >= 0) {
@@ -614,21 +616,33 @@ export default function App() {
             }
             return [...prev, msg.session];
           });
-          // Show toast when session transitions to turn_complete or needs_decision
+          agentSessionsRef.current.set(msg.session.id, msg.session);
+
+          // Only toast when status actually transitions into an actionable state.
           const s = msg.session;
-          if ((s.status === 'turn_complete' || s.status === 'needs_decision')) {
+          const becameActionable =
+            msg.type === 'agent-session-updated' &&
+            (s.status === 'turn_complete' || s.status === 'needs_decision') &&
+            prevSession?.status !== s.status;
+
+          if (becameActionable) {
             setSessionToast({ id: s.id, name: s.title || s.source_label || 'Agent', status: s.status, ts: Date.now() });
           }
         }
       } else if (msg.type === 'agent-session-ended' || msg.type === 'agent-session-cancelled') {
         if (msg.session_id) {
           setAgentSessions(prev => prev.filter(s => s.id !== msg.session_id));
+          agentSessionsRef.current.delete(msg.session_id);
         }
       }
     };
     window.addEventListener('cloe-agent-session', handler);
     return () => window.removeEventListener('cloe-agent-session', handler);
   }, []);
+
+  useEffect(() => {
+    agentSessionsRef.current = new Map(agentSessions.map((session) => [session.id, session]));
+  }, [agentSessions]);
 
   // Initial fetch on first open
   useEffect(() => {
@@ -702,6 +716,14 @@ export default function App() {
 
     fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/cancel`, {
       method: 'POST',
+    }).catch(() => {});
+  }, [API_BASE]);
+
+  const handleAgentMute = useCallback((id, muted) => {
+    fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}/mute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ muted }),
     }).catch(() => {});
   }, [API_BASE]);
 
@@ -1097,6 +1119,7 @@ export default function App() {
         timingId={taskTimingId}
         onSessionSetTitle={handleAgentSetTitle}
         onSessionCancel={handleAgentCancel}
+        onSessionMute={handleAgentMute}
         onSessionOpen={handleSessionOpen}
         onSessionDelete={handleSessionDelete}
         onSessionCreate={handleSessionCreate}
