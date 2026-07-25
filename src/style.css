@@ -168,6 +168,50 @@ html, body {
   background: rgba(0, 0, 0, 1.0); /* fully opaque black — character hidden, only terminal/canvas content visible */
 }
 
+/* ==================== Focus Watermark ==================== */
+/* Subtle, centered backdrop showing the currently focused task — keeps the
+   goal in view without a running timer. Sits behind terminal/canvas content. */
+.focus-watermark {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1; /* below terminal/canvas content (z-index 5) */
+  pointer-events: none;
+  text-align: center;
+  max-width: 70%;
+  animation: focus-fade-in 0.4s ease;
+}
+
+@keyframes focus-fade-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.focus-watermark-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.22);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
+
+.focus-watermark-title {
+  font-size: 30px;
+  font-weight: 200;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.16);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  text-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+  word-break: break-word;
+}
+
 .terminal-overlay.hidden {
   display: none;
 }

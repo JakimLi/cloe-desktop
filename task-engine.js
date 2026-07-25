@@ -258,10 +258,11 @@ function updateTask(id, data) {
 function deleteTask(id) {
   if (!tasks.has(id)) return false;
 
-  // Stop timer if this task was timing
+  // Stop timer if this task was timing — broadcast so frontend clears focus.
   if (timingId === id) {
     timingId = null;
     _stopTimerInterval();
+    broadcast({ type: 'task-timing-stopped', task_id: id });
   }
 
   tasks.delete(id);
@@ -278,10 +279,13 @@ function completeTask(id) {
   const task = tasks.get(id);
   if (!task) return null;
 
-  // Stop timer if this task was timing
+  // Stop timer if this task was timing. Broadcast the stop so the frontend
+  // clears its focus state — completeTask sets status to 'completed' below,
+  // so we must not call stopTiming() (which resets status to 'pending').
   if (timingId === id) {
     timingId = null;
     _stopTimerInterval();
+    broadcast({ type: 'task-timing-stopped', task: toPublic(task) });
   }
 
   task.status = 'completed';

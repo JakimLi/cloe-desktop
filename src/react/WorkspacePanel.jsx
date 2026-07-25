@@ -28,15 +28,6 @@ function formatTime(iso) {
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-function formatElapsed(seconds) {
-  if (!seconds || seconds <= 0) return '0:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  return `${m}:${String(s).padStart(2,'0')}`;
-}
-
 function formatRelative(iso) {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
@@ -301,17 +292,7 @@ function TaskCard({ task, dragIndex, isTiming, onToggleComplete, onStartStop, on
       <div className="wp-task-main" onClick={() => onEdit(task)}>
         <div className="wp-task-title-row">
           <span className="wp-task-title">{task.title}</span>
-          {isTiming && (
-            <span className="wp-task-timer">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-              </svg>
-              {formatElapsed(task.elapsed_seconds)}
-            </span>
-          )}
-          {!isTiming && task.elapsed_seconds > 0 && (
-            <span className="wp-task-elapsed">{formatElapsed(task.elapsed_seconds)}</span>
-          )}
+          {isTiming && <span className="wp-task-focus-tag">{t('专注中', 'Focusing')}</span>}
         </div>
         {task.content && <div className="wp-task-preview">{task.content}</div>}
         <div className="wp-task-meta">{formatRelative(task.updated_at)}</div>
@@ -323,16 +304,16 @@ function TaskCard({ task, dragIndex, isTiming, onToggleComplete, onStartStop, on
             className={`wp-task-play${isTiming ? ' active' : ''}`}
             draggable={false}
             onClick={() => onStartStop(task.id, isTiming)}
-            title={isTiming ? t('暂停', 'Pause') : t('开始计时', 'Start')}
+            title={isTiming ? t('取消专注', 'Unfocus') : t('专注', 'Focus')}
           >
             {isTiming ? (
               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16" rx="1" />
-                <rect x="14" y="4" width="4" height="16" rx="1" />
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="4" fill="var(--wp-bg, #0a0a0a)" />
               </svg>
             ) : (
               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3" />
+                <circle cx="12" cy="12" r="10" />
               </svg>
             )}
           </button>

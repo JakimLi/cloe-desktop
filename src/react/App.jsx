@@ -852,6 +852,11 @@ export default function App() {
   // ── Tasks ──
   const [workspaceTasks, setWorkspaceTasks] = useState([]);
   const [taskTimingId, setTaskTimingId] = useState(null);
+  // The currently focused task — shown as a subtle watermark behind the
+  // terminal/canvas so it stays in view without a running timer.
+  const focusedTask = taskTimingId
+    ? workspaceTasks.find((t) => t.id === taskTimingId)
+    : null;
 
   // Sync tasks from WS events
   useEffect(() => {
@@ -1079,6 +1084,12 @@ export default function App() {
           />
         )}
       </OverlayTitlebar>
+      {focusedTask && focusedTask.title && (
+        <div className="focus-watermark" aria-hidden="true">
+          <span className="focus-watermark-label">Focus</span>
+          <span className="focus-watermark-title">{focusedTask.title}</span>
+        </div>
+      )}
       <div style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}>
         <div style={{ display: mode === 'terminal' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
           <TerminalMode tabs={tabs} activeTabId={activeTabId} updateTabTitle={updateTabTitle} />
