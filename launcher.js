@@ -3057,7 +3057,7 @@ ipcMain.on('workspace-window-move', (_e, payload) => {
   }
 });
 
-ipcMain.handle('chat-get-nickname', () => loadConfig().chatNickname || '');
+ipcMain.handle('get-chat-nickname', () => loadConfig().chatNickname || '');
 
 // Chat window opacity toggle (transparent / opaque)
 const CHAT_TRANSPARENT_OPACITY = 0.6;
