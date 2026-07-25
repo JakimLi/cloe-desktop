@@ -685,6 +685,9 @@ export default function WorkspacePanel({
     if (task.status === 'completed') return;
     activeTaskIndexById.set(task.id, nextActiveTaskIdx++);
   });
+  // Split tasks into pending (top, draggable) and completed (bottom) sections.
+  const pendingTasks = activeTasks.filter((task) => task.status !== 'completed');
+  const completedTasks = activeTasks.filter((task) => task.status === 'completed');
 
   const handleTaskListDrop = useCallback((e) => {
     e.preventDefault();
@@ -862,7 +865,7 @@ export default function WorkspacePanel({
                   onDragOver={handleTaskListDragOver}
                   onDrop={handleTaskListDrop}
                 >
-                  {activeTasks.map((task) => (
+                  {pendingTasks.map((task) => (
                     <TaskCard
                       key={task.id}
                       task={task}
@@ -874,6 +877,26 @@ export default function WorkspacePanel({
                       onDelete={onTaskDelete}
                     />
                   ))}
+                  {completedTasks.length > 0 && (
+                    <div className="wp-task-section">
+                      <div className="wp-task-section-title">
+                        {t('已完成', 'Completed')}
+                        <span className="wp-task-section-count">{completedTasks.length}</span>
+                      </div>
+                      {completedTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          dragIndex={-1}
+                          isTiming={timingId === task.id}
+                          onToggleComplete={onTaskToggleComplete}
+                          onStartStop={onTaskStartStop}
+                          onEdit={(tk) => setEditingTask(tk)}
+                          onDelete={onTaskDelete}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {activeTasks.length === 0 && (
                     <div className="wp-empty">
                       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
