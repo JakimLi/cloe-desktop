@@ -2448,66 +2448,8 @@ ipcMain.on('window-move', (_e, { dx, dy }) => {
   }
 });
 
-// ==================== PTY (direct in Electron main process) ====================
-// Multi-tab: each tab gets its own PTY identified by ptyId.
-const ptyMap = new Map();
-
-function spawnPty(ptyId, cols, rows) {
-  if (ptyMap.has(ptyId)) return;
-  try {
-    const pty = require('node-pty');
-    const shell = '/bin/zsh';
-    const ptyProc = pty.spawn(shell, ['-l'], {
-      name: 'xterm-256color',
-      cols: cols || 80,
-      rows: rows || 24,
-      cwd: process.env.HOME || '/Users/lijian',
-      env: {
-        ...process.env,
-        HOME: process.env.HOME || '/Users/lijian',
-        SHELL: shell,
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-      },
-    });
-    ptyProc.onData((data) => {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('pty-data', { ptyId, data });
-      }
-    });
-    ptyProc.onExit(({ exitCode }) => {
-      console.log(`[PTY:${ptyId}] Shell exited with code ${exitCode}`);
-      ptyMap.delete(ptyId);
-    });
-    ptyMap.set(ptyId, ptyProc);
-    console.log(`[PTY:${ptyId}] Shell ready`);
-  } catch (e) {
-    console.error(`[PTY:${ptyId}] Failed to spawn:`, e.message);
-  }
-}
-
-ipcMain.on('pty-spawn', (_e, { ptyId, cols, rows }) => {
-  spawnPty(ptyId, cols, rows);
-});
-
-ipcMain.on('pty-write', (_e, { ptyId, data }) => {
-  const p = ptyMap.get(ptyId);
-  if (p) p.write(data || '');
-});
-
-ipcMain.on('pty-resize', (_e, { ptyId, cols, rows }) => {
-  const p = ptyMap.get(ptyId);
-  if (p) p.resize(cols || 80, rows || 24);
-});
-
-ipcMain.on('pty-kill', (_e, { ptyId }) => {
-  const p = ptyMap.get(ptyId);
-  if (p) {
-    p.kill();
-    ptyMap.delete(ptyId);
-    console.log(`[PTY:${ptyId}] Killed`);
-  }
-});
+// ==================== PTY (see src/main/pty.js — registers pty-* ipc handlers) ====================
+require('./src/main/pty');
 
 // ==================== Window Mode ====================
 // 'character' = alwaysOnTop small float, 'terminal' = native title bar window
