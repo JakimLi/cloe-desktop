@@ -3337,6 +3337,7 @@ ipcMain.on('hermes-chat-stop', (event) => {
 ipcMain.on('hermes-chat-send', (event, payload) => {
   const { message, sessionId, model } = payload || {};
   const { host, port, key } = getHermesApiConfig();
+  console.log(`[CHAT] send from window ${event.sender.id}, session=${sessionId}, activeReqs=${chatReqs.size}`);
 
   const headers = { 'Content-Type': 'application/json' };
   if (key) headers['Authorization'] = `Bearer ${key}`;
@@ -3391,6 +3392,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
 
       // Relay session ID from response header
       const newSessionId = res.headers['x-hermes-session-id'];
+      console.log(`[CHAT] response started for window ${senderId}, session=${effectiveSessionId}, respSession=${newSessionId}`);
       if (newSessionId) {
         try { sendTo('hermes-stream-delta', { sessionId: newSessionId }); } catch {}
       }
@@ -3436,6 +3438,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('end', () => {
         if (!ended) {
           ended = true;
+          console.log(`[CHAT] stream ended for window ${senderId}`);
           chatReqs.delete(senderId);
           try { sendTo('hermes-stream-end', {}); } catch {}
         }

@@ -288,11 +288,16 @@ function ChatApp() {
   const sessionsRef = useRef([]);
   const [sessions, setSessions] = useState([]);
   const [activeLocalId, setActiveLocalId] = useState(null);
+
+  // Keep refs in sync for use inside the stable stream listener
+  useEffect(() => { activeLocalIdRef.current = activeLocalId; }, [activeLocalId]);
   const [showSessionList, setShowSessionList] = useState(false);
 
   const streamDataRef = useRef({});
   const [streamingMap, setStreamingMap] = useState({});
   const [sendingMap, setSendingMap] = useState({});
+  const sendingMapRef = useRef({});       // mirror of sendingMap for stable listener access
+  const activeLocalIdRef = useRef(null);  // mirror of activeLocalId
 
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(null);
@@ -483,9 +488,11 @@ function ChatApp() {
   useEffect(() => {
     const unsubDelta = window.electronAPI?.onHermesDelta?.((data) => {
       if (!data.sessionId) return;
+      // Look up by Hermes session ID first, then by "pending" sessions (sending but no sessionId yet)
       let target = sessionsRef.current.find(s => s.sessionId === data.sessionId);
       if (!target) {
-        target = sessionsRef.current.find(s => !s.sessionId && sendingMap[s.localId]);
+        const sm = sendingMapRef.current;
+        target = sessionsRef.current.find(s => !s.sessionId && sm[s.localId]);
         if (target) {
           updateSession(target.localId, () => ({
             sessionId: data.sessionId,
@@ -504,7 +511,9 @@ function ChatApp() {
     });
 
     const unsubTool = window.electronAPI?.onHermesTool?.((data) => {
-      const sendingLids = Object.keys(sendingMap).filter(k => sendingMap[k]);
+      // Route to the most recently started sending session that has no sessionId match
+      const sm = sendingMapRef.current;
+      const sendingLids = Object.keys(sm).filter(k => sm[k]);
       if (sendingLids.length === 0) return;
       const lid = sendingLids[sendingLids.length - 1];
       if (!streamDataRef.current[lid]) streamDataRef.current[lid] = { content: '', tools: [] };
@@ -516,6 +525,8 @@ function ChatApp() {
     });
 
     const unsubEnd = window.electronAPI?.onHermesEnd?.(() => {
+      // Finalize ONLY sessions that have accumulated streaming content
+      const sm = sendingMapRef.current;
       for (const [lid, sd] of Object.entries(streamDataRef.current)) {
         if (sd.content || sd.tools.length > 0) {
           updateSession(lid, (s) => ({
@@ -523,15 +534,24 @@ function ChatApp() {
           }));
         }
         streamDataRef.current[lid] = { content: '', tools: [] };
+        // Clear this session's sending flag only
+        if (sm[lid]) {
+          const ns = { ...sm }; delete ns[lid]; sendingMapRef.current = ns;
+        }
       }
-      setStreamingMap({});
-      setSendingMap({});
+      // Update sendingMap state to match ref
+      setSendingMap({ ...sendingMapRef.current });
+      // Clear streaming for sessions that just ended
+      setStreamingMap((prev) => {
+        const next = {}; for (const k of Object.keys(prev)) { if (sendingMapRef.current[k]) next[k] = prev[k]; } return next;
+      });
       setConnected(true);
     });
 
     const unsubError = window.electronAPI?.onHermesError?.((data) => {
+      const sm = sendingMapRef.current;
       for (const [lid, sd] of Object.entries(streamDataRef.current)) {
-        if (sd.content || sd.tools.length > 0 || sendingMap[lid]) {
+        if (sd.content || sd.tools.length > 0 || sm[lid]) {
           const errMsg = data.error || 'Unknown error';
           const msg = sd.content ? `${sd.content}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
           updateSession(lid, (s) => ({
@@ -540,14 +560,16 @@ function ChatApp() {
         }
         streamDataRef.current[lid] = { content: '', tools: [] };
       }
-      setStreamingMap({});
+      sendingMapRef.current = {};
       setSendingMap({});
+      setStreamingMap({});
       setConnected(false);
     });
 
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
-      if (!activeLocalId) return;
-      updateSession(activeLocalId, (s) => ({
+      const lid = activeLocalIdRef.current;
+      if (!lid) return;
+      updateSession(lid, (s) => ({
         messages: [...s.messages, { role: data.role || 'assistant', content: data.content, image: data.image }],
       }));
     });
@@ -555,7 +577,7 @@ function ChatApp() {
     const unsubCtxUsage = window.electronAPI?.onContextUsage?.((data) => {
       if (typeof data.usage_pct !== 'number') return;
       const target = data.session_id ? sessionsRef.current.find(s => s.sessionId === data.session_id) : null;
-      if (data.session_id && target && target.localId !== activeLocalId) return;
+      if (data.session_id && target && target.localId !== activeLocalIdRef.current) return;
       setContextPct(data.usage_pct);
     });
 
@@ -563,7 +585,7 @@ function ChatApp() {
       unsubDelta?.(); unsubTool?.(); unsubEnd?.();
       unsubError?.(); unsubExternal?.(); unsubCtxUsage?.();
     };
-  }, [activeLocalId, sendingMap]);
+  }, []); // EMPTY deps — listener registered once, uses refs for mutable state
 
   const send = useCallback(() => {
     if (!input.trim() || connected === false || !activeLocalId) return;
@@ -576,7 +598,7 @@ function ChatApp() {
     }));
     streamDataRef.current[lid] = { content: '', tools: [] };
     setStreamingMap((prev) => ({ ...prev, [lid]: { content: '', tools: [] } }));
-    setSendingMap((prev) => ({ ...prev, [lid]: true }));
+    setSendingMap((prev) => { const n = { ...prev, [lid]: true }; sendingMapRef.current = n; return n; });
     window.electronAPI?.hermesSendMessage?.(msg, currentHermesSid || undefined, currentModel || undefined);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }, [input, connected, activeLocalId, activeSession, currentModel]);
@@ -593,7 +615,8 @@ function ChatApp() {
     }
     streamDataRef.current[lid] = { content: '', tools: [] };
     setStreamingMap((prev) => { const n = { ...prev }; delete n[lid]; return n; });
-    setSendingMap((prev) => { const n = { ...prev }; delete n[lid]; return n; });
+    const ns = { ...sendingMapRef.current }; delete ns[lid]; sendingMapRef.current = ns;
+    setSendingMap(ns);
   }, [activeLocalId]);
 
   const onKeyDown = useCallback((e) => {
