@@ -16,24 +16,35 @@ import './chat.css';
 
 /* ── Collapsible tool call — inline, minimal ── */
 
+function ToolIcon() {
+  return (
+    <svg className="chat-tool-icon-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    </svg>
+  );
+}
+
 function ToolCall({ tool, emoji, label }) {
   const [open, setOpen] = useState(false);
   const hasDetail = label && label !== tool;
 
   return (
-    <div className="chat-tool-call">
+    <div className={`chat-tool-call${open ? ' open' : ''}`}>
       <div
         className={`chat-tool-header${hasDetail ? ' chat-tool-clickable' : ''}`}
         onClick={() => hasDetail && setOpen(!open)}
-        style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}
       >
-        <span className="chat-tool-arrow" style={open ? { transform: 'rotate(90deg)' } : {}}>▸</span>
-        <span className="chat-tool-emoji">{emoji || '⚙️'}</span>
+        <ToolIcon />
         <span className="chat-tool-name">{tool}</span>
         {hasDetail && !open && (
           <span className="chat-tool-preview">
-            — {label.length > 60 ? label.slice(0, 57) + '…' : label}
+            {label.length > 60 ? label.slice(0, 57) + '…' : label}
           </span>
+        )}
+        {hasDetail && (
+          <svg className={`chat-tool-chevron${open ? ' open' : ''}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         )}
       </div>
       {hasDetail && open && (

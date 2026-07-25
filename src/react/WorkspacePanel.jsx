@@ -453,7 +453,7 @@ function ReminderCard({ reminder, onToggle, onPauseResume, onDismiss, onDelete, 
       <div className="wp-rm-body">
         <div className="wp-rm-name">{r.name}</div>
         <div className="wp-rm-meta">
-          <span>{isCountdown ? t('倒计时', 'Countdown') : t('每', 'Every')} {durMin}{t('分钟', 'min')}</span>
+          <span>{isCountdown ? t('番茄钟', 'Countdown') : t('每', 'Every')} {durMin}{t('分钟', 'min')}</span>
           {roundInfo && <><span className="wp-rm-dot"></span><span>{roundInfo}</span></>}
           {!r.tts && <><span className="wp-rm-dot"></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/></svg></>}
           {isRunning && nextTime && <><span className="wp-rm-dot"></span><span className="wp-rm-next">{remaining || nextTime}</span></>}
@@ -560,7 +560,7 @@ function ReminderFormModal({ reminder, availableActions, onSave, onCancel }) {
             <label className="wp-rm-label">{t('模式', 'Mode')}</label>
             <div className="wp-rm-segments">
               <button className={`wp-rm-seg${mode === 'interval' ? ' active' : ''}`} onClick={() => setMode('interval')}>{t('周期', 'Interval')}</button>
-              <button className={`wp-rm-seg${mode === 'countdown' ? ' active' : ''}`} onClick={() => setMode('countdown')}>{t('倒计时', 'Countdown')}</button>
+              <button className={`wp-rm-seg${mode === 'countdown' ? ' active' : ''}`} onClick={() => setMode('countdown')}>{t('番茄钟', 'Countdown')}</button>
             </div>
           </div>
         </div>
