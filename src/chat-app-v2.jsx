@@ -746,7 +746,7 @@ function ChatApp() {
           <div
             key={i}
             className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`}
-            onClick={() => setFocusedIndex(i)}
+            onDoubleClick={() => setFocusedIndex(i)}
           >
             {/* Tool separator before assistant messages that have tools */}
             {m.role === 'assistant' && m.tools && m.tools.length > 0 && i > 0 && (
