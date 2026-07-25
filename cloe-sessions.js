@@ -111,7 +111,9 @@ function createSession(data = {}) {
     hermesSessionId: data.hermesSessionId || null,
     messages: data.messages || [],
     contextPct: 0,
-    muted: !!data.muted,
+    // Internal chat sessions default to muted — TTS only plays when the user
+    // explicitly unmutes. External callers passing `muted` still win.
+    muted: typeof data.muted === 'boolean' ? data.muted : true,
     status: 'idle',
     turn_count: 0,
     created_at: now,
