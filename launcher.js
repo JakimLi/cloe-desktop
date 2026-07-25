@@ -3322,12 +3322,15 @@ ipcMain.handle('hermes-switch-model', async (_event, newModel) => {
   }
 });
 
-let currentChatReq = null;
+// Track active chat requests per-window (by sender webContents ID)
+const chatReqs = new Map(); // webContentsId -> http.ClientRequest
 
-ipcMain.on('hermes-chat-stop', () => {
-  if (currentChatReq) {
-    try { currentChatReq.destroy(); } catch {}
-    currentChatReq = null;
+ipcMain.on('hermes-chat-stop', (event) => {
+  const sid = event.sender.id;
+  const req = chatReqs.get(sid);
+  if (req) {
+    try { req.destroy(); } catch {}
+    chatReqs.delete(sid);
   }
 });
 
@@ -3341,6 +3344,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
 
   // Route stream events to the originating window via event.sender.
   // This correctly supports multiple concurrent chat windows.
+  const senderId = event.sender.id;
   const sendTo = (ch, data) => {
     try { event.sender.send(ch, data); } catch {}
   };
@@ -3427,7 +3431,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('end', () => {
         if (!ended) {
           ended = true;
-          currentChatReq = null;
+          chatReqs.delete(senderId);
           try { sendTo('hermes-stream-end', {}); } catch {}
         }
       });
@@ -3435,7 +3439,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('error', (err) => {
         if (!ended) {
           ended = true;
-          currentChatReq = null;
+          chatReqs.delete(senderId);
           try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
         }
       });
@@ -3443,7 +3447,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   );
 
   req.on('error', (err) => {
-    currentChatReq = null;
+    chatReqs.delete(senderId);
     try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
   });
 
@@ -3454,7 +3458,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   });
   req.write(body);
   req.end();
-  currentChatReq = req;
+  chatReqs.set(event.sender.id, req);
 });
 
 // ==================== Canvas Window ====================
