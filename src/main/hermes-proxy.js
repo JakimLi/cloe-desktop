@@ -25,7 +25,7 @@ const fs = require('fs');
 const { ipcMain } = require('electron');
 
 const { loadConfig } = require('./config');
-const cloeSessions = require('../cloe-sessions');
+const cloeSessions = require('../../cloe-sessions');
 
 function getHermesApiConfig() {
   const cfg = loadConfig();

@@ -30,7 +30,7 @@ const { app, BrowserWindow, ipcMain, screen, dialog, nativeImage } = require('el
 
 const { PROJECT_ROOT, loadConfig } = require('./config');
 const windowRegistry = require('./window-registry');
-const cloeSessions = require('../cloe-sessions');
+const cloeSessions = require('../../cloe-sessions');
 
 // ==================== Manager Window ====================
 function createManagerWindow() {
