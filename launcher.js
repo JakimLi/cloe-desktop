@@ -3208,8 +3208,11 @@ function getChatAvatarPath() {
   return path.join(os.homedir(), '.cloe', 'chat-avatar.png');
 }
 
-ipcMain.handle('chat-select-avatar', async () => {
-  const result = await dialog.showOpenDialog(chatWin || win, {
+ipcMain.handle('chat-select-avatar', async (event) => {
+  // Attach the dialog to the chat window that asked for it (not the main
+  // window) so the picker appears over the correct window in multi-session.
+  const parent = BrowserWindow.fromWebContents(event.sender) || win;
+  const result = await dialog.showOpenDialog(parent, {
     title: 'Select AI Avatar',
     filters: [
       { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] },
