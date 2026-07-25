@@ -3340,7 +3340,12 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
 
   const headers = { 'Content-Type': 'application/json' };
   if (key) headers['Authorization'] = `Bearer ${key}`;
-  if (sessionId) headers['X-Hermes-Session-Id'] = sessionId;
+  // Always send a session ID. When the frontend doesn't have one yet (first
+  // message in a new session), generate a unique one so Hermes doesn't derive
+  // the same session for two chat windows that happen to send similar first
+  // messages (the gateway hashes system_prompt + first_message as a fallback).
+  const effectiveSessionId = sessionId || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  headers['X-Hermes-Session-Id'] = effectiveSessionId;
 
   // Route stream events to the originating window via event.sender.
   // This correctly supports multiple concurrent chat windows.
