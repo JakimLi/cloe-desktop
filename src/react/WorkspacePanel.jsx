@@ -94,11 +94,12 @@ function SessionIcon({ icon, color }) {
   );
 }
 
-function SessionCard({ session, onSetTitle, onCancel }) {
+function SessionCard({ session, onSetTitle, onCancel, onOpen, onDelete }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(session.title || '');
   const inputRef = useRef(null);
   const cfg = SESSION_STATUS[session.status] || SESSION_STATUS.working;
+  const isInternal = session.source === 'cloe-desktop';
   const displayName = session.title || session.source_label;
   const needsAction = session.status === 'turn_complete' || session.status === 'needs_decision';
 
@@ -117,7 +118,11 @@ function SessionCard({ session, onSetTitle, onCancel }) {
   }, [titleValue, session.id, session.title, onSetTitle]);
 
   return (
-    <div className={`wp-session-card${needsAction ? ' wp-session-action' : ''}`}>
+    <div
+      className={`wp-session-card${needsAction ? ' wp-session-action' : ''}${isInternal ? ' wp-session-internal' : ''}`}
+      onClick={() => isInternal && onOpen?.(session.id)}
+      style={isInternal ? { cursor: 'pointer' } : undefined}
+    >
       <div className="wp-session-status-icon">
         {session.status === 'working' ? (
           <div className="wp-session-dot-blink" style={{ background: cfg.color }} />
@@ -140,12 +145,13 @@ function SessionCard({ session, onSetTitle, onCancel }) {
               else if (e.key === 'Escape') { e.preventDefault(); setEditingTitle(false); }
             }}
             placeholder={session.source_label}
+            onClick={(e) => e.stopPropagation()}
           />
         ) : (
           <>
-            <div className="wp-session-name" onClick={() => setEditingTitle(true)}>{displayName}</div>
+            <div className="wp-session-name" onClick={(e) => { if (isInternal) { e.stopPropagation(); setEditingTitle(true); } else { setEditingTitle(true); } }}>{displayName}</div>
             <div className="wp-session-meta">
-              <span className="wp-session-source">{session.source_label}</span>
+              <span className="wp-session-source">{isInternal ? '💬 ' + t('对话', 'Chat') : session.source_label}</span>
               {session.turn_count > 0 && <span className="wp-session-dot-sep">·</span>}
               {session.turn_count > 0 && <span>{session.turn_count} {t('轮', 'turns')}</span>}
               <span className="wp-session-dot-sep">·</span>
@@ -158,11 +164,19 @@ function SessionCard({ session, onSetTitle, onCancel }) {
         {cfg.label}
       </div>
       <div className="wp-session-btns">
-        <button className="wp-session-cancel" onClick={() => onCancel(session.id)} title={t('取消监听', 'Cancel')}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        {isInternal ? (
+          <button className="wp-session-cancel" onClick={(e) => { e.stopPropagation(); onDelete?.(session.id); }} title={t('删除', 'Delete')}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            </svg>
+          </button>
+        ) : (
+          <button className="wp-session-cancel" onClick={(e) => { e.stopPropagation(); onCancel(session.id); }} title={t('取消监听', 'Cancel')}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -518,6 +532,9 @@ export default function WorkspacePanel({
   timingId,
   onSessionSetTitle,
   onSessionCancel,
+  onSessionOpen,
+  onSessionDelete,
+  onSessionCreate,
   onTaskCreate,
   onTaskUpdate,
   onTaskDelete,
@@ -533,6 +550,7 @@ export default function WorkspacePanel({
 }) {
   const backdropRef = useRef(null);
   const [activeTab, setActiveTab] = useState('agent'); // 'agent' | 'reminders' | 'tasks'
+  const [sessionFilter, setSessionFilter] = useState('all'); // 'all' | 'internal' | 'external'
   const [editingTask, setEditingTask] = useState(null);
   const [editingReminder, setEditingReminder] = useState(null);
   const [showReminderForm, setShowReminderForm] = useState(false);
@@ -618,19 +636,46 @@ export default function WorkspacePanel({
             {activeTab === 'agent' && (
               <>
                 <div className="wp-content-header">
-                  <span className="wp-content-title">{t('Agent Sessions', 'Agent Sessions')}</span>
+                  <span className="wp-content-title">{t('Sessions', 'Sessions')}</span>
                   <span className="wp-content-count">{activeSessions.length}</span>
+                  <button className="wp-content-add" onClick={() => onSessionCreate?.()}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                    <span>{t('对话', 'Chat')}</span>
+                  </button>
+                </div>
+                {/* Filter tabs */}
+                <div className="wp-filter-bar">
+                  {['all', 'internal', 'external'].map(f => (
+                    <button
+                      key={f}
+                      className={`wp-filter-tab${sessionFilter === f ? ' active' : ''}`}
+                      onClick={() => setSessionFilter(f)}
+                    >
+                      {f === 'all' ? t('全部', 'All') : f === 'internal' ? t('对话', 'Chat') : t('外部', 'External')}
+                    </button>
+                  ))}
                 </div>
                 <div className="wp-scroll-area">
-                  {activeSessions.map(s => (
-                    <SessionCard key={s.id} session={s} onSetTitle={onSessionSetTitle} onCancel={onSessionCancel} />
-                  ))}
+                  {activeSessions
+                    .filter(s => sessionFilter === 'all' ? true
+                      : sessionFilter === 'internal' ? s.source === 'cloe-desktop'
+                      : s.source !== 'cloe-desktop')
+                    .map(s => (
+                      <SessionCard
+                        key={s.id}
+                        session={s}
+                        onSetTitle={onSessionSetTitle}
+                        onCancel={onSessionCancel}
+                        onOpen={onSessionOpen}
+                        onDelete={onSessionDelete}
+                      />
+                    ))}
                   {activeSessions.length === 0 && (
                     <div className="wp-empty">
                       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
                       </svg>
-                      <p>{t('暂无 Agent', 'No active agents')}</p>
+                      <p>{t('暂无会话', 'No sessions')}</p>
                     </div>
                   )}
                 </div>

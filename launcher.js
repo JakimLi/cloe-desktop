@@ -20,6 +20,7 @@ const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const reminderEngine = require('./reminder-engine');
 const agentTracker = require('./agent-tracker');
+const cloeSessions = require('./cloe-sessions');
 const ttsScheduler = require('./tts-scheduler');
 const taskEngine = require('./task-engine');
 const muteState = require('./mute-state');
@@ -1245,8 +1246,13 @@ function createBridgeServers() {
             session_id: data.session_id || '',
           };
           broadcastToClients(usageData);
-          // Also forward to chat window via IPC
-          try { chatWin?.webContents?.send('context-usage', usageData); } catch {}
+          // Also forward to ALL chat windows via IPC
+          const allChatWins = BrowserWindow.getAllWindows().filter(w =>
+            !w.isDestroyed() && w.webContents?.getURL()?.includes('/chat.html')
+          );
+          for (const cw of allChatWins) {
+            try { cw.webContents.send('context-usage', usageData); } catch {}
+          }
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true }));
         } catch (e) {
@@ -2908,87 +2914,123 @@ ipcMain.on('open-settings', () => {
 });
 
 // ==================== Chat Window (standalone BrowserWindow) ====================
-let chatWin = null;
+// All chat windows now go through createChatWindowForSession() which ensures
+// each window is bound to a cloe-desktop session ID.
 
 function createChatWindow() {
-  if (chatWin && !chatWin.isDestroyed()) {
-    chatWin.focus();
-    return chatWin;
-  }
-
-  const mainBounds = win?.getBounds() || { x: 100, y: 100, width: 600, height: 500 };
-
-  chatWin = new BrowserWindow({
-    width: 400,
-    height: 520,
-    x: mainBounds.x + mainBounds.width + 16,
-    y: mainBounds.y,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    resizable: true,
-    minWidth: 300,
-    minHeight: 250,
-    hasShadow: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'chat-preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      webSecurity: false,
-    },
-  });
-
-  if (!app.isPackaged) {
-    chatWin.loadURL('http://localhost:5173/src/chat.html');
-  } else {
-    chatWin.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
-  }
-
-  chatWin.once('ready-to-show', () => { chatWin.show(); });
-
-  chatWin.on('closed', () => {
-    chatWin = null;
-    try { win?.webContents.send('chat-window-state', false); } catch {}
-  });
-
-  try { win?.webContents.send('chat-window-state', true); } catch {}
-  return chatWin;
+  // Legacy entry point — create a new session and open a window for it
+  const session = cloeSessions.createSession({ title: 'New chat' });
+  return createChatWindowForSession(session.id);
 }
 
 function toggleChatWindow() {
-  if (chatWin && !chatWin.isDestroyed()) {
-    if (chatWin.isVisible()) {
-      chatWin.hide();
+  // Find the most recently used chat window and toggle it.
+  // If none exists, create a new session + window.
+  const chatWindows = BrowserWindow.getAllWindows().filter(w =>
+    !w.isDestroyed() && w.webContents?.getURL()?.includes('/chat.html')
+  );
+  if (chatWindows.length > 0) {
+    const target = chatWindows[chatWindows.length - 1];
+    if (target.isVisible()) {
+      target.hide();
       try { win?.webContents.send('chat-window-state', false); } catch {}
     } else {
-      chatWin.show();
-      chatWin.focus();
+      target.show();
+      target.focus();
       try { win?.webContents.send('chat-window-state', true); } catch {}
     }
   } else {
     createChatWindow();
+    try { win?.webContents.send('chat-window-state', true); } catch {}
   }
 }
 
-ipcMain.on('chat-window-close', () => {
-  if (chatWin && !chatWin.isDestroyed()) {
-    chatWin.hide();
-    try { win?.webContents.send('chat-window-state', false); } catch {}
+ipcMain.on('chat-window-close', (event) => {
+  // Hide the specific window that sent this
+  const senderWin = BrowserWindow.fromId(event.sender.id);
+  if (senderWin && !senderWin.isDestroyed()) {
+    senderWin.hide();
   }
+  try { win?.webContents.send('chat-window-state', false); } catch {}
 });
 ipcMain.on('chat-window-toggle', () => toggleChatWindow());
-ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
+ipcMain.on('chat-window-minimize', (event) => {
+  const senderWin = BrowserWindow.fromId(event.sender.id);
+  if (senderWin && !senderWin.isDestroyed()) {
+    senderWin.minimize();
+  }
+});
 
-// Open an additional chat window (for multi-session support)
-ipcMain.on('open-new-chat-window', () => {
-  // Create a new BrowserWindow with the same config as the primary chat window
+// Legacy: open-new-chat-window is now handled by create-chat-session IPC.
+// The old handler is removed to prevent duplicate session creation.
+
+// ==================== Chat Window — Session Management ====================
+
+/**
+ * Create a new internal chat session and open it in a chat window.
+ * IPC: 'create-chat-session' → returns { sessionId }
+ */
+ipcMain.handle('create-chat-session', async () => {
+  const session = cloeSessions.createSession({ title: 'New chat' });
+  createChatWindowForSession(session.id);
+  return { sessionId: session.id };
+});
+
+/**
+ * Open an existing internal chat session in a chat window.
+ * If the session already has an open window, focus it instead.
+ * IPC: 'open-chat-session' (sessionId) → returns { ok: true }
+ */
+ipcMain.handle('open-chat-session', async (_event, sessionId) => {
+  const session = cloeSessions.getSession(sessionId);
+  if (!session) return { ok: false, error: 'session not found' };
+  createChatWindowForSession(sessionId);
+  return { ok: true };
+});
+
+/**
+ * Delete an internal chat session (persisted storage).
+ * IPC: 'delete-chat-session' (sessionId) → returns { ok: true }
+ */
+ipcMain.handle('delete-chat-session', async (_event, sessionId) => {
+  // Close any chat window displaying this session
+  const allWins = BrowserWindow.getAllWindows().filter(w =>
+    !w.isDestroyed() && w.webContents?.getURL()?.includes('/chat.html')
+  );
+  for (const w of allWins) {
+    if (w._cloeSessionId === sessionId) {
+      try { w.close(); } catch {}
+    }
+  }
+  cloeSessions.deleteSession(sessionId);
+  return { ok: true };
+});
+
+/**
+ * Create (or reuse) a chat window for a specific session ID.
+ * Each window tracks which session it belongs to via _cloeSessionId.
+ */
+function createChatWindowForSession(sessionId) {
+  // Check if a window for this session already exists
+  const existing = BrowserWindow.getAllWindows().find(w =>
+    !w.isDestroyed() &&
+    w.webContents?.getURL()?.includes('/chat.html') &&
+    w._cloeSessionId === sessionId
+  );
+  if (existing) {
+    existing.show();
+    existing.focus();
+    return existing;
+  }
+
+  // Calculate offset from existing chat windows
   const mainBounds = win?.getBounds() || { x: 100, y: 100, width: 600, height: 500 };
   const existingWindows = BrowserWindow.getAllWindows().filter(w =>
     !w.isDestroyed() && w.webContents?.getURL()?.includes('/chat.html')
   );
   const offset = existingWindows.length * 30;
-  const newChatWin = new BrowserWindow({
+
+  const chatWindow = new BrowserWindow({
     width: 400,
     height: 520,
     x: mainBounds.x + mainBounds.width + 16 + offset,
@@ -3008,14 +3050,25 @@ ipcMain.on('open-new-chat-window', () => {
       webSecurity: false,
     },
   });
+  chatWindow._cloeSessionId = sessionId;
 
   if (!app.isPackaged) {
-    newChatWin.loadURL('http://localhost:5173/src/chat.html');
+    chatWindow.loadURL('http://localhost:5173/src/chat.html');
   } else {
-    newChatWin.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
+    chatWindow.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
   }
-  newChatWin.once('ready-to-show', () => newChatWin.show());
-});
+
+  // Send the session ID to the window — use 'did-finish-load' as primary
+  // and a small delay fallback in case the React app isn't ready yet
+  chatWindow.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      try { chatWindow.webContents.send('chat-window-session', sessionId); } catch {}
+    }, 100);
+  });
+
+  chatWindow.once('ready-to-show', () => chatWindow.show());
+  return chatWindow;
+}
 
 // ==================== Workspace Window (standalone BrowserWindow) ====================
 let workspaceWin = null;
@@ -3322,38 +3375,48 @@ ipcMain.handle('hermes-switch-model', async (_event, newModel) => {
   }
 });
 
-// Track active chat requests per-window (by sender webContents ID)
-const chatReqs = new Map(); // webContentsId -> http.ClientRequest
+// Track active chat requests by reqId — supports unlimited concurrent requests
+const chatReqs = new Map(); // reqId -> { req, sender, cloeSessionId, accumulatedContent, accumulatedTools }
 
-ipcMain.on('hermes-chat-stop', (event) => {
-  const sid = event.sender.id;
-  const req = chatReqs.get(sid);
-  if (req) {
-    try { req.destroy(); } catch {}
-    chatReqs.delete(sid);
+ipcMain.on('hermes-chat-stop', (event, reqId) => {
+  if (!reqId) return;
+  const entry = chatReqs.get(reqId);
+  if (entry) {
+    try { entry.req.destroy(); } catch {}
+    chatReqs.delete(reqId);
   }
 });
 
 ipcMain.on('hermes-chat-send', (event, payload) => {
-  const { message, sessionId, model } = payload || {};
+  const { message, sessionId, model, reqId, cloeSessionId } = payload || {};
   const { host, port, key } = getHermesApiConfig();
-  console.log(`[CHAT] send from window ${event.sender.id}, session=${sessionId}, activeReqs=${chatReqs.size}`);
+  console.log(`[CHAT] send reqId=${reqId}, session=${sessionId}, cloeSession=${cloeSessionId}, activeReqs=${chatReqs.size}`);
 
   const headers = { 'Content-Type': 'application/json' };
   if (key) headers['Authorization'] = `Bearer ${key}`;
-  // Always send a session ID. When the frontend doesn't have one yet (first
-  // message in a new session), generate a unique one so Hermes doesn't derive
-  // the same session for two chat windows that happen to send similar first
-  // messages (the gateway hashes system_prompt + first_message as a fallback).
-  const effectiveSessionId = sessionId || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // Use the cloe session's hermesSessionId if available, else generate one
+  let effectiveSessionId = sessionId;
+  if (!effectiveSessionId && cloeSessionId) {
+    const cloeSession = cloeSessions.getSession(cloeSessionId);
+    effectiveSessionId = cloeSession?.hermesSessionId || null;
+  }
+  if (!effectiveSessionId) {
+    effectiveSessionId = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
   headers['X-Hermes-Session-Id'] = effectiveSessionId;
 
-  // Route stream events to the originating window via event.sender.
-  // This correctly supports multiple concurrent chat windows.
-  const senderId = event.sender.id;
+  // Mark cloe session as working
+  if (cloeSessionId) {
+    cloeSessions.updateSession(cloeSessionId, { status: 'working' });
+  }
+
+  // Every stream event carries reqId so the renderer can route precisely.
   const sendTo = (ch, data) => {
-    try { event.sender.send(ch, data); } catch {}
+    try { event.sender.send(ch, { ...data, reqId }); } catch {}
   };
+
+  // Accumulate content for persistence on stream end
+  const accumulatedContent = { text: '', tools: [] };
 
   const req = http.request(
     {
@@ -3392,8 +3455,12 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
 
       // Relay session ID from response header
       const newSessionId = res.headers['x-hermes-session-id'];
-      console.log(`[CHAT] response started for window ${senderId}, session=${effectiveSessionId}, respSession=${newSessionId}`);
+      console.log(`[CHAT] response started reqId=${reqId}, session=${effectiveSessionId}, respSession=${newSessionId}`);
       if (newSessionId) {
+        // Persist the hermes session ID for future requests
+        if (cloeSessionId) {
+          cloeSessions.updateSession(cloeSessionId, { hermesSessionId: newSessionId });
+        }
         try { sendTo('hermes-stream-delta', { sessionId: newSessionId }); } catch {}
       }
 
@@ -3418,6 +3485,9 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
             try {
               const parsed = JSON.parse(data);
               if (currentEvent === 'hermes.tool.progress') {
+                if (parsed.tool || parsed.emoji || parsed.label) {
+                  accumulatedContent.tools.push({ tool: parsed.tool, emoji: parsed.emoji, label: parsed.label });
+                }
                 try { sendTo('hermes-stream-tool', parsed); } catch {}
               } else if (currentEvent === 'hermes.error') {
                 // Backend error during streaming (e.g. model failure, rate limit)
@@ -3427,6 +3497,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
                 // Standard chat.completion.chunk
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
+                  accumulatedContent.text += content;
                   try { sendTo('hermes-stream-delta', { content }); } catch {}
                 }
               }
@@ -3438,8 +3509,31 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('end', () => {
         if (!ended) {
           ended = true;
-          console.log(`[CHAT] stream ended for window ${senderId}`);
-          chatReqs.delete(senderId);
+          console.log(`[CHAT] stream ended reqId=${reqId}`);
+          chatReqs.delete(reqId);
+
+          // Persist messages + update status for the cloe session
+          if (cloeSessionId && (accumulatedContent.text || accumulatedContent.tools.length > 0)) {
+            const session = cloeSessions.getSession(cloeSessionId);
+            if (session) {
+              const newMessages = [
+                ...session.messages,
+                { role: 'user', content: message },
+                { role: 'assistant', content: accumulatedContent.text, tools: accumulatedContent.tools },
+              ];
+              // Auto-title from first user message
+              const titleUpdate = (!session.title || session.title === 'New chat') && message
+                ? { title: message.slice(0, 40) + (message.length > 40 ? '…' : '') }
+                : {};
+              cloeSessions.updateSession(cloeSessionId, {
+                ...titleUpdate,
+                messages: newMessages,
+              });
+              // Notify turn-end (triggers TTS + status badge)
+              cloeSessions.notifyTurnEnd(cloeSessionId);
+            }
+          }
+
           try { sendTo('hermes-stream-end', {}); } catch {}
         }
       });
@@ -3447,7 +3541,8 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
       res.on('error', (err) => {
         if (!ended) {
           ended = true;
-          chatReqs.delete(senderId);
+          chatReqs.delete(reqId);
+          if (cloeSessionId) cloeSessions.updateSession(cloeSessionId, { status: 'idle' });
           try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
         }
       });
@@ -3455,7 +3550,8 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   );
 
   req.on('error', (err) => {
-    chatReqs.delete(senderId);
+    chatReqs.delete(reqId);
+    if (cloeSessionId) cloeSessions.updateSession(cloeSessionId, { status: 'idle' });
     try { sendTo('hermes-stream-error', { error: err.message }); } catch {}
   });
 
@@ -3466,7 +3562,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   });
   req.write(body);
   req.end();
-  chatReqs.set(event.sender.id, req);
+  chatReqs.set(reqId, { req, sender: event.sender, cloeSessionId, accumulatedContent });
 });
 
 // ==================== Canvas Window ====================

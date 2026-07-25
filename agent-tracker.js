@@ -14,6 +14,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+const cloeSessions = require('./cloe-sessions');
+
 // ==================== Session Store ====================
 
 /** @type {Map<string, object>} */
@@ -24,6 +26,7 @@ let broadcastFn = null;
 
 function setBroadcast(fn) {
   broadcastFn = fn;
+  cloeSessions.setBroadcast(fn);
 }
 
 function broadcast(msg) {
@@ -227,19 +230,22 @@ function setTitle(id, title) {
 }
 
 function listSessions() {
-  const list = [];
+  // Merge external (ephemeral) + internal (persisted cloe-desktop) sessions
+  const external = [];
   for (const session of sessions.values()) {
-    list.push(toPublic(session));
+    external.push(toPublic(session));
   }
-  return list;
+  const internal = cloeSessions.listAll();
+  return [...internal, ...external];
 }
 
 /** Strip internal fields for public API response */
 function toPublic(session) {
   return {
     id: session.id,
-    source: session.source,
-    source_label: session.source_label,
+    source: session.source || 'unknown',
+    source_label: session.source_label || session.source || 'Unknown',
+    isInternal: session.source === 'cloe-desktop',
     status: session.status,
     title: session.title,
     created_at: session.created_at,
@@ -326,7 +332,62 @@ function handleAgentRoute(req, res) {
   const deleteMatch = req.method === 'DELETE' && urlPath.match(/^\/agent-sessions\/([^/]+)$/);
   if (deleteMatch) {
     const id = decodeURIComponent(deleteMatch[1]);
-    if (!endSession(id)) { jsonRes(res, 404, { error: 'session not found' }); return; }
+    // Try internal session first, then external
+    if (cloeSessions.deleteSession(id)) {
+      jsonRes(res, 200, { ok: true });
+      return true;
+    }
+    if (!endSession(id)) { jsonRes(res, 404, { error: 'session not found' }); return true; }
+    jsonRes(res, 200, { ok: true });
+    return true;
+  }
+
+  // GET /agent-sessions/:id — get single session with full detail (messages etc.)
+  const getOneMatch = req.method === 'GET' && urlPath.match(/^\/agent-sessions\/([^/]+)$/);
+  if (getOneMatch) {
+    const id = decodeURIComponent(getOneMatch[1]);
+    const internal = cloeSessions.getSession(id);
+    if (internal) {
+      jsonRes(res, 200, { session: cloeSessions.toPublic(internal) });
+      return true;
+    }
+    const external = sessions.get(id);
+    if (external) {
+      jsonRes(res, 200, { session: toPublic(external) });
+      return true;
+    }
+    jsonRes(res, 404, { error: 'session not found' });
+    return true;
+  }
+
+  // PATCH /agent-sessions/:id — update session (title, messages, contextPct, etc.)
+  const patchMatch = req.method === 'PATCH' && urlPath.match(/^\/agent-sessions\/([^/]+)$/);
+  if (patchMatch) {
+    const id = decodeURIComponent(patchMatch[1]);
+    readJsonBody(req, (err, data) => {
+      if (err) { jsonRes(res, 400, { error: 'invalid JSON' }); return; }
+      // Internal sessions support full updates; external only supports title
+      const internal = cloeSessions.getSession(id);
+      if (internal) {
+        const updated = cloeSessions.updateSession(id, data || {});
+        jsonRes(res, 200, { ok: true, session: cloeSessions.toPublic(updated) });
+        return;
+      }
+      if (data?.title != null) {
+        const session = setTitle(id, data.title);
+        if (session) { jsonRes(res, 200, { ok: true, session: toPublic(session) }); return; }
+      }
+      jsonRes(res, 404, { error: 'session not found' });
+    });
+    return true;
+  }
+
+  // POST /agent-sessions/:id/notify-working — mark an internal session as working
+  const notifyWorkingMatch = req.method === 'POST' && urlPath.match(/^\/agent-sessions\/([^/]+)\/notify-working$/);
+  if (notifyWorkingMatch) {
+    const id = decodeURIComponent(notifyWorkingMatch[1]);
+    const session = cloeSessions.notifyWorking(id);
+    if (!session) { jsonRes(res, 404, { error: 'session not found' }); return true; }
     jsonRes(res, 200, { ok: true });
     return true;
   }

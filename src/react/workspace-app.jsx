@@ -142,6 +142,39 @@ function WorkspaceApp() {
     }).catch(() => {});
   }, []);
 
+  // ── Internal session callbacks (Cloe Desktop chat sessions) ──
+  const handleSessionCreate = useCallback(() => {
+    if (window.electronAPI?.createChatSession) {
+      window.electronAPI.createChatSession();
+    } else {
+      // Fallback: create via API + open window manually
+      fetch(`${API_BASE}/agent-sessions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'cloe-desktop', title: 'New chat' }),
+      }).then(r => r.json()).then(d => {
+        if (d.session) setSessions(prev => [...prev, d.session]);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const handleSessionOpen = useCallback((sessionId) => {
+    if (window.electronAPI?.openChatSession) {
+      window.electronAPI.openChatSession(sessionId);
+    }
+  }, []);
+
+  const handleSessionDelete = useCallback((sessionId) => {
+    if (window.electronAPI?.deleteChatSession) {
+      window.electronAPI.deleteChatSession(sessionId);
+    } else {
+      fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
+    }
+    // Optimistic update
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+  }, []);
+
   // ── Reminder callbacks ──
   const handleReminderCreate = useCallback((data) => {
     fetch(`${API_BASE}/reminders`, {
@@ -359,6 +392,9 @@ function WorkspaceApp() {
       timingId={timingId}
       onSessionSetTitle={handleAgentSetTitle}
       onSessionCancel={handleAgentCancel}
+      onSessionOpen={handleSessionOpen}
+      onSessionDelete={handleSessionDelete}
+      onSessionCreate={handleSessionCreate}
       onTaskCreate={handleTaskCreate}
       onTaskUpdate={handleTaskUpdate}
       onTaskDelete={handleTaskDelete}

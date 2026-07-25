@@ -80,4 +80,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('character-size-updated', h);
     return () => ipcRenderer.removeListener('character-size-updated', h);
   },
+  // Chat session management
+  createChatSession: () => ipcRenderer.invoke('create-chat-session'),
+  openChatSession: (sessionId) => ipcRenderer.invoke('open-chat-session', sessionId),
+  deleteChatSession: (sessionId) => ipcRenderer.invoke('delete-chat-session', sessionId),
 });

@@ -259,8 +259,37 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+.wp-session-card.wp-session-internal:hover {
+  background: rgba(90, 200, 250, 0.06);
+}
+
 .wp-session-card.wp-session-action {
   background: rgba(245, 166, 35, 0.04);
+}
+
+/* Filter bar for session list */
+.wp-filter-bar {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px 8px;
+}
+.wp-filter-tab {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.wp-filter-tab:hover {
+  color: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.04);
+}
+.wp-filter-tab.active {
+  color: #5ac8fa;
+  background: rgba(90,200,250,0.1);
 }
 
 .wp-session-status-icon {

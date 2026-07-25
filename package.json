@@ -84,6 +84,7 @@
     "files": [
       "dist/**/*",
       "launcher.js",
+      "cloe-sessions.js",
       "reminder-engine.js",
       "agent-tracker.js",
       "mute-state.js",
