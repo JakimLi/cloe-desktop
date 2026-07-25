@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // Chat session management
   createChatSession: () => ipcRenderer.invoke('create-chat-session'),
+  quickChatSession: () => ipcRenderer.invoke('quick-chat-session'),
   openChatSession: (sessionId) => ipcRenderer.invoke('open-chat-session', sessionId),
   deleteChatSession: (sessionId) => ipcRenderer.invoke('delete-chat-session', sessionId),
 });

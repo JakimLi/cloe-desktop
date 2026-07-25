@@ -153,6 +153,22 @@ function listAll() {
   return list;
 }
 
+function findLatestUnsentSession() {
+  let latest = null;
+  let latestTs = 0;
+  for (const session of sessions.values()) {
+    const hasMessages = Array.isArray(session.messages) && session.messages.length > 0;
+    if (hasMessages) continue;
+    if (session.hermesSessionId) continue;
+    const ts = Date.parse(session.last_updated || session.created_at || 0) || 0;
+    if (!latest || ts >= latestTs) {
+      latest = session;
+      latestTs = ts;
+    }
+  }
+  return latest;
+}
+
 // ── Notification helpers (mirror agent-tracker's TTS flow) ──
 
 function notifyTurnEnd(id) {
@@ -193,6 +209,7 @@ module.exports = {
   updateSession,
   deleteSession,
   listAll,
+  findLatestUnsentSession,
   notifyTurnEnd,
   notifyWorking,
   toPublic,

@@ -295,7 +295,7 @@ function ChatApp() {
   }, []);
 
   // ── Shortcuts ──
-  useShortcut('cloe-chat-shortcut', () => window.electronAPI?.createChatSession?.());
+  useShortcut('cloe-chat-shortcut', () => window.electronAPI?.quickChatSession?.());
   useShortcut('cloe-transparency-shortcut', () => setTransparent(p => { const n = !p; localStorage.setItem('cloe-chat-transparent', String(n)); return n; }));
   useShortcut('cloe-chat-pin-shortcut', () => setPenetrate(p => { const n = !p; localStorage.setItem('cloe-chat-penetrate', String(n)); return n; }));
   useShortcut('cloe-chat-focus-shortcut', () => textareaRef.current?.focus());

@@ -271,7 +271,7 @@ export default function App() {
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
       e.stopPropagation();
-      window.electronAPI?.createChatSession?.();
+      window.electronAPI?.quickChatSession?.();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);

@@ -2923,6 +2923,17 @@ function createChatWindow() {
   return createChatWindowForSession(session.id);
 }
 
+function openLatestUnsentOrCreateChatSession() {
+  const existing = cloeSessions.findLatestUnsentSession();
+  if (existing) {
+    createChatWindowForSession(existing.id);
+    return { sessionId: existing.id, reused: true };
+  }
+  const session = cloeSessions.createSession({ title: 'New chat' });
+  createChatWindowForSession(session.id);
+  return { sessionId: session.id, reused: false };
+}
+
 function toggleChatWindow() {
   // Find the most recently used chat window and toggle it.
   // If none exists, create a new session + window.
@@ -2974,6 +2985,14 @@ ipcMain.handle('create-chat-session', async () => {
   const session = cloeSessions.createSession({ title: 'New chat' });
   createChatWindowForSession(session.id);
   return { sessionId: session.id };
+});
+
+/**
+ * Open the latest unsent internal chat session, or create one if none exists.
+ * IPC: 'quick-chat-session' → returns { sessionId, reused }
+ */
+ipcMain.handle('quick-chat-session', async () => {
+  return openLatestUnsentOrCreateChatSession();
 });
 
 /**
