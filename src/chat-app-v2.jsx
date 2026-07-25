@@ -851,6 +851,29 @@ function ChatApp() {
               <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
             )}
           </div>
+          {/* Context usage — inline in toolbar */}
+          <div className="chat-context-bar">
+            <svg viewBox="0 0 36 36" className="chat-context-svg">
+              <path
+                className="chat-context-bg"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className={`chat-context-fill${
+                  contextPct >= 90
+                    ? ' critical'
+                    : contextPct >= 75
+                      ? ' danger'
+                      : contextPct >= 50
+                        ? ' warn'
+                        : ''
+                }`}
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`}
+              />
+            </svg>
+            <span className="chat-context-text">{Math.round(contextPct)}%</span>
+          </div>
           <button
             className={
               sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'
@@ -880,30 +903,6 @@ function ChatApp() {
             )}
           </button>
         </div>
-      </div>
-
-      {/* Context usage indicator */}
-      <div className="chat-context-bar">
-        <svg viewBox="0 0 36 36" className="chat-context-svg">
-          <path
-            className="chat-context-bg"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-          <path
-            className={`chat-context-fill${
-              contextPct >= 90
-                ? ' critical'
-                : contextPct >= 75
-                  ? ' danger'
-                  : contextPct >= 50
-                    ? ' warn'
-                    : ''
-            }`}
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`}
-          />
-        </svg>
-        <span className="chat-context-text">{Math.round(contextPct)}% context</span>
       </div>
 
       {/* Avatar Cropper Modal */}

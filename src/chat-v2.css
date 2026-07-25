@@ -653,15 +653,13 @@ html, body, #root {
 }
 .chat-stop-btn:active { transform: scale(1); }
 
-/* ── Context usage indicator ── */
+/* ── Context usage indicator (inline in toolbar) ── */
 .chat-context-bar {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin: 0 16px 6px;
-  padding: 2px 7px 2px 5px;
-  border-radius: 8px;
-  align-self: flex-start;
+  gap: 3px;
+  margin-left: auto;
+  padding: 0;
 }
 .chat-context-svg {
   width: 12px;
