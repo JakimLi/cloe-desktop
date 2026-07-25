@@ -3023,8 +3023,22 @@ function createChatWindowForSession(sessionId) {
     return existing;
   }
 
-  // Calculate offset from existing chat windows
-  const mainBounds = win?.getBounds() || { x: 100, y: 100, width: 600, height: 500 };
+  // Calculate offset from existing chat windows.
+  // When the main window is in macOS fullscreen, its bounds span the whole
+  // screen, so positioning the chat relative to mainBounds would place it
+  // off-screen (and macOS may then enlarge it). In that case, anchor the
+  // chat window to the visible screen area instead.
+  let originX, originY;
+  const mainIsFullscreen = win && !win.isDestroyed() && win.isFullScreen();
+  if (mainIsFullscreen) {
+    const screenArea = screen.getPrimaryDisplay().workArea;
+    originX = screenArea.x + 40;
+    originY = screenArea.y + 40;
+  } else {
+    const mainBounds = win?.getBounds() || { x: 100, y: 100, width: 600, height: 500 };
+    originX = mainBounds.x + mainBounds.width + 16;
+    originY = mainBounds.y;
+  }
   const existingWindows = BrowserWindow.getAllWindows().filter(w =>
     !w.isDestroyed() && w.webContents?.getURL()?.includes('/chat.html')
   );
@@ -3033,12 +3047,13 @@ function createChatWindowForSession(sessionId) {
   const chatWindow = new BrowserWindow({
     width: 400,
     height: 520,
-    x: mainBounds.x + mainBounds.width + 16 + offset,
-    y: mainBounds.y + offset,
+    x: originX + offset,
+    y: originY + offset,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
     resizable: true,
+    fullscreenable: false,
     minWidth: 300,
     minHeight: 250,
     hasShadow: true,
