@@ -814,7 +814,7 @@ function ChatApp() {
         </div>
       )}
 
-      {/* Input area */}
+      {/* Input area — textarea on top, actions row below, unified container */}
       <div className="chat-input-area">
         <textarea
           ref={textareaRef}
@@ -828,27 +828,29 @@ function ChatApp() {
           disabled={connected === false}
           rows={1}
         />
-        <div className="chat-input-actions">
-          {models.length > 1 && (
-            <div className="chat-model-select-wrapper">
+        <div className="chat-input-toolbar">
+          <div className="chat-input-actions">
+            {models.length > 1 && (
+              <div className="chat-model-select-wrapper">
+                <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
+                <select
+                  className="chat-model-select"
+                  value={currentModel}
+                  onChange={onModelChange}
+                  title="Switch model"
+                >
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {models.length <= 1 && (
               <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-              <select
-                className="chat-model-select"
-                value={currentModel}
-                onChange={onModelChange}
-                title="Switch model"
-              >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {models.length <= 1 && (
-            <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-          )}
+            )}
+          </div>
           <button
             className={
               sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'
