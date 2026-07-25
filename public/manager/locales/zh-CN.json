@@ -404,6 +404,6 @@
     "statusTriggered": "已触发",
     "statusPaused": "已暂停",
     "statusIdle": "空闲",
-    "statusCompleted": "已完成"
+    "statusCompleted": "已就绪"
   }
 }

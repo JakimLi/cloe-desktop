@@ -9,7 +9,7 @@ const API_BASE = 'http://127.0.0.1:19851';
 
 const STATUS_CONFIG = {
   working:        { label: '运行中',   color: '#4d9eff', pulse: true },
-  turn_complete:  { label: '已完成',   color: '#3dd68c', pulse: false },
+  turn_complete:  { label: '已就绪',   color: '#3dd68c', pulse: false },
   needs_decision: { label: '待确认',   color: '#f5a623', pulse: true },
 };
 

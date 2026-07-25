@@ -404,6 +404,6 @@
     "statusTriggered": "Triggered",
     "statusPaused": "Paused",
     "statusIdle": "Idle",
-    "statusCompleted": "Done"
+    "statusCompleted": "Ready"
   }
 }

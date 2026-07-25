@@ -69,7 +69,7 @@ function formatNextTime(triggerAtIso) {
 const SESSION_STATUS = {
   idle:           { label: t('待发送', 'Idle'),      color: '#4d9eff', pulse: false, blink: true },
   working:        { label: t('运行中', 'Running'),   color: '#4d9eff', pulse: true,  blink: true },
-  turn_complete:  { label: t('已完成', 'Done'),      color: '#3dd68c', pulse: false, icon: 'check' },
+  turn_complete:  { label: t('已就绪', 'Ready'),     color: '#3dd68c', pulse: false, icon: 'check' },
   needs_decision: { label: t('待确认', 'Waiting'),   color: '#f5a623', pulse: true,  icon: 'alert' },
 };
 

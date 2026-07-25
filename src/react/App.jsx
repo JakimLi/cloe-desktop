@@ -89,7 +89,7 @@ const toastAckBtnStyle = {
 function SessionToast({ toast, onAcknowledge }) {
   if (!toast) return null;
   const isDecision = toast.status === 'needs_decision';
-  const text = isDecision ? `${toast.name} · 待确认` : `${toast.name} · 已完成`;
+  const text = isDecision ? `${toast.name} · 待确认` : `${toast.name} · 已就绪`;
   const color = isDecision ? '#f5a623' : '#3dd68c';
   return (
     <div style={toastStyle}>
