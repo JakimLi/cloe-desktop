@@ -507,6 +507,21 @@ html, body, #root {
 .chat-code-block::-webkit-scrollbar-track { background: transparent; }
 .chat-code-block::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 2px; }
 
+/* ── Syntax Highlighting (highlight.js dark theme) ── */
+.hljs { color: rgba(255, 255, 255, 0.85); background: transparent; }
+.hljs-comment, .hljs-quote { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-name, .hljs-tag { color: #c678dd; }
+.hljs-string, .hljs-attr, .hljs-symbol, .hljs-bullet, .hljs-addition { color: #98c379; }
+.hljs-number, .hljs-literal, .hljs-boolean { color: #d19a66; }
+.hljs-title, .hljs-section, .hljs-function .hljs-title { color: #61afef; }
+.hljs-params, .hljs-type, .hljs-class .hljs-title { color: #e5c07b; }
+.hljs-variable, .hljs-template-variable, .hljs-property { color: #e06c75; }
+.hljs-meta, .hljs-deletion { color: #e06c75; }
+.hljs-attribute { color: #d19a66; }
+.hljs-regexp, .hljs-link { color: #56b6c2; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }
+
 /* ═══════════════════════════════════════════════════════
    INPUT AREA — Minimal, no border-heavy container
    ═══════════════════════════════════════════════════════ */

@@ -18,6 +18,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import './chat-v2.css';
 
 /* ── Collapsible tool call — inline, minimal ── */
@@ -111,7 +112,7 @@ function MessageContent({ content, tools, image, isStreaming }) {
         </div>
       )}
       {content && (
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
           {content}
         </ReactMarkdown>
       )}
