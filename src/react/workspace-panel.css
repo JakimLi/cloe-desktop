@@ -251,8 +251,13 @@
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
+  margin-bottom: 6px;
   border-radius: 10px;
   transition: background 0.12s;
+}
+
+.wp-session-card:last-child {
+  margin-bottom: 0;
 }
 
 .wp-session-card:hover {
@@ -383,15 +388,12 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
-  opacity: 0;
   transition: opacity 0.12s;
 }
 
-.wp-session-card:hover .wp-session-btns,
-.wp-session-card.wp-session-action .wp-session-btns { opacity: 1; }
-
 .wp-session-ack,
-.wp-session-cancel {
+.wp-session-cancel,
+.wp-session-open {
   background: none;
   border: none;
   cursor: pointer;
@@ -405,6 +407,9 @@
 
 .wp-session-ack { color: rgba(61, 214, 140, 0.6); }
 .wp-session-ack:hover { color: rgba(61, 214, 140, 1); background: rgba(61, 214, 140, 0.12); }
+
+.wp-session-open { color: rgba(90, 200, 250, 0.55); }
+.wp-session-open:hover { color: #5ac8fa; background: rgba(90, 200, 250, 0.12); }
 
 .wp-session-cancel { color: rgba(255, 255, 255, 0.15); }
 .wp-session-cancel:hover { color: rgba(255, 100, 100, 0.7); background: rgba(255, 255, 255, 0.04); }
