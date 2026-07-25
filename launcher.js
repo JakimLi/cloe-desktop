@@ -108,6 +108,14 @@ function startBridge() {
 }
 
 function createBridgeServers() {
+  // --- HTTP route modules (dependency-injected via ctx) ---
+  const configRoutesHandler = require('./src/main/config-routes')({
+    loadConfig, saveConfig, getDataDir,
+    loadWindowPosition, saveWindowPosition, clearSavedWindowPosition,
+    getWindowScale, setWindowScale, MIN_SCALE, MAX_SCALE,
+    getWin: () => win,
+  });
+
   // --- WebSocket ---
   const wss = new WebSocketServer({ port: WS_PORT, host: BRIDGE_HOST });
 
@@ -177,182 +185,7 @@ function createBridgeServers() {
 
     const urlPath = (req.url || '').split('?')[0];
 
-    if (req.method === 'GET' && urlPath === '/api-config') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(loadConfig()));
-      return;
-    }
-
-    if (req.method === 'POST' && urlPath === '/api-config') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          const patch = JSON.parse(body || '{}');
-          if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'body must be a JSON object' }));
-            return;
-          }
-          const merged = { ...loadConfig(), ...patch };
-          saveConfig(merged);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(merged));
-        } catch (e) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'invalid JSON' }));
-        }
-      });
-      return;
-    }
-
-    if (req.method === 'GET' && urlPath === '/window-position') {
-      const saved = loadWindowPosition();
-      let current = null;
-      if (win) {
-        const [cx, cy] = win.getPosition();
-        current = { x: cx, y: cy };
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ saved, current }));
-      return;
-    }
-
-    // GET /window-scale — get current window scale
-    if (req.method === 'GET' && urlPath === '/window-scale') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ scale: getWindowScale(), min: MIN_SCALE, max: MAX_SCALE }));
-      return;
-    }
-
-    // POST /window-scale — set window scale (0.3 ~ 2.0)
-    if (req.method === 'POST' && urlPath === '/window-scale') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          const payload = JSON.parse(body || '{}');
-          const s = parseFloat(payload.scale);
-          if (isNaN(s) || !Number.isFinite(s)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'expected { scale: number }' }));
-            return;
-          }
-          const actual = setWindowScale(s);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true, scale: actual }));
-        } catch (_) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'invalid JSON' }));
-        }
-      });
-      return;
-    }
-
-    if (req.method === 'POST' && urlPath === '/window-position') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          const payload = JSON.parse(body || '{}');
-          if (payload && payload.clear === true) {
-            clearSavedWindowPosition();
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true }));
-            return;
-          }
-          const x = payload.x;
-          const y = payload.y;
-          if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'expected { x, y } numbers' }));
-            return;
-          }
-          saveWindowPosition(x, y);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true }));
-        } catch (_) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'invalid JSON' }));
-        }
-      });
-      return;
-    }
-
-    // ── Character Layout (position + size within the window) ──
-
-    // GET /character-layout — get character position & size
-    if (req.method === 'GET' && urlPath === '/character-layout') {
-      const cfg = loadConfig();
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        position: cfg.characterPosition || { x: 0.5, y: 1.0 },
-        size: cfg.characterSize || { scale: 1.0 },
-      }));
-      return;
-    }
-
-    // POST /character-layout — set character position and/or size
-    if (req.method === 'POST' && urlPath === '/character-layout') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          const payload = JSON.parse(body || '{}');
-          const cfg = loadConfig();
-          if (payload.position && typeof payload.position.x === 'number' && typeof payload.position.y === 'number') {
-            cfg.characterPosition = { x: payload.position.x, y: payload.position.y };
-          }
-          if (payload.size && typeof payload.size.scale === 'number') {
-            cfg.characterSize = { scale: Math.max(0.2, Math.min(3.0, payload.size.scale)) };
-          }
-          saveConfig(cfg);
-          console.log(`[Config] Saved characterLayout: pos=${JSON.stringify(cfg.characterPosition)} size=${JSON.stringify(cfg.characterSize)}`);
-          // Broadcast to main window for real-time update
-          try { win?.webContents?.send('character-position-updated', cfg.characterPosition); } catch {}
-          try { win?.webContents?.send('character-size-updated', cfg.characterSize); } catch {}
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true }));
-        } catch (_) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'invalid JSON' }));
-        }
-      });
-      return;
-    }
-
-    // GET /plugin-rules — read plugin-rules.json from dataDir
-    if (req.method === 'GET' && urlPath === '/plugin-rules') {
-      try {
-        const rulesPath = path.join(getDataDir(), 'plugin-rules.json');
-        const raw = fs.readFileSync(rulesPath, 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(raw);
-      } catch (_) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{}');
-      }
-      return;
-    }
-
-    // POST /plugin-rules — write plugin-rules.json to dataDir
-    if (req.method === 'POST' && urlPath === '/plugin-rules') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          const rules = JSON.parse(body || '{}');
-          const rulesPath = path.join(getDataDir(), 'plugin-rules.json');
-          fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2), 'utf-8');
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true }));
-        } catch (e) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'invalid JSON: ' + e.message }));
-        }
-      });
-      return;
-    }
+    if (configRoutesHandler(req, res, urlPath)) return;
 
     // POST /context-usage — receive context usage from Hermes plugin, broadcast to WS clients
     if (req.method === 'POST' && urlPath === '/context-usage') {
