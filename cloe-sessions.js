@@ -160,7 +160,14 @@ function notifyTurnEnd(id) {
   session.turn_count = (session.turn_count || 0) + 1;
   session.lastUpdated = new Date().toISOString();
   scheduleSave();
-  broadcast({ type: 'agent-session-updated', session: toPublic(session) });
+  const pub = toPublic(session);
+  broadcast({ type: 'agent-session-updated', session: pub });
+  // Deferred TTS via tts-scheduler — same flow as external (agent-tracker).
+  // Lazy-require to avoid the agent-tracker ↔ cloe-sessions circular dep at
+  // module-load time; both modules are fully loaded by the time this runs.
+  try { require('./agent-tracker').scheduleSessionTTS(pub, 'turn-end'); } catch (e) {
+    console.error('[cloe-sessions] scheduleSessionTTS failed:', e.message);
+  }
   return session;
 }
 

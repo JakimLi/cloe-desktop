@@ -116,6 +116,32 @@ function generateAgentTTS(session, event) {
     });
 }
 
+/**
+ * Schedule deferred TTS for a session turn event.
+ * Shared by external (agent-tracker) and internal (cloe-sessions) sessions.
+ * Honors the global mute switch; cancelled if the user acknowledges within
+ * the configured delay (see tts-scheduler).
+ *
+ * @param {object} session - public session object (must have id/title/source_label/source)
+ * @param {'turn-end'|'needs-decision'} event
+ */
+function scheduleSessionTTS(session, event) {
+  try {
+    const { isMuted } = require('./mute-state');
+    if (isMuted()) return;
+    const ttsScheduler = require('./tts-scheduler');
+    const sourceKey = `agent:${session.id}:${event}`;
+    const message = getAgentTTSMessage(session, event);
+    if (!message) return;
+    ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(session, event), {
+      source: 'agent',
+      id: session.id,
+    });
+  } catch (e) {
+    console.error('[agent-tracker] scheduleSessionTTS failed:', e.message);
+  }
+}
+
 // ==================== Session Operations ====================
 
 function createSession(data) {
@@ -158,18 +184,7 @@ function notifyTurnEnd(id, data) {
   broadcast({ type: 'agent-session-updated', session: toPublic(session) });
 
   // Deferred TTS via tts-scheduler (cancelled if user acknowledges within delay)
-  const { isMuted } = require('./mute-state');
-  if (!isMuted()) {
-    const ttsScheduler = require('./tts-scheduler');
-    const sourceKey = `agent:${id}:turn-end`;
-    const message = getAgentTTSMessage(session, 'turn-end');
-    if (message) {
-      ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(session, 'turn-end'), {
-        source: 'agent',
-        id,
-      });
-    }
-  }
+  scheduleSessionTTS(session, 'turn-end');
 
   return session;
 }
@@ -184,18 +199,7 @@ function notifyNeedsDecision(id, data) {
   broadcast({ type: 'agent-session-updated', session: toPublic(session) });
 
   // Deferred TTS via tts-scheduler (cancelled if user acknowledges within delay)
-  const { isMuted } = require('./mute-state');
-  if (!isMuted()) {
-    const ttsScheduler = require('./tts-scheduler');
-    const sourceKey = `agent:${id}:needs-decision`;
-    const message = getAgentTTSMessage(session, 'needs-decision');
-    if (message) {
-      ttsScheduler.scheduleTTS(sourceKey, message, () => generateAgentTTS(session, 'needs-decision'), {
-        source: 'agent',
-        id,
-      });
-    }
-  }
+  scheduleSessionTTS(session, 'needs-decision');
 
   return session;
 }
@@ -419,6 +423,8 @@ function jsonRes(res, status, data) {
 module.exports = {
   setBroadcast,
   handleAgentRoute,
+  // Shared TTS scheduling (used by cloe-sessions for internal chat)
+  scheduleSessionTTS,
   // Exposed for testing
   _sessions: sessions,
   _createSession: createSession,
