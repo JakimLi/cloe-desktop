@@ -35,25 +35,9 @@ let win;
 let tray = null;
 const bridgeClients = bridge.getClients();
 
-// ==================== Canvas Elements (in-memory store) ====================
-const canvasElements = [];
-
-/** Current canvas mode (null = free/default mode) */
-let currentCanvasMode = null;
-
-/** Canvas mode broadcast (sends to main renderer window) */
-function broadcastCanvasUpdate() {
-  if (win && !win.isDestroyed()) {
-    win.webContents.send('canvas-update', [...canvasElements]);
-  }
-}
-
-/** Broadcast mode change to main renderer window */
-function broadcastCanvasModeChange(mode) {
-  if (win && !win.isDestroyed()) {
-    win.webContents.send('canvas-mode-change', { mode });
-  }
-}
+// ==================== Canvas Elements (in-memory store, see src/main/canvas-store.js) ====================
+const canvasStore = require('./src/main/canvas-store');
+const { canvasElements, broadcastCanvasUpdate, broadcastCanvasModeChange } = canvasStore;
 
 // ==================== User config + data dir (see src/main/config.js) ====================
 const {
@@ -1043,7 +1027,7 @@ function createBridgeServers() {
 
     // GET /canvas/mode — get current canvas mode
     if (req.method === 'GET' && urlPath === '/canvas/mode') {
-      jsonRes(res, 200, { mode: currentCanvasMode || 'free' });
+      jsonRes(res, 200, { mode: canvasStore.getCurrentCanvasMode() || 'free' });
       return;
     }
 
@@ -1056,16 +1040,16 @@ function createBridgeServers() {
           jsonRes(res, 400, { error: 'body must contain { name: string }' });
           return;
         }
-        currentCanvasMode = name === 'free' ? null : name;
-        broadcastCanvasModeChange(currentCanvasMode || 'free');
-        jsonRes(res, 200, { ok: true, mode: currentCanvasMode || 'free' });
+        canvasStore.setCurrentCanvasMode(name === 'free' ? null : name);
+        broadcastCanvasModeChange(canvasStore.getCurrentCanvasMode() || 'free');
+        jsonRes(res, 200, { ok: true, mode: canvasStore.getCurrentCanvasMode() || 'free' });
       });
       return;
     }
 
     // POST /canvas/mode/reset — reset canvas mode to free
     if (req.method === 'POST' && urlPath === '/canvas/mode/reset') {
-      currentCanvasMode = null;
+      canvasStore.setCurrentCanvasMode(null);
       broadcastCanvasModeChange('free');
       jsonRes(res, 200, { ok: true, mode: 'free' });
       return;
