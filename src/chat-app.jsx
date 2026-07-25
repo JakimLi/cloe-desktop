@@ -58,7 +58,7 @@ function ToolCall({ tool, emoji, label }) {
 
 /* ── Markdown renderer ── */
 
-function MessageContent({ content, tools, image, isStreaming }) {
+function MessageContent({ content, tools, parts, image, isStreaming }) {
   const components = {
     pre({ children }) {
       return <div className="chat-code-block">{children}</div>;
@@ -108,18 +108,38 @@ function MessageContent({ content, tools, image, isStreaming }) {
           }}
         />
       )}
-      {tools && tools.length > 0 && (
-        <div className="chat-tool-list">
-          {tools.map((t, i) => (
-            <ToolCall key={i} {...t} />
-          ))}
-        </div>
-      )}
-      {content && (
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
-          {content}
-        </ReactMarkdown>
-      )}
+      {/* Render content in true arrival order: tools and text interleaved.
+          Prefer the ordered `parts` array; fall back to legacy content/tools
+          (e.g. historical messages, external/inline messages, user input). */}
+      {(parts && parts.length > 0
+        ? parts
+        : [
+            ...(tools && tools.length > 0 ? [{ type: 'tool-group', tools }] : []),
+            ...(content ? [{ type: 'text', text: content }] : []),
+          ]
+      ).map((part, i) => {
+        if (part.type === 'tool') {
+          return (
+            <div className="chat-tool-list" key={`tool-${i}`}>
+              <ToolCall tool={part.tool} emoji={part.emoji} label={part.label} />
+            </div>
+          );
+        }
+        if (part.type === 'tool-group') {
+          return (
+            <div className="chat-tool-list" key={`tool-${i}`}>
+              {part.tools.map((t, j) => (
+                <ToolCall key={j} {...t} />
+              ))}
+            </div>
+          );
+        }
+        return (
+          <ReactMarkdown key={`text-${i}`} remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
+            {part.text}
+          </ReactMarkdown>
+        );
+      })}
       {isStreaming && <span className="chat-cursor" />}
     </div>
   );
@@ -267,13 +287,14 @@ function ChatApp() {
   const hermesSessionIdRef = useRef(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  // Messages + streaming
+  // Messages + streaming. Messages carry an ordered `parts` array so tool calls
+  // and text render in the exact order they arrived (no forced grouping that
+  // pushes all tools above the text).
   const [messages, setMessages] = useState([]);
-  const [streamingContent, setStreamingContent] = useState('');
-  const [streamingTools, setStreamingTools] = useState([]);
+  const [streamingParts, setStreamingParts] = useState([]);
   const [sending, setSending] = useState(false);
   const activeReqIdRef = useRef(null);
-  const streamBufferRef = useRef({ content: '', tools: [] });
+  const streamBufferRef = useRef({ parts: [] });
 
   // UI state
   const [input, setInput] = useState('');
@@ -357,7 +378,7 @@ function ChatApp() {
   // ── Auto-scroll ──
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent, streamingTools]);
+  }, [messages, streamingParts]);
 
   // ── ESC to close focus modal ──
   useEffect(() => {
@@ -455,27 +476,34 @@ function ChatApp() {
       if (reqId !== activeReqIdRef.current) return;
       if (sessionId) hermesSessionIdRef.current = sessionId;
       if (!content) return;
-      streamBufferRef.current.content += content;
-      setStreamingContent(streamBufferRef.current.content);
+      // Append to the last text part if it's adjacent; otherwise start a new one.
+      // This preserves the true arrival order interleaved with tool calls.
+      const parts = streamBufferRef.current.parts;
+      const last = parts[parts.length - 1];
+      if (last && last.type === 'text') {
+        last.text += content;
+      } else {
+        parts.push({ type: 'text', text: content });
+      }
+      setStreamingParts([...parts]);
     });
 
     const unsubTool = window.electronAPI?.onHermesTool?.((data) => {
       const { reqId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
-      streamBufferRef.current.tools.push({ tool: data.tool, emoji: data.emoji, label: data.label });
-      setStreamingTools([...streamBufferRef.current.tools]);
+      streamBufferRef.current.parts.push({ type: 'tool', tool: data.tool, emoji: data.emoji, label: data.label });
+      setStreamingParts([...streamBufferRef.current.parts]);
     });
 
     const unsubEnd = window.electronAPI?.onHermesEnd?.((data) => {
       const { reqId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
       const sd = streamBufferRef.current;
-      if (sd.content || sd.tools.length > 0) {
-        setMessages(prev => [...prev, { role: 'assistant', content: sd.content, tools: sd.tools }]);
+      if (sd.parts.length > 0) {
+        setMessages(prev => [...prev, { role: 'assistant', parts: sd.parts }]);
       }
-      streamBufferRef.current = { content: '', tools: [] };
-      setStreamingContent('');
-      setStreamingTools([]);
+      streamBufferRef.current = { parts: [] };
+      setStreamingParts([]);
       setSending(false);
       activeReqIdRef.current = null;
       setConnected(true);
@@ -486,11 +514,10 @@ function ChatApp() {
       if (reqId !== activeReqIdRef.current) return;
       const sd = streamBufferRef.current;
       const errMsg = data.error || 'Unknown error';
-      const msg = sd.content ? `${sd.content}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
-      setMessages(prev => [...prev, { role: 'assistant', content: msg, tools: sd.tools, isError: true }]);
-      streamBufferRef.current = { content: '', tools: [] };
-      setStreamingContent('');
-      setStreamingTools([]);
+      const errorPart = { type: 'text', text: `**Error:** ${errMsg}` };
+      setMessages(prev => [...prev, { role: 'assistant', parts: [...sd.parts, errorPart], isError: true }]);
+      streamBufferRef.current = { parts: [] };
+      setStreamingParts([]);
       setSending(false);
       activeReqIdRef.current = null;
       setConnected(false);
@@ -519,9 +546,8 @@ function ChatApp() {
 
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: msg }]);
-    streamBufferRef.current = { content: '', tools: [] };
-    setStreamingContent('');
-    setStreamingTools([]);
+    streamBufferRef.current = { parts: [] };
+    setStreamingParts([]);
     setSending(true);
     activeReqIdRef.current = reqId;
 
@@ -540,12 +566,11 @@ function ChatApp() {
       window.electronAPI?.hermesChatStop?.(activeReqIdRef.current);
     }
     const sd = streamBufferRef.current;
-    if (sd.content || sd.tools.length > 0) {
-      setMessages(prev => [...prev, { role: 'assistant', content: sd.content, tools: sd.tools }]);
+    if (sd.parts.length > 0) {
+      setMessages(prev => [...prev, { role: 'assistant', parts: sd.parts }]);
     }
-    streamBufferRef.current = { content: '', tools: [] };
-    setStreamingContent('');
-    setStreamingTools([]);
+    streamBufferRef.current = { parts: [] };
+    setStreamingParts([]);
     setSending(false);
     activeReqIdRef.current = null;
   }, []);
@@ -639,17 +664,17 @@ function ChatApp() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`} onDoubleClick={() => setFocusedIndex(i)}>
-            {m.role === 'assistant' && m.tools && m.tools.length > 0 && i > 0 && <div className="chat-tool-separator" />}
-            <MessageContent content={m.content} tools={m.tools} image={m.image} />
+            {m.role === 'assistant' && ((m.parts && m.parts.some(p => p.type === 'tool' || p.type === 'tool-group')) || (m.tools && m.tools.length > 0)) && i > 0 && <div className="chat-tool-separator" />}
+            <MessageContent parts={m.parts} content={m.content} tools={m.tools} image={m.image} />
           </div>
         ))}
-        {(streamingContent || streamingTools.length > 0) && (
+        {streamingParts.length > 0 && (
           <div className="chat-streaming">
-            {streamingTools.length > 0 && messages.length > 0 && <div className="chat-tool-separator" />}
-            <MessageContent content={streamingContent} tools={streamingTools} isStreaming />
+            {streamingParts.some(p => p.type === 'tool') && messages.length > 0 && <div className="chat-tool-separator" />}
+            <MessageContent parts={streamingParts} isStreaming />
           </div>
         )}
-        {sending && !streamingContent && streamingTools.length === 0 && (
+        {sending && streamingParts.length === 0 && (
           <div className="chat-thinking">
             <div className="chat-thinking-bar"><span /><span /><span /></div>
           </div>
@@ -666,7 +691,7 @@ function ChatApp() {
             </div>
             <div className="chat-focus-modal-body">
               <div className={`chat-focus-bubble chat-focus-bubble-${messages[focusedIndex].role}`}>
-                <MessageContent content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
+                <MessageContent parts={messages[focusedIndex].parts} content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
               </div>
             </div>
           </div>

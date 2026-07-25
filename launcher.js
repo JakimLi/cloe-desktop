@@ -3460,8 +3460,11 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
     try { event.sender.send(ch, { ...data, reqId }); } catch {}
   };
 
-  // Accumulate content for persistence on stream end
-  const accumulatedContent = { text: '', tools: [] };
+  // Accumulate content for persistence on stream end.
+  // Track an ordered `parts` list so tool calls and text survive in the exact
+  // order they arrived (matches what the renderer streams live). `text` and
+  // `tools` are kept as flat mirrors for backward-compat / debugging.
+  const accumulatedContent = { text: '', tools: [], parts: [] };
 
   const req = http.request(
     {
@@ -3532,6 +3535,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
               if (currentEvent === 'hermes.tool.progress') {
                 if (parsed.tool || parsed.emoji || parsed.label) {
                   accumulatedContent.tools.push({ tool: parsed.tool, emoji: parsed.emoji, label: parsed.label });
+                  accumulatedContent.parts.push({ type: 'tool', tool: parsed.tool, emoji: parsed.emoji, label: parsed.label });
                 }
                 try { sendTo('hermes-stream-tool', parsed); } catch {}
               } else if (currentEvent === 'hermes.error') {
@@ -3543,6 +3547,10 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
                   accumulatedContent.text += content;
+                  const parts = accumulatedContent.parts;
+                  const last = parts[parts.length - 1];
+                  if (last && last.type === 'text') last.text += content;
+                  else parts.push({ type: 'text', text: content });
                   try { sendTo('hermes-stream-delta', { content }); } catch {}
                 }
               }
@@ -3564,7 +3572,7 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
               const newMessages = [
                 ...session.messages,
                 { role: 'user', content: message },
-                { role: 'assistant', content: accumulatedContent.text, tools: accumulatedContent.tools },
+                { role: 'assistant', content: accumulatedContent.text, tools: accumulatedContent.tools, parts: accumulatedContent.parts },
               ];
               // Auto-title from first user message
               const titleUpdate = (!session.title || session.title === 'New chat') && message
