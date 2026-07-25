@@ -1242,6 +1242,7 @@ function createBridgeServers() {
             usage_pct: data.usage_pct || 0,
             prompt_tokens: data.prompt_tokens || 0,
             context_limit: data.context_limit || 0,
+            session_id: data.session_id || '',
           };
           broadcastToClients(usageData);
           // Also forward to chat window via IPC

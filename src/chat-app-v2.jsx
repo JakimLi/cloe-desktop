@@ -321,6 +321,7 @@ function ChatApp() {
   const toolsRef = useRef([]);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
+  const sessionIdRef = useRef(null);
 
   /* ── Shortcuts ── */
   useShortcut('cloe-chat-shortcut', () => window.electronAPI?.toggleChatWindow?.());
@@ -487,7 +488,10 @@ function ChatApp() {
   /* ── Stream listeners ── */
   useEffect(() => {
     const unsubDelta = window.electronAPI?.onHermesDelta?.((data) => {
-      if (data.sessionId) setSessionId(data.sessionId);
+      if (data.sessionId) {
+        setSessionId(data.sessionId);
+        sessionIdRef.current = data.sessionId;
+      }
       if (data.content) {
         streamRef.current += data.content;
         setStreamingContent(streamRef.current);
@@ -533,7 +537,13 @@ function ChatApp() {
       ]);
     });
     const unsubCtxUsage = window.electronAPI?.onContextUsage?.((data) => {
-      if (typeof data.usage_pct === 'number') setContextPct(data.usage_pct);
+      if (typeof data.usage_pct !== 'number') return;
+      // Only update if the context usage belongs to this chat's session.
+      // Plugin sends session_id from the Hermes gateway; we match it against
+      // our current sessionId to avoid cross-session bleed (e.g. Feishu, cron).
+      const currentSid = sessionIdRef.current;
+      if (data.session_id && currentSid && data.session_id !== currentSid) return;
+      setContextPct(data.usage_pct);
     });
     return () => {
       unsubDelta?.();
@@ -610,10 +620,12 @@ function ChatApp() {
 
   const newSession = useCallback(() => {
     setSessionId(null);
+    sessionIdRef.current = null;
     setMessages([]);
     setStreamingContent('');
     setStreamingTools([]);
     setSending(false);
+    setContextPct(0);
     streamRef.current = '';
     toolsRef.current = [];
   }, []);
