@@ -8,7 +8,7 @@
  * 3. Handle window drag via IPC
  */
 
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const os = require('os');
@@ -18,6 +18,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
+const windowRegistry = require('./src/main/window-registry');
+const bridge = require('./src/main/bridge');
 const reminderEngine = require('./reminder-engine');
 const agentTracker = require('./agent-tracker');
 const cloeSessions = require('./cloe-sessions');
@@ -34,7 +36,7 @@ const BRIDGE_HOST = '0.0.0.0';
 let win;
 let managerWin = null;
 let tray = null;
-const bridgeClients = new Set();
+const bridgeClients = bridge.getClients();
 
 // ==================== Canvas Elements (in-memory store) ====================
 const canvasElements = [];
@@ -442,25 +444,12 @@ function broadcastSetConfig(setId) {
       msg.fallbackActionMap = defaultSet.actionMap || {};
     }
   }
-  const msgStr = JSON.stringify(msg);
-  let sent = 0;
-  const dead = [];
-  for (const ws of bridgeClients) {
-    if (ws.readyState === 1) { ws.send(msgStr); sent++; }
-    else dead.push(ws);
-  }
-  dead.forEach((ws) => bridgeClients.delete(ws));
+  const sent = bridge.broadcast(msg);
   console.log(`[broadcast] set-config for "${setId}" → ${sent} client(s)`);
 }
 
 function broadcastToClients(data) {
-  const msg = JSON.stringify(data);
-  const dead = [];
-  for (const ws of bridgeClients) {
-    if (ws.readyState === 1) { ws.send(msg); }
-    else dead.push(ws);
-  }
-  dead.forEach((ws) => bridgeClients.delete(ws));
+  bridge.broadcast(data);
 }
 
 // ==================== HTTPS / DashScope / GIF Generation ====================
@@ -2673,6 +2662,7 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, 'dist', 'index.html'));
   }
+  windowRegistry.setMainWindow(win);
 }
 
 ipcMain.on('window-move', (_e, { dx, dy }) => {
@@ -2787,7 +2777,6 @@ ipcMain.on('minimize-window', () => {
 });
 
 // ==================== Terminal Shortcut ====================
-let currentShortcut = null;
 
 // Terminal shortcut is handled entirely in renderer.js (document-level keydown).
 // IPC kept for config persistence only.
@@ -2906,7 +2895,9 @@ function createManagerWindow() {
 
   managerWin.on('closed', () => {
     managerWin = null;
+    windowRegistry.setManagerWindow(null);
   });
+  windowRegistry.setManagerWindow(managerWin);
 }
 
 ipcMain.on('open-settings', () => {
@@ -3171,8 +3162,10 @@ function createWorkspaceWindow() {
 
   workspaceWin.on('closed', () => {
     workspaceWin = null;
+    windowRegistry.setWorkspaceWindow(null);
     try { win?.webContents.send('workspace-window-state', false); } catch {}
   });
+  windowRegistry.setWorkspaceWindow(workspaceWin);
 
   try { win?.webContents.send('workspace-window-state', true); } catch {}
 }
