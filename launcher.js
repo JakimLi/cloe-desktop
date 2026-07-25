@@ -2980,6 +2980,43 @@ ipcMain.on('chat-window-close', () => {
 ipcMain.on('chat-window-toggle', () => toggleChatWindow());
 ipcMain.on('chat-window-minimize', () => { chatWin?.minimize(); });
 
+// Open an additional chat window (for multi-session support)
+ipcMain.on('open-new-chat-window', () => {
+  // Create a new BrowserWindow with the same config as the primary chat window
+  const mainBounds = win?.getBounds() || { x: 100, y: 100, width: 600, height: 500 };
+  const existingWindows = BrowserWindow.getAllWindows().filter(w =>
+    !w.isDestroyed() && w.webContents?.getURL()?.includes('/chat.html')
+  );
+  const offset = existingWindows.length * 30;
+  const newChatWin = new BrowserWindow({
+    width: 400,
+    height: 520,
+    x: mainBounds.x + mainBounds.width + 16 + offset,
+    y: mainBounds.y + offset,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: true,
+    minWidth: 300,
+    minHeight: 250,
+    hasShadow: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'chat-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+
+  if (!app.isPackaged) {
+    newChatWin.loadURL('http://localhost:5173/src/chat.html');
+  } else {
+    newChatWin.loadFile(path.join(__dirname, 'dist', 'src', 'chat.html'));
+  }
+  newChatWin.once('ready-to-show', () => newChatWin.show());
+});
+
 // ==================== Workspace Window (standalone BrowserWindow) ====================
 let workspaceWin = null;
 
@@ -3063,16 +3100,8 @@ ipcMain.handle('get-chat-nickname', () => loadConfig().chatNickname || '');
 // Chat window opacity toggle (transparent / opaque)
 const CHAT_TRANSPARENT_OPACITY = 0.6;
 const CHAT_OPAQUE_OPACITY = 1.0;
-ipcMain.on('chat-set-opacity', (_event, opacity) => {
-  if (chatWin && !chatWin.isDestroyed()) {
-    chatWin.setOpacity(opacity);
-  }
-});
-ipcMain.handle('chat-get-opacity', () => {
-  if (chatWin && !chatWin.isDestroyed()) {
-    return chatWin.getOpacity();
-  }
-  return CHAT_OPAQUE_OPACITY;
+ipcMain.on('chat-set-opacity', (event, opacity) => {
+  try { event.sender.setOpacity(opacity); } catch {}
 });
 
 // ==================== Chat Avatar ====================
@@ -3157,19 +3186,20 @@ ipcMain.handle('chat-remove-avatar', () => {
  */
 let chatFullscreenPenetrate = false;
 
-ipcMain.on('chat-set-fullscreen-penetrate', (_event, enabled) => {
+ipcMain.on('chat-set-fullscreen-penetrate', (event, enabled) => {
   chatFullscreenPenetrate = !!enabled;
-  if (!chatWin || chatWin.isDestroyed()) return;
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) return;
 
   if (chatFullscreenPenetrate) {
     // Allow chat to appear on fullscreen Spaces — the user can manually
     // drag it there, or it will be visible when the main window goes fullscreen.
-    chatWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    chatWin.setAlwaysOnTop(true, 'floating');
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win.setAlwaysOnTop(true, 'floating');
     console.log('[Chat] Pin enabled — visible on all workspaces');
   } else {
-    chatWin.setVisibleOnAllWorkspaces(false);
-    chatWin.setAlwaysOnTop(true, 'normal');
+    win.setVisibleOnAllWorkspaces(false);
+    win.setAlwaysOnTop(true, 'normal');
     console.log('[Chat] Pin disabled');
   }
 });
@@ -3309,17 +3339,9 @@ ipcMain.on('hermes-chat-send', (event, payload) => {
   if (key) headers['Authorization'] = `Bearer ${key}`;
   if (sessionId) headers['X-Hermes-Session-Id'] = sessionId;
 
-  // Send to chat window if it exists, otherwise fall back to event sender
-  const sender = (ch) => {
-    if (chatWin && !chatWin.isDestroyed()) {
-      try { chatWin.webContents.send(ch); return true; } catch {}
-    }
-    return false;
-  };
+  // Route stream events to the originating window via event.sender.
+  // This correctly supports multiple concurrent chat windows.
   const sendTo = (ch, data) => {
-    if (chatWin && !chatWin.isDestroyed()) {
-      try { chatWin.webContents.send(ch, data); return; } catch {}
-    }
     try { event.sender.send(ch, data); } catch {}
   };
 

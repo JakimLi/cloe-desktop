@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('chat-window-close'),
   minimizeWindow: () => ipcRenderer.send('chat-window-minimize'),
   toggleChatWindow: () => ipcRenderer.send('chat-window-toggle'),
+  openNewChatWindow: () => ipcRenderer.send('open-new-chat-window'),
   // Config
   getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
   // Avatar

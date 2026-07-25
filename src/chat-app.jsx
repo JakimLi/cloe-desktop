@@ -280,17 +280,22 @@ function useShortcut(storageKey, handler) {
   }, [storageKey, handler]);
 }
 
+
 /* ═══════════════════════════════════════════════════════
-   Main Component
+   Main Component — Multi-session chat
    ═══════════════════════════════════════════════════════ */
 function ChatApp() {
-  const [messages, setMessages] = useState([]);
+  const sessionsRef = useRef([]);
+  const [sessions, setSessions] = useState([]);
+  const [activeLocalId, setActiveLocalId] = useState(null);
+  const [showSessionList, setShowSessionList] = useState(false);
+
+  const streamDataRef = useRef({});
+  const [streamingMap, setStreamingMap] = useState({});
+  const [sendingMap, setSendingMap] = useState({});
+
   const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
   const [connected, setConnected] = useState(null);
-  const [streamingContent, setStreamingContent] = useState('');
-  const [streamingTools, setStreamingTools] = useState([]);
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
   const [currentModel, setCurrentModel] = useState(
@@ -307,13 +312,43 @@ function ChatApp() {
   const [cropperSrc, setCropperSrc] = useState(null);
   const [contextPct, setContextPct] = useState(0);
 
-  const streamRef = useRef('');
-  const toolsRef = useRef([]);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
-  const sessionIdRef = useRef(null);
+  const nextLocalIdRef = useRef(1);
 
-  /* ── Shortcuts ── */
+  const createSession = useCallback((opts = {}) => {
+    const localId = `s${nextLocalIdRef.current++}`;
+    const session = {
+      localId,
+      sessionId: opts.sessionId || null,
+      title: opts.title || 'New chat',
+      messages: opts.messages || [],
+      createdAt: Date.now(),
+    };
+    sessionsRef.current = [...sessionsRef.current, session];
+    setSessions([...sessionsRef.current]);
+    streamDataRef.current[localId] = { content: '', tools: [] };
+    setActiveLocalId(localId);
+    return localId;
+  }, []);
+
+  const updateSession = useCallback((localId, updater) => {
+    sessionsRef.current = sessionsRef.current.map(s =>
+      s.localId === localId ? { ...s, ...updater(s) } : s
+    );
+    setSessions([...sessionsRef.current]);
+  }, []);
+
+  useEffect(() => {
+    if (sessionsRef.current.length === 0) {
+      createSession();
+    }
+  }, [createSession]);
+
+  const activeSession = sessions.find(s => s.localId === activeLocalId) || sessions[0];
+  const activeStreaming = activeLocalId ? (streamingMap[activeLocalId] || { content: '', tools: [] }) : { content: '', tools: [] };
+  const activeSending = activeLocalId ? (sendingMap[activeLocalId] || false) : false;
+
   useShortcut('cloe-chat-shortcut', () => window.electronAPI?.toggleChatWindow?.());
   useShortcut('cloe-transparency-shortcut', () =>
     setTransparent((prev) => {
@@ -331,29 +366,25 @@ function ChatApp() {
   );
   useShortcut('cloe-chat-focus-shortcut', () => textareaRef.current?.focus());
 
-  /* ── Auto-scroll ── */
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent, streamingTools]);
+  }, [activeSession?.messages, activeStreaming?.content, activeStreaming?.tools]);
 
-  /* ── ESC to exit focus mode ── */
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && focusedIndex !== null) {
-        setFocusedIndex(null);
+      if (e.key === 'Escape') {
+        if (showSessionList) { setShowSessionList(false); return; }
+        if (focusedIndex !== null) setFocusedIndex(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusedIndex]);
+  }, [focusedIndex, showSessionList]);
 
-  /* ── Window opacity ── */
   useEffect(() => {
-    const opacity = transparent ? 0.6 : 1.0;
-    window.electronAPI?.setChatOpacity?.(opacity);
+    window.electronAPI?.setChatOpacity?.(transparent ? 0.6 : 1.0);
   }, [transparent]);
 
-  /* ── Fullscreen penetrate ── */
   useEffect(() => {
     window.electronAPI?.setFullscreenPenetrate?.(penetrate);
   }, [penetrate]);
@@ -374,13 +405,9 @@ function ChatApp() {
     });
   }, []);
 
-  /* ── Avatar ── */
   useEffect(() => {
-    window.electronAPI
-      ?.getChatAvatar?.()
-      .then((url) => {
-        if (url) setAvatarUrl(url);
-      })
+    window.electronAPI?.getChatAvatar?.()
+      .then((url) => { if (url) setAvatarUrl(url); })
       .catch(() => {});
   }, []);
 
@@ -392,52 +419,37 @@ function ChatApp() {
   const handleCropConfirm = useCallback(async (croppedDataUrl) => {
     setCropperSrc(null);
     const saved = await window.electronAPI?.saveChatAvatar?.(croppedDataUrl);
-    if (saved) {
-      setAvatarUrl(croppedDataUrl);
-    }
+    if (saved) setAvatarUrl(croppedDataUrl);
   }, []);
 
-  const handleCropCancel = useCallback(() => {
-    setCropperSrc(null);
-  }, []);
+  const handleCropCancel = useCallback(() => setCropperSrc(null), []);
 
-  const handleAvatarContextMenu = useCallback(
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!avatarUrl) {
-        handleAvatarClick();
-        return;
+  const handleAvatarContextMenu = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!avatarUrl) { handleAvatarClick(); return; }
+    const menu = document.createElement('div');
+    menu.className = 'chat-avatar-menu';
+    menu.innerHTML = `<div class="chat-avatar-menu-item" data-action="change">Change avatar</div><div class="chat-avatar-menu-item chat-avatar-menu-danger" data-action="remove">Remove avatar</div>`;
+    menu.style.position = 'fixed';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    document.body.appendChild(menu);
+    const handleClick = async (ev) => {
+      const action = ev.target.dataset.action;
+      menu.remove();
+      document.removeEventListener('click', handleClick);
+      if (action === 'change') {
+        const url = await window.electronAPI?.selectChatAvatar?.();
+        if (url) setCropperSrc(url);
+      } else if (action === 'remove') {
+        await window.electronAPI?.removeChatAvatar?.();
+        setAvatarUrl(null);
       }
-      const menu = document.createElement('div');
-      menu.className = 'chat-avatar-menu';
-      menu.innerHTML = `
-        <div class="chat-avatar-menu-item" data-action="change">Change avatar</div>
-        <div class="chat-avatar-menu-item chat-avatar-menu-danger" data-action="remove">Remove avatar</div>
-      `;
-      menu.style.position = 'fixed';
-      menu.style.left = e.clientX + 'px';
-      menu.style.top = e.clientY + 'px';
-      document.body.appendChild(menu);
+    };
+    setTimeout(() => document.addEventListener('click', handleClick), 0);
+  }, [avatarUrl, handleAvatarClick]);
 
-      const handleClick = async (ev) => {
-        const action = ev.target.dataset.action;
-        menu.remove();
-        document.removeEventListener('click', handleClick);
-        if (action === 'change') {
-          const url = await window.electronAPI?.selectChatAvatar?.();
-          if (url) setCropperSrc(url);
-        } else if (action === 'remove') {
-          await window.electronAPI?.removeChatAvatar?.();
-          setAvatarUrl(null);
-        }
-      };
-      setTimeout(() => document.addEventListener('click', handleClick), 0);
-    },
-    [avatarUrl, handleAvatarClick]
-  );
-
-  /* ── Health check + load nickname + models ── */
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -450,14 +462,10 @@ function ChatApp() {
     };
     check();
     const iv = setInterval(check, 20000);
-    window.electronAPI
-      ?.getChatNickname?.()
-      .then((name) => {
-        if (name && !cancelled) setNickname(name);
-      })
+    window.electronAPI?.getChatNickname?.()
+      .then((name) => { if (name && !cancelled) setNickname(name); })
       .catch(() => {});
-    window.electronAPI
-      ?.hermesGetModels?.()
+    window.electronAPI?.hermesGetModels?.()
       .then((result) => {
         if (!cancelled && result) {
           const modelList = result.models || [];
@@ -469,137 +477,147 @@ function ChatApp() {
         }
       })
       .catch(() => {});
-    return () => {
-      cancelled = true;
-      clearInterval(iv);
-    };
+    return () => { cancelled = true; clearInterval(iv); };
   }, []);
 
-  /* ── Stream listeners ── */
   useEffect(() => {
     const unsubDelta = window.electronAPI?.onHermesDelta?.((data) => {
-      if (data.sessionId) {
-        setSessionId(data.sessionId);
-        sessionIdRef.current = data.sessionId;
+      if (!data.sessionId) return;
+      let target = sessionsRef.current.find(s => s.sessionId === data.sessionId);
+      if (!target) {
+        target = sessionsRef.current.find(s => !s.sessionId && sendingMap[s.localId]);
+        if (target) {
+          updateSession(target.localId, () => ({
+            sessionId: data.sessionId,
+            title: data.sessionId.slice(0, 8),
+          }));
+        }
       }
-      if (data.content) {
-        streamRef.current += data.content;
-        setStreamingContent(streamRef.current);
-      }
+      if (!target || !data.content) return;
+      const lid = target.localId;
+      if (!streamDataRef.current[lid]) streamDataRef.current[lid] = { content: '', tools: [] };
+      streamDataRef.current[lid].content += data.content;
+      setStreamingMap((prev) => ({
+        ...prev,
+        [lid]: { content: streamDataRef.current[lid].content, tools: streamDataRef.current[lid].tools },
+      }));
     });
+
     const unsubTool = window.electronAPI?.onHermesTool?.((data) => {
-      toolsRef.current.push({ tool: data.tool, emoji: data.emoji, label: data.label });
-      setStreamingTools([...toolsRef.current]);
+      const sendingLids = Object.keys(sendingMap).filter(k => sendingMap[k]);
+      if (sendingLids.length === 0) return;
+      const lid = sendingLids[sendingLids.length - 1];
+      if (!streamDataRef.current[lid]) streamDataRef.current[lid] = { content: '', tools: [] };
+      streamDataRef.current[lid].tools.push({ tool: data.tool, emoji: data.emoji, label: data.label });
+      setStreamingMap((prev) => ({
+        ...prev,
+        [lid]: { content: streamDataRef.current[lid].content, tools: [...streamDataRef.current[lid].tools] },
+      }));
     });
+
     const unsubEnd = window.electronAPI?.onHermesEnd?.(() => {
-      const c = streamRef.current;
-      const t = toolsRef.current;
-      streamRef.current = '';
-      toolsRef.current = [];
-      setStreamingContent('');
-      setStreamingTools([]);
-      if (c || t.length > 0) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: c, tools: t }]);
+      for (const [lid, sd] of Object.entries(streamDataRef.current)) {
+        if (sd.content || sd.tools.length > 0) {
+          updateSession(lid, (s) => ({
+            messages: [...s.messages, { role: 'assistant', content: sd.content, tools: sd.tools }],
+          }));
+        }
+        streamDataRef.current[lid] = { content: '', tools: [] };
       }
-      setSending(false);
+      setStreamingMap({});
+      setSendingMap({});
       setConnected(true);
     });
+
     const unsubError = window.electronAPI?.onHermesError?.((data) => {
-      const c = streamRef.current;
-      const t = toolsRef.current;
-      streamRef.current = '';
-      toolsRef.current = [];
-      setStreamingContent('');
-      setStreamingTools([]);
-      const errMsg = data.error || 'Unknown error';
-      const msg = c ? `${c}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: msg, tools: t, isError: true },
-      ]);
-      setSending(false);
+      for (const [lid, sd] of Object.entries(streamDataRef.current)) {
+        if (sd.content || sd.tools.length > 0 || sendingMap[lid]) {
+          const errMsg = data.error || 'Unknown error';
+          const msg = sd.content ? `${sd.content}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
+          updateSession(lid, (s) => ({
+            messages: [...s.messages, { role: 'assistant', content: msg, tools: sd.tools, isError: true }],
+          }));
+        }
+        streamDataRef.current[lid] = { content: '', tools: [] };
+      }
+      setStreamingMap({});
+      setSendingMap({});
       setConnected(false);
     });
+
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: data.role || 'assistant', content: data.content, image: data.image },
-      ]);
+      if (!activeLocalId) return;
+      updateSession(activeLocalId, (s) => ({
+        messages: [...s.messages, { role: data.role || 'assistant', content: data.content, image: data.image }],
+      }));
     });
+
     const unsubCtxUsage = window.electronAPI?.onContextUsage?.((data) => {
       if (typeof data.usage_pct !== 'number') return;
-      // Only update if the context usage belongs to this chat's session.
-      // Plugin sends session_id from the Hermes gateway; we match it against
-      // our current sessionId to avoid cross-session bleed (e.g. Feishu, cron).
-      const currentSid = sessionIdRef.current;
-      if (data.session_id && currentSid && data.session_id !== currentSid) return;
+      const target = data.session_id ? sessionsRef.current.find(s => s.sessionId === data.session_id) : null;
+      if (data.session_id && target && target.localId !== activeLocalId) return;
       setContextPct(data.usage_pct);
     });
+
     return () => {
-      unsubDelta?.();
-      unsubTool?.();
-      unsubEnd?.();
-      unsubError?.();
-      unsubExternal?.();
-      unsubCtxUsage?.();
+      unsubDelta?.(); unsubTool?.(); unsubEnd?.();
+      unsubError?.(); unsubExternal?.(); unsubCtxUsage?.();
     };
-  }, []);
+  }, [activeLocalId, sendingMap]);
 
   const send = useCallback(() => {
-    if (!input.trim() || connected === false) return;
-    const msg = input.trim().replace(/\n/g, '  \n');
+    if (!input.trim() || connected === false || !activeLocalId) return;
+    const msg = input.trim();
+    const lid = activeLocalId;
+    const currentHermesSid = activeSession?.sessionId;
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: msg }]);
-    if (!sending) {
-      setSending(true);
-      streamRef.current = '';
-      toolsRef.current = [];
-      setStreamingContent('');
-      setStreamingTools([]);
-    }
-    window.electronAPI?.hermesSendMessage?.(input.trim(), sessionId, currentModel || undefined);
+    updateSession(lid, (s) => ({
+      messages: [...s.messages, { role: 'user', content: msg }],
+    }));
+    streamDataRef.current[lid] = { content: '', tools: [] };
+    setStreamingMap((prev) => ({ ...prev, [lid]: { content: '', tools: [] } }));
+    setSendingMap((prev) => ({ ...prev, [lid]: true }));
+    window.electronAPI?.hermesSendMessage?.(msg, currentHermesSid || undefined, currentModel || undefined);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-  }, [input, sending, connected, sessionId, currentModel]);
+  }, [input, connected, activeLocalId, activeSession, currentModel]);
 
   const stop = useCallback(() => {
+    if (!activeLocalId) return;
+    const lid = activeLocalId;
     window.electronAPI?.hermesChatStop?.();
-    const c = streamRef.current;
-    const t = toolsRef.current;
-    streamRef.current = '';
-    toolsRef.current = [];
-    setStreamingContent('');
-    setStreamingTools([]);
-    if (c || t.length > 0) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: c, tools: t }]);
+    const sd = streamDataRef.current[lid];
+    if (sd && (sd.content || sd.tools.length > 0)) {
+      updateSession(lid, (s) => ({
+        messages: [...s.messages, { role: 'assistant', content: sd.content, tools: sd.tools }],
+      }));
     }
-    setSending(false);
-  }, []);
+    streamDataRef.current[lid] = { content: '', tools: [] };
+    setStreamingMap((prev) => { const n = { ...prev }; delete n[lid]; return n; });
+    setSendingMap((prev) => { const n = { ...prev }; delete n[lid]; return n; });
+  }, [activeLocalId]);
 
-  const onKeyDown = useCallback(
-    (e) => {
-      if (e.key !== 'Enter') return;
-      if (e.shiftKey || e.altKey) {
-        e.preventDefault();
-        const { selectionStart, selectionEnd } = e.target;
-        setInput((prev) => {
-          const next = prev.substring(0, selectionStart) + '\n' + prev.substring(selectionEnd);
-          requestAnimationFrame(() => {
-            const ta = textareaRef.current;
-            if (ta) {
-              ta.selectionStart = ta.selectionEnd = selectionStart + 1;
-              ta.style.height = 'auto';
-              ta.style.height = Math.min(ta.scrollHeight, 100) + 'px';
-            }
-          });
-          return next;
+  const onKeyDown = useCallback((e) => {
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey || e.altKey) {
+      e.preventDefault();
+      const { selectionStart, selectionEnd } = e.target;
+      setInput((prev) => {
+        const next = prev.substring(0, selectionStart) + '\n' + prev.substring(selectionEnd);
+        requestAnimationFrame(() => {
+          const ta = textareaRef.current;
+          if (ta) {
+            ta.selectionStart = ta.selectionEnd = selectionStart + 1;
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 100) + 'px';
+          }
         });
-      } else {
-        e.preventDefault();
-        send();
-      }
-    },
-    [send]
-  );
+        return next;
+      });
+    } else {
+      e.preventDefault();
+      send();
+    }
+  }, [send]);
 
   const onInputChange = useCallback((e) => {
     setInput(e.target.value);
@@ -608,17 +626,39 @@ function ChatApp() {
     el.style.height = Math.min(el.scrollHeight, 100) + 'px';
   }, []);
 
-  const newSession = useCallback(() => {
-    setSessionId(null);
-    sessionIdRef.current = null;
-    setMessages([]);
-    setStreamingContent('');
-    setStreamingTools([]);
-    setSending(false);
-    setContextPct(0);
-    streamRef.current = '';
-    toolsRef.current = [];
+  const newSessionInWindow = useCallback(() => {
+    createSession();
+    setShowSessionList(false);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, [createSession]);
+
+  const newSessionInNewWindow = useCallback(() => {
+    window.electronAPI?.openNewChatWindow?.();
+    setShowSessionList(false);
   }, []);
+
+  const switchSession = useCallback((localId) => {
+    setActiveLocalId(localId);
+    setShowSessionList(false);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, []);
+
+  const closeSession = useCallback((localId, e) => {
+    e?.stopPropagation();
+    const remaining = sessionsRef.current.filter(s => s.localId !== localId);
+    if (remaining.length === 0) {
+      sessionsRef.current = [];
+      delete streamDataRef.current[localId];
+      createSession();
+    } else {
+      sessionsRef.current = remaining;
+      delete streamDataRef.current[localId];
+    }
+    setSessions([...sessionsRef.current]);
+    if (activeLocalId === localId) {
+      setActiveLocalId(sessionsRef.current[0]?.localId || null);
+    }
+  }, [activeLocalId, createSession]);
 
   const onModelChange = useCallback((e) => {
     const v = e.target.value;
@@ -628,11 +668,8 @@ function ChatApp() {
       if (result?.success) {
         setConnected(false);
         setTimeout(() => {
-          window.electronAPI
-            ?.hermesCheckHealth?.()
-            .then((r) => {
-              setConnected(r?.connected ?? false);
-            })
+          window.electronAPI?.hermesCheckHealth?.()
+            .then((r) => setConnected(r?.connected ?? false))
             .catch(() => setConnected(false));
         }, 3000);
       }
@@ -641,25 +678,17 @@ function ChatApp() {
 
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
 
-  /* ── Render helpers ── */
   const renderTitlebarAvatar = () => (
     <div
       className={`chat-titlebar-avatar${avatarUrl ? '' : ' chat-titlebar-avatar-default'}`}
       onClick={handleAvatarClick}
       onContextMenu={handleAvatarContextMenu}
-      title={avatarUrl ? 'Right-click to change/remove avatar' : 'Click to set AI avatar'}
+      title={avatarUrl ? 'Right-click for avatar options' : 'Click to set avatar'}
     >
       {avatarUrl ? (
         <img src={avatarUrl} alt="AI" draggable={false} />
       ) : (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <circle cx="12" cy="5" r="2" />
           <path d="M12 7v4" />
@@ -668,253 +697,159 @@ function ChatApp() {
     </div>
   );
 
+  const messages = activeSession?.messages || [];
+  const activeSid = activeSession?.sessionId;
+
   return (
     <div className={`chat-root${transparent ? ' chat-root-transparent' : ''}`}>
-      {/* Title bar */}
       <div className="chat-titlebar" data-tauri-drag-region>
         <div className="chat-titlebar-left">
           {renderTitlebarAvatar()}
           <span className="chat-title">{nickname}</span>
-          {sessionId && (
-            <span className="chat-session-badge" title={sessionId}>
-              Session
+          {activeSid && (
+            <span className="chat-session-badge" title={activeSid}>
+              {sessions.length > 1 ? `${sessions.findIndex(s => s.localId === activeLocalId) + 1}/${sessions.length}` : 'Session'}
             </span>
+          )}
+          {sessions.length > 1 && (
+            <button className="chat-btn chat-session-switcher-btn" onClick={() => setShowSessionList(!showSessionList)} title="Switch session">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
           )}
         </div>
         <div className="chat-titlebar-right">
-          <button className="chat-btn" onClick={newSession} title="New session">
-            +
-          </button>
-          <button
-            className={`chat-btn${transparent ? ' chat-btn-active' : ''}`}
-            onClick={toggleOpacity}
-            title={transparent ? 'Make opaque' : 'Make transparent'}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+          <button className="chat-btn" onClick={newSessionInWindow} onContextMenu={(e) => { e.preventDefault(); newSessionInNewWindow(); }} title="New session (right-click: new window)">+</button>
+          <button className={`chat-btn${transparent ? ' chat-btn-active' : ''}`} onClick={toggleOpacity} title={transparent ? 'Make opaque' : 'Make transparent'}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
               <path d="M12 2v20" opacity={transparent ? 0.4 : 1} />
             </svg>
           </button>
-          <button
-            className={`chat-btn${penetrate ? ' chat-btn-active' : ''}`}
-            onClick={togglePenetrate}
-            title={penetrate ? 'Disable fullscreen overlay' : 'Float over fullscreen'}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill={penetrate ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+          <button className={`chat-btn${penetrate ? ' chat-btn-active' : ''}`} onClick={togglePenetrate} title={penetrate ? 'Disable fullscreen overlay' : 'Float over fullscreen'}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill={penetrate ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 17v5" />
               <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
             </svg>
           </button>
-          <button
-            className="chat-btn chat-btn-close"
-            onClick={() => window.electronAPI?.closeWindow?.()}
-            title="Close"
-          >
-            ✕
-          </button>
+          <button className="chat-btn chat-btn-close" onClick={() => window.electronAPI?.closeWindow?.()} title="Close">✕</button>
         </div>
       </div>
 
-      {/* Messages — no bubbles, clean text flow */}
+      {showSessionList && (
+        <>
+          <div className="chat-session-overlay" onClick={() => setShowSessionList(false)} />
+          <div className="chat-session-drawer">
+            <div className="chat-session-drawer-header">
+              <span className="chat-session-drawer-title">Sessions</span>
+              <button className="chat-session-new-window-btn" onClick={newSessionInNewWindow} title="Open new window">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6M21 3l-9 9" />
+                  <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+                </svg>
+                New window
+              </button>
+            </div>
+            <div className="chat-session-list">
+              {sessions.map((s) => {
+                const lastMsg = s.messages[s.messages.length - 1];
+                const preview = lastMsg?.content?.slice(0, 50) || 'Empty session';
+                const isActive = s.localId === activeLocalId;
+                const isSending = sendingMap[s.localId];
+                return (
+                  <div key={s.localId} className={`chat-session-item${isActive ? ' chat-session-item-active' : ''}`} onClick={() => switchSession(s.localId)}>
+                    <div className="chat-session-item-info">
+                      <div className="chat-session-item-title">
+                        {s.title}
+                        {isSending && <span className="chat-session-item-pulse" />}
+                      </div>
+                      <div className="chat-session-item-preview">{preview}</div>
+                    </div>
+                    <button className="chat-session-item-close" onClick={(e) => closeSession(s.localId, e)} title="Close session">✕</button>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="chat-session-new-btn" onClick={newSessionInWindow}>+ New session</button>
+          </div>
+        </>
+      )}
+
       <div className="chat-messages">
-        {messages.length === 0 && !sending && (
+        {messages.length === 0 && !activeSending && (
           <div className="chat-empty">
-            {connected === false
-              ? 'Cannot reach Hermes API\nEnsure api_server is enabled in hermes config'
-              : connected
-                ? `Say hi to ${nickname} ✨`
-                : 'Connecting...'}
+            {connected === false ? 'Cannot reach Hermes API\nEnsure api_server is enabled in hermes config' : connected ? `Say hi to ${nickname} ✨` : 'Connecting...'}
           </div>
         )}
-
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`}
-            onDoubleClick={() => setFocusedIndex(i)}
-          >
-            {/* Tool separator before assistant messages that have tools */}
-            {m.role === 'assistant' && m.tools && m.tools.length > 0 && i > 0 && (
-              <div className="chat-tool-separator" />
-            )}
+          <div key={i} className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`} onDoubleClick={() => setFocusedIndex(i)}>
+            {m.role === 'assistant' && m.tools && m.tools.length > 0 && i > 0 && <div className="chat-tool-separator" />}
             <MessageContent content={m.content} tools={m.tools} image={m.image} />
           </div>
         ))}
-
-        {/* Streaming content */}
-        {(streamingContent || streamingTools.length > 0) && (
+        {(activeStreaming.content || activeStreaming.tools.length > 0) && (
           <div className="chat-streaming">
-            {streamingTools.length > 0 && messages.length > 0 && (
-              <div className="chat-tool-separator" />
-            )}
-            <MessageContent
-              content={streamingContent}
-              tools={streamingTools}
-              isStreaming
-            />
+            {activeStreaming.tools.length > 0 && messages.length > 0 && <div className="chat-tool-separator" />}
+            <MessageContent content={activeStreaming.content} tools={activeStreaming.tools} isStreaming />
           </div>
         )}
-
-        {/* Thinking / loading indicator */}
-        {sending && !streamingContent && streamingTools.length === 0 && (
+        {activeSending && !activeStreaming.content && activeStreaming.tools.length === 0 && (
           <div className="chat-thinking">
-            <div className="chat-thinking-bar">
-              <span />
-              <span />
-              <span />
-            </div>
+            <div className="chat-thinking-bar"><span /><span /><span /></div>
           </div>
         )}
-
         <div ref={endRef} />
       </div>
 
-      {/* Focus modal overlay */}
       {focusedIndex !== null && messages[focusedIndex] && (
         <div className="chat-focus-overlay" onClick={() => setFocusedIndex(null)}>
           <div className="chat-focus-modal" onClick={(e) => e.stopPropagation()}>
             <div className="chat-focus-modal-header">
-              <span className="chat-focus-modal-label">
-                {messages[focusedIndex].role === 'user' ? 'You' : nickname}
-              </span>
-              <button
-                className="chat-btn"
-                onClick={() => setFocusedIndex(null)}
-                title="Close (Esc)"
-              >
-                ✕
-              </button>
+              <span className="chat-focus-modal-label">{messages[focusedIndex].role === 'user' ? 'You' : nickname}</span>
+              <button className="chat-btn" onClick={() => setFocusedIndex(null)} title="Close (Esc)">✕</button>
             </div>
             <div className="chat-focus-modal-body">
               <div className={`chat-focus-bubble chat-focus-bubble-${messages[focusedIndex].role}`}>
-                <MessageContent
-                  content={messages[focusedIndex].content}
-                  tools={messages[focusedIndex].tools}
-                  image={messages[focusedIndex].image}
-                />
+                <MessageContent content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Input area — textarea on top, actions row below, unified container */}
       <div className="chat-input-area">
-        <textarea
-          ref={textareaRef}
-          className="chat-textarea"
-          value={input}
-          onChange={onInputChange}
-          onKeyDown={onKeyDown}
-          placeholder={
-            connected === false ? 'Not connected' : `Message ${nickname}…`
-          }
-          disabled={connected === false}
-          rows={1}
-        />
+        <textarea ref={textareaRef} className="chat-textarea" value={input} onChange={onInputChange} onKeyDown={onKeyDown} placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`} disabled={connected === false} rows={1} />
         <div className="chat-input-toolbar">
           <div className="chat-input-actions">
             {models.length > 1 && (
               <div className="chat-model-select-wrapper">
                 <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-                <select
-                  className="chat-model-select"
-                  value={currentModel}
-                  onChange={onModelChange}
-                  title="Switch model"
-                >
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
+                <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model">
+                  {models.map((m) => (<option key={m} value={m}>{m}</option>))}
                 </select>
               </div>
             )}
-            {models.length <= 1 && (
-              <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-            )}
+            {models.length <= 1 && <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />}
           </div>
-          {/* Context usage — inline in toolbar */}
           <div className="chat-context-bar">
             <svg viewBox="0 0 36 36" className="chat-context-svg">
-              <path
-                className="chat-context-bg"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className={`chat-context-fill${
-                  contextPct >= 90
-                    ? ' critical'
-                    : contextPct >= 75
-                      ? ' danger'
-                      : contextPct >= 50
-                        ? ' warn'
-                        : ''
-                }`}
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`}
-              />
+              <path className="chat-context-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path className={`chat-context-fill${contextPct >= 90 ? ' critical' : contextPct >= 75 ? ' danger' : contextPct >= 50 ? ' warn' : ''}`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`} />
             </svg>
             <span className="chat-context-text">{Math.round(contextPct)}%</span>
           </div>
-          <button
-            className={
-              sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'
-            }
-            onClick={sending ? stop : send}
-            disabled={!sending && (connected === false || !input.trim())}
-            title={sending ? 'Stop' : 'Send'}
-          >
-            {sending ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
+          <button className={activeSending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'} onClick={activeSending ? stop : send} disabled={!activeSending && (connected === false || !input.trim())} title={activeSending ? 'Stop' : 'Send'}>
+            {activeSending ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
             ) : (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="12" y1="19" x2="12" y2="5" />
-                <polyline points="5 12 12 5 19 12" />
-              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></svg>
             )}
           </button>
         </div>
       </div>
 
-      {/* Avatar Cropper Modal */}
-      {cropperSrc && (
-        <AvatarCropper
-          imageSrc={cropperSrc}
-          onConfirm={handleCropConfirm}
-          onCancel={handleCropCancel}
-        />
-      )}
+      {cropperSrc && <AvatarCropper imageSrc={cropperSrc} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />}
     </div>
   );
 }
