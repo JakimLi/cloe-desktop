@@ -440,6 +440,19 @@
 
 .wp-task-card:hover { background: rgba(255, 255, 255, 0.03); }
 
+.wp-task-handle {
+  cursor: grab;
+  padding-top: 2px;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.15);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.wp-task-card:hover .wp-task-handle { opacity: 1; }
+
+.wp-task-card.completed .wp-task-handle { display: none; }
+
 .wp-task-card.completed .wp-task-title {
   text-decoration: line-through;
   color: rgba(255, 255, 255, 0.25);
@@ -580,6 +593,30 @@
 @keyframes wp-gradient-flow {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+.wp-task-card.wp-task-dragging {
+  opacity: 0.3;
+}
+
+.wp-task-card.wp-task-drop-before::after,
+.wp-task-card.wp-task-drop-after::after {
+  content: '';
+  position: absolute;
+  left: 36px;
+  right: 40px;
+  height: 1.5px;
+  background: #4d9eff;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.wp-task-card.wp-task-drop-before::after {
+  top: -1px;
+}
+
+.wp-task-card.wp-task-drop-after::after {
+  bottom: -1px;
 }
 
 /* ==================== Empty States ==================== */

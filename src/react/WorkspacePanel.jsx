@@ -232,13 +232,62 @@ function SessionCard({ session, onSetTitle, onCancel, onMute, onOpen, onDelete }
 
 // ==================== Task Card ====================
 
-function TaskCard({ task, isTiming, onToggleComplete, onStartStop, onEdit, onDelete }) {
+function clearTaskDropIndicators() {
+  document.querySelectorAll('.wp-task-dragging, .wp-task-drop-before, .wp-task-drop-after')
+    .forEach((el) => el.classList.remove('wp-task-dragging', 'wp-task-drop-before', 'wp-task-drop-after'));
+}
+
+function TaskCard({ task, dragIndex, isTiming, onToggleComplete, onStartStop, onEdit, onDelete }) {
   const isCompleted = task.status === 'completed';
 
+  const handleDragStart = (e) => {
+    if (isCompleted || typeof dragIndex !== 'number' || dragIndex < 0) return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/task-idx', String(dragIndex));
+    requestAnimationFrame(() => {
+      e.currentTarget.classList.add('wp-task-dragging');
+    });
+  };
+
+  const handleDragEnd = () => {
+    clearTaskDropIndicators();
+  };
+
+  const handleDragOver = (e) => {
+    if (isCompleted) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    clearTaskDropIndicators();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    e.currentTarget.classList.add(before ? 'wp-task-drop-before' : 'wp-task-drop-after');
+  };
+
+  const handleDrop = (e) => {
+    if (isCompleted) return;
+    e.preventDefault();
+  };
+
   return (
-    <div className={`wp-task-card${isCompleted ? ' completed' : ''}${isTiming ? ' timing' : ''}`}>
+    <div
+      className={`wp-task-card${isCompleted ? ' completed' : ''}${isTiming ? ' timing' : ''}`}
+      draggable={!isCompleted}
+      data-drag-index={typeof dragIndex === 'number' ? dragIndex : -1}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <div className="wp-task-handle" title={isCompleted ? t('已完成任务不参与排序', 'Completed tasks stay at the end') : t('拖拽调整优先级', 'Drag to reorder priority')}>
+        <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor" opacity="0.2">
+          <circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/>
+          <circle cx="2" cy="6" r="1.2"/><circle cx="6" cy="6" r="1.2"/>
+          <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
+        </svg>
+      </div>
       <button
         className={`wp-task-check${isCompleted ? ' checked' : ''}`}
+        draggable={false}
         onClick={() => onToggleComplete(task.id, isCompleted)}
         title={isCompleted ? t('恢复', 'Reopen') : t('完成', 'Complete')}
       >
@@ -272,6 +321,7 @@ function TaskCard({ task, isTiming, onToggleComplete, onStartStop, onEdit, onDel
         {!isCompleted && (
           <button
             className={`wp-task-play${isTiming ? ' active' : ''}`}
+            draggable={false}
             onClick={() => onStartStop(task.id, isTiming)}
             title={isTiming ? t('暂停', 'Pause') : t('开始计时', 'Start')}
           >
@@ -287,7 +337,7 @@ function TaskCard({ task, isTiming, onToggleComplete, onStartStop, onEdit, onDel
             )}
           </button>
         )}
-        <button className="wp-task-delete" onClick={() => onDelete(task.id)} title={t('删除', 'Delete')}>
+        <button className="wp-task-delete" draggable={false} onClick={() => onDelete(task.id)} title={t('删除', 'Delete')}>
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -604,6 +654,7 @@ export default function WorkspacePanel({
   const [editingReminder, setEditingReminder] = useState(null);
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [availableActions, setAvailableActions] = useState([]);
+  const taskListRef = useRef(null);
 
   // Fetch available actions for reminder form
   useEffect(() => {
@@ -624,12 +675,42 @@ export default function WorkspacePanel({
     if (e.target === backdropRef.current) onClose();
   }, [onClose]);
 
-  if (!visible) return null;
-
   const activeSessions = sessions || [];
   const activeTasks = tasks || [];
   const activeReminders = reminders || [];
   const activeReminderCount = activeReminders.filter(r => r.enabled && r.status !== 'completed').length;
+  const activeTaskIndexById = new Map();
+  let nextActiveTaskIdx = 0;
+  activeTasks.forEach((task) => {
+    if (task.status === 'completed') return;
+    activeTaskIndexById.set(task.id, nextActiveTaskIdx++);
+  });
+
+  const handleTaskListDrop = useCallback((e) => {
+    e.preventDefault();
+    const fromIdx = parseInt(e.dataTransfer.getData('text/task-idx'), 10);
+    const targetCard = e.target.closest('.wp-task-card');
+    clearTaskDropIndicators();
+    if (!targetCard || Number.isNaN(fromIdx)) return;
+    const targetIdx = parseInt(targetCard.dataset.dragIndex || '', 10);
+    if (Number.isNaN(targetIdx) || targetIdx < 0) return;
+    const rect = targetCard.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    const toIdx = before
+      ? (fromIdx < targetIdx ? targetIdx - 1 : targetIdx)
+      : (fromIdx < targetIdx ? targetIdx : targetIdx + 1);
+    if (fromIdx === toIdx) return;
+    onTaskReorder?.(fromIdx, toIdx);
+  }, [onTaskReorder]);
+
+  const handleTaskListDragOver = useCallback((e) => {
+    const hasDrag = Array.from(e.dataTransfer?.types || []).includes('text/task-idx');
+    if (!hasDrag) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  if (!visible) return null;
 
   // Detect standalone window mode: electronAPI.closeWindow exists in the workspace preload
   const isStandalone = !!(window.electronAPI && window.electronAPI.closeWindow && !window.electronAPI.toggleWorkspaceWindow);
@@ -775,11 +856,17 @@ export default function WorkspacePanel({
                   <span className="wp-content-count">{activeTasks.length}</span>
                 </div>
                 <AddTaskInput onAdd={onTaskCreate} />
-                <div className="wp-scroll-area wp-scroll-tasks">
+                <div
+                  className="wp-scroll-area wp-scroll-tasks"
+                  ref={taskListRef}
+                  onDragOver={handleTaskListDragOver}
+                  onDrop={handleTaskListDrop}
+                >
                   {activeTasks.map((task) => (
                     <TaskCard
                       key={task.id}
                       task={task}
+                      dragIndex={activeTaskIndexById.has(task.id) ? activeTaskIndexById.get(task.id) : -1}
                       isTiming={timingId === task.id}
                       onToggleComplete={onTaskToggleComplete}
                       onStartStop={onTaskStartStop}
