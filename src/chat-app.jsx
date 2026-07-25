@@ -1,25 +1,30 @@
 /**
- * Chat App — Standalone Hermes client for the chat BrowserWindow.
- * Independent window, no drag/resize needed (OS handles that).
+ * Chat App — Hermes client for the chat BrowserWindow.
+ *
+ * Design: No chat bubbles. Clean text blocks with typographic hierarchy
+ * and ample whitespace. Inspired by Cue/Linear/Vercel.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import './chat.css';
 
-/* ── Collapsible tool call component ── */
+/* ── Collapsible tool call — inline, minimal ── */
 
 function ToolCall({ tool, emoji, label }) {
   const [open, setOpen] = useState(false);
-
-  // Dedup: if label is same as tool name, don't show it expanded (nothing extra)
   const hasDetail = label && label !== tool;
 
   return (
-    <div className="chat-tool-call" onClick={() => hasDetail && setOpen(!open)}>
-      <div className={`chat-tool-header${hasDetail ? ' chat-tool-clickable' : ''}`}>
-        <span className="chat-tool-arrow">{hasDetail ? (open ? '▾' : '▸') : '•'}</span>
+    <div className="chat-tool-call">
+      <div
+        className={`chat-tool-header${hasDetail ? ' chat-tool-clickable' : ''}`}
+        onClick={() => hasDetail && setOpen(!open)}
+        style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}
+      >
+        <span className="chat-tool-arrow" style={open ? { transform: 'rotate(90deg)' } : {}}>▸</span>
         <span className="chat-tool-emoji">{emoji || '⚙️'}</span>
         <span className="chat-tool-name">{tool}</span>
         {hasDetail && !open && (
@@ -37,7 +42,7 @@ function ToolCall({ tool, emoji, label }) {
   );
 }
 
-/* ── Markdown renderer — react-markdown with GFM ── */
+/* ── Markdown renderer ── */
 
 function MessageContent({ content, tools, image, isStreaming }) {
   const components = {
@@ -47,12 +52,22 @@ function MessageContent({ content, tools, image, isStreaming }) {
     code({ className, children, ...props }) {
       const lang = (className || '').replace(/^language-/, '');
       if (lang) {
-        return <><div className="chat-code-lang">{lang}</div><pre className="chat-code-pre"><code className={className} {...props}>{children}</code></pre></>;
+        return (
+          <>
+            <div className="chat-code-lang">{lang}</div>
+            <pre className="chat-code-pre">
+              <code className={className} {...props}>{children}</code>
+            </pre>
+          </>
+        );
       }
-      // Inline code — check if it's inside a pre (parent handles block code)
       const isBlock = typeof children === 'string' && children.includes('\n');
       if (isBlock) {
-        return <pre className="chat-code-pre"><code {...props}>{children}</code></pre>;
+        return (
+          <pre className="chat-code-pre">
+            <code {...props}>{children}</code>
+          </pre>
+        );
       }
       return <code className="chat-inline-code" {...props}>{children}</code>;
     },
@@ -64,63 +79,79 @@ function MessageContent({ content, tools, image, isStreaming }) {
         <img
           src={`data:image/png;base64,${image}`}
           alt=""
-          style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
+          style={{
+            maxWidth: '100%',
+            borderRadius: 8,
+            marginBottom: 8,
+            cursor: 'pointer',
+          }}
           onClick={() => {
             const w = window.open('', '_blank', 'width=800,height=600');
-            if (w) w.document.write(`<!DOCTYPE html><html><head><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style></head><body><img src="data:image/png;base64,${image}"></body></html>`);
+            if (w)
+              w.document.write(
+                `<!DOCTYPE html><html><head><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style></head><body><img src="data:image/png;base64,${image}"></body></html>`
+              );
           }}
         />
       )}
       {tools && tools.length > 0 && (
         <div className="chat-tool-list">
-          {tools.map((t, i) => <ToolCall key={i} {...t} />)}
+          {tools.map((t, i) => (
+            <ToolCall key={i} {...t} />
+          ))}
         </div>
       )}
       {content && (
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{content}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
+          {content}
+        </ReactMarkdown>
       )}
-      {isStreaming && <span className="chat-cursor">▊</span>}
+      {isStreaming && <span className="chat-cursor" />}
     </div>
   );
 }
 
-/* ── Avatar Cropper Modal ── */
+/* ── Avatar Cropper Modal (unchanged from v1) ── */
 
-const CROP_SIZE = 200; // diameter of the circular crop area (px)
+const CROP_SIZE = 200;
 
 function AvatarCropper({ imageSrc, onConfirm, onCancel }) {
   const containerRef = useRef(null);
   const imgRef = useRef(null);
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
-  // Position & scale of the image relative to the crop container
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startOffX: 0, startOffY: 0 });
+  const dragRef = useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startOffX: 0,
+    startOffY: 0,
+  });
 
-  // Load natural dimensions
   const handleImgLoad = useCallback((e) => {
     const { naturalWidth, naturalHeight } = e.target;
     setNaturalSize({ w: naturalWidth, h: naturalHeight });
-    // Fit the image so the shorter side fills the crop circle
     const fitScale = CROP_SIZE / Math.min(naturalWidth, naturalHeight);
     setScale(fitScale);
-    // Center the image in the crop area
     const drawW = naturalWidth * fitScale;
     const drawH = naturalHeight * fitScale;
     setOffset({ x: (CROP_SIZE - drawW) / 2, y: (CROP_SIZE - drawH) / 2 });
   }, []);
 
-  // ── Drag handling ──
-  const onMouseDown = useCallback((e) => {
-    e.preventDefault();
-    dragRef.current = {
-      dragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      startOffX: offset.x,
-      startOffY: offset.y,
-    };
-  }, [offset]);
+  const onMouseDown = useCallback(
+    (e) => {
+      e.preventDefault();
+      dragRef.current = {
+        dragging: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        startOffX: offset.x,
+        startOffY: offset.y,
+      };
+    },
+    [offset]
+  );
 
   const onMouseMove = useCallback((e) => {
     if (!dragRef.current.dragging) return;
@@ -136,33 +167,28 @@ function AvatarCropper({ imageSrc, onConfirm, onCancel }) {
     dragRef.current.dragging = false;
   }, []);
 
-  // ── Wheel zoom ──
-  const onWheel = useCallback((e) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.95 : 1.05;
-    setScale((prev) => {
-      const next = prev * delta;
-      // Clamp: don't let the image become smaller than the crop circle
-      const minScale = CROP_SIZE / Math.max(naturalSize.w, naturalSize.h);
-      return Math.max(minScale, next);
-    });
-  }, [naturalSize]);
+  const onWheel = useCallback(
+    (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.95 : 1.05;
+      setScale((prev) => {
+        const next = prev * delta;
+        const minScale = CROP_SIZE / Math.max(naturalSize.w, naturalSize.h);
+        return Math.max(minScale, next);
+      });
+    },
+    [naturalSize]
+  );
 
-  // ── Crop & export ──
   const handleConfirm = useCallback(() => {
     const canvas = document.createElement('canvas');
     const outSize = 128;
     canvas.width = outSize;
     canvas.height = outSize;
     const ctx = canvas.getContext('2d');
-    // Clip to circle
     ctx.beginPath();
     ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2);
     ctx.clip();
-    // Map crop-area coordinates → original image coordinates
-    // The crop circle is centered at (CROP_SIZE/2, CROP_SIZE/2) in the container
-    // The image draw position is (offset.x, offset.y) at `scale`
-    // We need to draw the portion of the image visible through the crop circle
     const ratio = outSize / CROP_SIZE;
     const dx = offset.x * ratio;
     const dy = offset.y * ratio;
@@ -173,12 +199,16 @@ function AvatarCropper({ imageSrc, onConfirm, onCancel }) {
     onConfirm(result);
   }, [offset, scale, naturalSize, onConfirm]);
 
-  // Draw dimensions
   const drawW = naturalSize.w * scale;
   const drawH = naturalSize.h * scale;
 
   return (
-    <div className="avatar-cropper-overlay" onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+    <div
+      className="avatar-cropper-overlay"
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
+    >
       <div className="avatar-cropper-modal">
         <div className="avatar-cropper-title">Crop Avatar</div>
         <div
@@ -200,23 +230,59 @@ function AvatarCropper({ imageSrc, onConfirm, onCancel }) {
               transform: `translate(${offset.x}px, ${offset.y}px)`,
             }}
           />
-          {/* Circular mask overlay */}
           <div className="avatar-cropper-mask">
             <div className="avatar-cropper-hole" />
           </div>
         </div>
         <div className="avatar-cropper-hint">Drag to pan · Scroll to zoom</div>
         <div className="avatar-cropper-actions">
-          <button className="avatar-cropper-btn avatar-cropper-cancel" onClick={onCancel}>✕ Cancel</button>
-          <button className="avatar-cropper-btn avatar-cropper-confirm" onClick={handleConfirm}>✓ Confirm</button>
+          <button className="avatar-cropper-btn avatar-cropper-cancel" onClick={onCancel}>
+            ✕ Cancel
+          </button>
+          <button className="avatar-cropper-btn avatar-cropper-confirm" onClick={handleConfirm}>
+            ✓ Confirm
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Main component ── */
+/* ── Shortcut helper ── */
+function useShortcut(storageKey, handler) {
+  useEffect(() => {
+    if (!handler) return;
+    const fn = (e) => {
+      const stored = localStorage.getItem(storageKey) || '';
+      if (!stored) return;
+      const parts = stored.toLowerCase().split('+');
+      const key = parts[parts.length - 1];
+      const wantCmd = parts.some((p) =>
+        ['cmd', 'commandorcontrol', 'command'].includes(p)
+      );
+      const wantCtrl = parts.some((p) => ['control', 'ctrl'].includes(p));
+      const wantAlt = parts.includes('alt');
+      const wantShift = parts.includes('shift');
+      if (
+        e.metaKey === wantCmd &&
+        e.ctrlKey === wantCtrl &&
+        e.altKey === wantAlt &&
+        e.shiftKey === wantShift &&
+        e.key.toUpperCase() === key.toUpperCase()
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        handler();
+      }
+    };
+    document.addEventListener('keydown', fn, true);
+    return () => document.removeEventListener('keydown', fn, true);
+  }, [storageKey, handler]);
+}
 
+/* ═══════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════ */
 function ChatApp() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -227,126 +293,50 @@ function ChatApp() {
   const [streamingTools, setStreamingTools] = useState([]);
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
-  const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
+  const [currentModel, setCurrentModel] = useState(
+    () => localStorage.getItem('cloe-chat-model') || ''
+  );
   const [focusedIndex, setFocusedIndex] = useState(null);
-  const [transparent, setTransparent] = useState(() => localStorage.getItem('cloe-chat-transparent') === 'true');
-  const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
+  const [transparent, setTransparent] = useState(
+    () => localStorage.getItem('cloe-chat-transparent') === 'true'
+  );
+  const [penetrate, setPenetrate] = useState(
+    () => localStorage.getItem('cloe-chat-penetrate') === 'true'
+  );
   const [avatarUrl, setAvatarUrl] = useState(null);
-  const [cropperSrc, setCropperSrc] = useState(null); // raw image data URL to crop
+  const [cropperSrc, setCropperSrc] = useState(null);
   const [contextPct, setContextPct] = useState(0);
 
   const streamRef = useRef('');
   const toolsRef = useRef([]);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
+  const sessionIdRef = useRef(null);
 
-  // ── Chat toggle shortcut (works when chat window is focused) ──
-  useEffect(() => {
-    const handler = (e) => {
-      const stored = localStorage.getItem('cloe-chat-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
+  /* ── Shortcuts ── */
+  useShortcut('cloe-chat-shortcut', () => window.electronAPI?.toggleChatWindow?.());
+  useShortcut('cloe-transparency-shortcut', () =>
+    setTransparent((prev) => {
+      const next = !prev;
+      localStorage.setItem('cloe-chat-transparent', String(next));
+      return next;
+    })
+  );
+  useShortcut('cloe-chat-pin-shortcut', () =>
+    setPenetrate((prev) => {
+      const next = !prev;
+      localStorage.setItem('cloe-chat-penetrate', String(next));
+      return next;
+    })
+  );
+  useShortcut('cloe-chat-focus-shortcut', () => textareaRef.current?.focus());
 
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        window.electronAPI?.toggleChatWindow?.();
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
-
-  // ── Chat transparency shortcut ──
-  useEffect(() => {
-    const handler = (e) => {
-      const stored = localStorage.getItem('cloe-transparency-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        setTransparent(prev => {
-          const next = !prev;
-          localStorage.setItem('cloe-chat-transparent', String(next));
-          return next;
-        });
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
-
-  // ── Chat pin shortcut ──
-  useEffect(() => {
-    const handler = (e) => {
-      const stored = localStorage.getItem('cloe-chat-pin-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        setPenetrate(prev => {
-          const next = !prev;
-          localStorage.setItem('cloe-chat-penetrate', String(next));
-          return next;
-        });
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
-
-  // ── Chat focus input shortcut ──
-  useEffect(() => {
-    const handler = (e) => {
-      const stored = localStorage.getItem('cloe-chat-focus-shortcut') || '';
-      if (!stored) return;
-      const parts = stored.toLowerCase().split('+');
-      const key = parts[parts.length - 1];
-      const wantCmd = parts.some(p => ['cmd', 'commandorcontrol', 'command'].includes(p));
-      const wantCtrl = parts.some(p => ['control', 'ctrl'].includes(p));
-      const wantAlt = parts.includes('alt');
-      const wantShift = parts.includes('shift');
-      if (e.metaKey === wantCmd && e.ctrlKey === wantCtrl &&
-          e.altKey === wantAlt && e.shiftKey === wantShift &&
-          e.key.toUpperCase() === key.toUpperCase()) {
-        e.preventDefault();
-        e.stopPropagation();
-        textareaRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
-
-  // Auto-scroll
+  /* ── Auto-scroll ── */
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, streamingTools]);
 
-  // ESC to exit focus mode
+  /* ── ESC to exit focus mode ── */
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && focusedIndex !== null) {
@@ -357,19 +347,19 @@ function ChatApp() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [focusedIndex]);
 
-  // Apply window opacity on mount and when transparent state changes
+  /* ── Window opacity ── */
   useEffect(() => {
     const opacity = transparent ? 0.6 : 1.0;
     window.electronAPI?.setChatOpacity?.(opacity);
   }, [transparent]);
 
-  // Sync fullscreen-penetrate mode with main process
+  /* ── Fullscreen penetrate ── */
   useEffect(() => {
     window.electronAPI?.setFullscreenPenetrate?.(penetrate);
   }, [penetrate]);
 
   const toggleOpacity = useCallback(() => {
-    setTransparent(prev => {
+    setTransparent((prev) => {
       const next = !prev;
       localStorage.setItem('cloe-chat-transparent', String(next));
       return next;
@@ -377,26 +367,28 @@ function ChatApp() {
   }, []);
 
   const togglePenetrate = useCallback(() => {
-    setPenetrate(prev => {
+    setPenetrate((prev) => {
       const next = !prev;
       localStorage.setItem('cloe-chat-penetrate', String(next));
       return next;
     });
   }, []);
 
-  // Load avatar on mount
+  /* ── Avatar ── */
   useEffect(() => {
-    window.electronAPI?.getChatAvatar?.().then((url) => {
-      if (url) setAvatarUrl(url);
-    }).catch(() => {});
+    window.electronAPI
+      ?.getChatAvatar?.()
+      .then((url) => {
+        if (url) setAvatarUrl(url);
+      })
+      .catch(() => {});
   }, []);
 
   const handleAvatarClick = useCallback(async () => {
     const url = await window.electronAPI?.selectChatAvatar?.();
-    if (url) setCropperSrc(url); // open the cropper instead of directly setting avatar
+    if (url) setCropperSrc(url);
   }, []);
 
-  // Called when the cropper confirms the crop
   const handleCropConfirm = useCallback(async (croppedDataUrl) => {
     setCropperSrc(null);
     const saved = await window.electronAPI?.saveChatAvatar?.(croppedDataUrl);
@@ -409,77 +401,87 @@ function ChatApp() {
     setCropperSrc(null);
   }, []);
 
-  const handleAvatarContextMenu = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!avatarUrl) {
-      // No avatar yet — just open file picker
-      handleAvatarClick();
-      return;
-    }
-    // Show a simple confirm to remove
-    // Using a custom mini-menu approach since we're in renderer
-    const menu = document.createElement('div');
-    menu.className = 'chat-avatar-menu';
-    menu.innerHTML = `
-      <div class="chat-avatar-menu-item" data-action="change">Change avatar</div>
-      <div class="chat-avatar-menu-item chat-avatar-menu-danger" data-action="remove">Remove avatar</div>
-    `;
-    menu.style.position = 'fixed';
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
-    document.body.appendChild(menu);
-
-    const handleClick = async (ev) => {
-      const action = ev.target.dataset.action;
-      menu.remove();
-      document.removeEventListener('click', handleClick);
-      if (action === 'change') {
-        const url = await window.electronAPI?.selectChatAvatar?.();
-        if (url) setCropperSrc(url);
-      } else if (action === 'remove') {
-        await window.electronAPI?.removeChatAvatar?.();
-        setAvatarUrl(null);
+  const handleAvatarContextMenu = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!avatarUrl) {
+        handleAvatarClick();
+        return;
       }
-    };
-    // Close menu on outside click
-    setTimeout(() => document.addEventListener('click', handleClick), 0);
-  }, [avatarUrl, handleAvatarClick]);
+      const menu = document.createElement('div');
+      menu.className = 'chat-avatar-menu';
+      menu.innerHTML = `
+        <div class="chat-avatar-menu-item" data-action="change">Change avatar</div>
+        <div class="chat-avatar-menu-item chat-avatar-menu-danger" data-action="remove">Remove avatar</div>
+      `;
+      menu.style.position = 'fixed';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      document.body.appendChild(menu);
 
-  // Health check + load nickname
+      const handleClick = async (ev) => {
+        const action = ev.target.dataset.action;
+        menu.remove();
+        document.removeEventListener('click', handleClick);
+        if (action === 'change') {
+          const url = await window.electronAPI?.selectChatAvatar?.();
+          if (url) setCropperSrc(url);
+        } else if (action === 'remove') {
+          await window.electronAPI?.removeChatAvatar?.();
+          setAvatarUrl(null);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', handleClick), 0);
+    },
+    [avatarUrl, handleAvatarClick]
+  );
+
+  /* ── Health check + load nickname + models ── */
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
       try {
         const r = await window.electronAPI?.hermesCheckHealth?.();
         if (!cancelled) setConnected(r?.connected ?? false);
-      } catch { if (!cancelled) setConnected(false); }
+      } catch {
+        if (!cancelled) setConnected(false);
+      }
     };
     check();
     const iv = setInterval(check, 20000);
-    // Load nickname from config
-    window.electronAPI?.getChatNickname?.().then((name) => {
-      if (name && !cancelled) setNickname(name);
-    }).catch(() => {});
-    // Load LLM model list from Hermes config + provider API
-    window.electronAPI?.hermesGetModels?.().then((result) => {
-      if (!cancelled && result) {
-        const modelList = result.models || [];
-        setModels(modelList);
-        // Set current model from config if not already in localStorage
-        if (result.current && !localStorage.getItem('cloe-chat-model')) {
-          setCurrentModel(result.current);
-          localStorage.setItem('cloe-chat-model', result.current);
+    window.electronAPI
+      ?.getChatNickname?.()
+      .then((name) => {
+        if (name && !cancelled) setNickname(name);
+      })
+      .catch(() => {});
+    window.electronAPI
+      ?.hermesGetModels?.()
+      .then((result) => {
+        if (!cancelled && result) {
+          const modelList = result.models || [];
+          setModels(modelList);
+          if (result.current && !localStorage.getItem('cloe-chat-model')) {
+            setCurrentModel(result.current);
+            localStorage.setItem('cloe-chat-model', result.current);
+          }
         }
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; clearInterval(iv); };
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
   }, []);
 
-  // Stream listeners
+  /* ── Stream listeners ── */
   useEffect(() => {
     const unsubDelta = window.electronAPI?.onHermesDelta?.((data) => {
-      if (data.sessionId) setSessionId(data.sessionId);
+      if (data.sessionId) {
+        setSessionId(data.sessionId);
+        sessionIdRef.current = data.sessionId;
+      }
       if (data.content) {
         streamRef.current += data.content;
         setStreamingContent(streamRef.current);
@@ -497,7 +499,7 @@ function ChatApp() {
       setStreamingContent('');
       setStreamingTools([]);
       if (c || t.length > 0) {
-        setMessages(prev => [...prev, { role: 'assistant', content: c, tools: t }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: c, tools: t }]);
       }
       setSending(false);
       setConnected(true);
@@ -511,26 +513,43 @@ function ChatApp() {
       setStreamingTools([]);
       const errMsg = data.error || 'Unknown error';
       const msg = c ? `${c}\n\n---\n\n**Error:** ${errMsg}` : `**Error:** ${errMsg}`;
-      setMessages(prev => [...prev, { role: 'assistant', content: msg, tools: t, isError: true }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: msg, tools: t, isError: true },
+      ]);
       setSending(false);
       setConnected(false);
     });
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
-      setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: data.role || 'assistant', content: data.content, image: data.image },
+      ]);
     });
     const unsubCtxUsage = window.electronAPI?.onContextUsage?.((data) => {
-      if (typeof data.usage_pct === 'number') setContextPct(data.usage_pct);
+      if (typeof data.usage_pct !== 'number') return;
+      // Only update if the context usage belongs to this chat's session.
+      // Plugin sends session_id from the Hermes gateway; we match it against
+      // our current sessionId to avoid cross-session bleed (e.g. Feishu, cron).
+      const currentSid = sessionIdRef.current;
+      if (data.session_id && currentSid && data.session_id !== currentSid) return;
+      setContextPct(data.usage_pct);
     });
-    return () => { unsubDelta?.(); unsubTool?.(); unsubEnd?.(); unsubError?.(); unsubExternal?.(); unsubCtxUsage?.(); };
+    return () => {
+      unsubDelta?.();
+      unsubTool?.();
+      unsubEnd?.();
+      unsubError?.();
+      unsubExternal?.();
+      unsubCtxUsage?.();
+    };
   }, []);
 
   const send = useCallback(() => {
     if (!input.trim() || connected === false) return;
-    // Convert single newlines to Markdown line breaks (two spaces + newline)
-    // so multi-line user input renders correctly via ReactMarkdown
     const msg = input.trim().replace(/\n/g, '  \n');
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: msg }]);
+    setMessages((prev) => [...prev, { role: 'user', content: msg }]);
     if (!sending) {
       setSending(true);
       streamRef.current = '';
@@ -538,15 +557,12 @@ function ChatApp() {
       setStreamingContent('');
       setStreamingTools([]);
     }
-    // Send the original (trimmed) message to the API, not the markdown-converted version
     window.electronAPI?.hermesSendMessage?.(input.trim(), sessionId, currentModel || undefined);
-    // Reset textarea height back to single line after sending
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }, [input, sending, connected, sessionId, currentModel]);
 
   const stop = useCallback(() => {
     window.electronAPI?.hermesChatStop?.();
-    // Finalize any already-streamed content into messages
     const c = streamRef.current;
     const t = toolsRef.current;
     streamRef.current = '';
@@ -554,37 +570,36 @@ function ChatApp() {
     setStreamingContent('');
     setStreamingTools([]);
     if (c || t.length > 0) {
-      setMessages(prev => [...prev, { role: 'assistant', content: c, tools: t }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: c, tools: t }]);
     }
     setSending(false);
   }, []);
 
-  const onKeyDown = useCallback((e) => {
-    if (e.key !== 'Enter') return;
-    if (e.shiftKey || e.altKey) {
-      // Shift+Enter or Alt/Option+Enter → insert a newline (don't send)
-      e.preventDefault();
-      const { selectionStart, selectionEnd } = e.target;
-      setInput(prev => {
-        const next = prev.substring(0, selectionStart) + '\n' + prev.substring(selectionEnd);
-        // Schedule cursor restore after React re-render
-        requestAnimationFrame(() => {
-          const ta = textareaRef.current;
-          if (ta) {
-            ta.selectionStart = ta.selectionEnd = selectionStart + 1;
-            // Auto-resize
-            ta.style.height = 'auto';
-            ta.style.height = Math.min(ta.scrollHeight, 100) + 'px';
-          }
+  const onKeyDown = useCallback(
+    (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.shiftKey || e.altKey) {
+        e.preventDefault();
+        const { selectionStart, selectionEnd } = e.target;
+        setInput((prev) => {
+          const next = prev.substring(0, selectionStart) + '\n' + prev.substring(selectionEnd);
+          requestAnimationFrame(() => {
+            const ta = textareaRef.current;
+            if (ta) {
+              ta.selectionStart = ta.selectionEnd = selectionStart + 1;
+              ta.style.height = 'auto';
+              ta.style.height = Math.min(ta.scrollHeight, 100) + 'px';
+            }
+          });
+          return next;
         });
-        return next;
-      });
-    } else {
-      // Plain Enter → send message
-      e.preventDefault();
-      send();
-    }
-  }, [send]);
+      } else {
+        e.preventDefault();
+        send();
+      }
+    },
+    [send]
+  );
 
   const onInputChange = useCallback((e) => {
     setInput(e.target.value);
@@ -595,10 +610,12 @@ function ChatApp() {
 
   const newSession = useCallback(() => {
     setSessionId(null);
+    sessionIdRef.current = null;
     setMessages([]);
     setStreamingContent('');
     setStreamingTools([]);
     setSending(false);
+    setContextPct(0);
     streamRef.current = '';
     toolsRef.current = [];
   }, []);
@@ -607,15 +624,16 @@ function ChatApp() {
     const v = e.target.value;
     setCurrentModel(v);
     localStorage.setItem('cloe-chat-model', v);
-    // Actually switch the LLM model (updates Hermes config + restarts gateway)
     window.electronAPI?.hermesSwitchModel?.(v).then((result) => {
       if (result?.success) {
-        // Gateway is restarting — show disconnected briefly
         setConnected(false);
         setTimeout(() => {
-          window.electronAPI?.hermesCheckHealth?.().then((r) => {
-            setConnected(r?.connected ?? false);
-          }).catch(() => setConnected(false));
+          window.electronAPI
+            ?.hermesCheckHealth?.()
+            .then((r) => {
+              setConnected(r?.connected ?? false);
+            })
+            .catch(() => setConnected(false));
         }, 3000);
       }
     }).catch(() => {});
@@ -623,38 +641,65 @@ function ChatApp() {
 
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
 
+  /* ── Render helpers ── */
+  const renderTitlebarAvatar = () => (
+    <div
+      className={`chat-titlebar-avatar${avatarUrl ? '' : ' chat-titlebar-avatar-default'}`}
+      onClick={handleAvatarClick}
+      onContextMenu={handleAvatarContextMenu}
+      title={avatarUrl ? 'Right-click to change/remove avatar' : 'Click to set AI avatar'}
+    >
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="AI" draggable={false} />
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <circle cx="12" cy="5" r="2" />
+          <path d="M12 7v4" />
+        </svg>
+      )}
+    </div>
+  );
+
   return (
     <div className={`chat-root${transparent ? ' chat-root-transparent' : ''}`}>
-      {/* Title bar — drag region */}
+      {/* Title bar */}
       <div className="chat-titlebar" data-tauri-drag-region>
         <div className="chat-titlebar-left">
-          <div
-            className={`chat-titlebar-avatar${avatarUrl ? '' : ' chat-titlebar-avatar-default'}`}
-            onClick={handleAvatarClick}
-            onContextMenu={handleAvatarContextMenu}
-            title={avatarUrl ? 'Right-click to change/remove avatar' : 'Click to set AI avatar'}
-          >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="AI" draggable={false} />
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <circle cx="12" cy="5" r="2" />
-                <path d="M12 7v4" />
-              </svg>
-            )}
-          </div>
+          {renderTitlebarAvatar()}
           <span className="chat-title">{nickname}</span>
-          {sessionId && <span className="chat-session-badge" title={sessionId}>Session</span>}
+          {sessionId && (
+            <span className="chat-session-badge" title={sessionId}>
+              Session
+            </span>
+          )}
         </div>
         <div className="chat-titlebar-right">
-          <button className="chat-btn" onClick={newSession} title="New session">+</button>
+          <button className="chat-btn" onClick={newSession} title="New session">
+            +
+          </button>
           <button
             className={`chat-btn${transparent ? ' chat-btn-active' : ''}`}
             onClick={toggleOpacity}
             title={transparent ? 'Make opaque' : 'Make transparent'}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
               <path d="M12 2v20" opacity={transparent ? 0.4 : 1} />
             </svg>
@@ -664,16 +709,31 @@ function ChatApp() {
             onClick={togglePenetrate}
             title={penetrate ? 'Disable fullscreen overlay' : 'Float over fullscreen'}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill={penetrate ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill={penetrate ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 17v5" />
               <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
             </svg>
           </button>
-          <button className="chat-btn chat-btn-close" onClick={() => window.electronAPI?.closeWindow?.()} title="Close">✕</button>
+          <button
+            className="chat-btn chat-btn-close"
+            onClick={() => window.electronAPI?.closeWindow?.()}
+            title="Close"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages — no bubbles, clean text flow */}
       <div className="chat-messages">
         {messages.length === 0 && !sending && (
           <div className="chat-empty">
@@ -684,60 +744,46 @@ function ChatApp() {
                 : 'Connecting...'}
           </div>
         )}
+
         {messages.map((m, i) => (
           <div
             key={i}
             className={`chat-msg chat-msg-${m.role}${m.isError ? ' chat-msg-error' : ''}`}
-            onClick={() => setFocusedIndex(i)}
+            onDoubleClick={() => setFocusedIndex(i)}
           >
-            {m.role === 'assistant' && (
-              <div className="chat-msg-avatar">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="AI" draggable={false} />
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <circle cx="12" cy="5" r="2" />
-                    <path d="M12 7v4" />
-                  </svg>
-                )}
-              </div>
+            {/* Tool separator before assistant messages that have tools */}
+            {m.role === 'assistant' && m.tools && m.tools.length > 0 && i > 0 && (
+              <div className="chat-tool-separator" />
             )}
             <MessageContent content={m.content} tools={m.tools} image={m.image} />
           </div>
         ))}
+
+        {/* Streaming content */}
         {(streamingContent || streamingTools.length > 0) && (
-          <div className="chat-msg chat-msg-assistant">
-            <div className="chat-msg-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="AI" draggable={false} />
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <circle cx="12" cy="5" r="2" />
-                  <path d="M12 7v4" />
-                </svg>
-              )}
-            </div>
-            <MessageContent content={streamingContent} tools={streamingTools} isStreaming />
+          <div className="chat-streaming">
+            {streamingTools.length > 0 && messages.length > 0 && (
+              <div className="chat-tool-separator" />
+            )}
+            <MessageContent
+              content={streamingContent}
+              tools={streamingTools}
+              isStreaming
+            />
           </div>
         )}
+
+        {/* Thinking / loading indicator */}
         {sending && !streamingContent && streamingTools.length === 0 && (
-          <div className="chat-msg chat-msg-assistant">
-            <div className="chat-msg-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="AI" draggable={false} />
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <circle cx="12" cy="5" r="2" />
-                  <path d="M12 7v4" />
-                </svg>
-              )}
+          <div className="chat-thinking">
+            <div className="chat-thinking-bar">
+              <span />
+              <span />
+              <span />
             </div>
-            <div className="chat-typing"><span /><span /><span /></div>
           </div>
         )}
+
         <div ref={endRef} />
       </div>
 
@@ -746,32 +792,31 @@ function ChatApp() {
         <div className="chat-focus-overlay" onClick={() => setFocusedIndex(null)}>
           <div className="chat-focus-modal" onClick={(e) => e.stopPropagation()}>
             <div className="chat-focus-modal-header">
-              <span className="chat-focus-modal-label">{messages[focusedIndex].role === 'user' ? 'You' : nickname}</span>
-              <button className="chat-btn" onClick={() => setFocusedIndex(null)} title="Close (Esc)">✕</button>
+              <span className="chat-focus-modal-label">
+                {messages[focusedIndex].role === 'user' ? 'You' : nickname}
+              </span>
+              <button
+                className="chat-btn"
+                onClick={() => setFocusedIndex(null)}
+                title="Close (Esc)"
+              >
+                ✕
+              </button>
             </div>
             <div className="chat-focus-modal-body">
               <div className={`chat-focus-bubble chat-focus-bubble-${messages[focusedIndex].role}`}>
-                {messages[focusedIndex].role === 'assistant' && (
-                  <div className="chat-msg-avatar">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="AI" draggable={false} />
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <circle cx="12" cy="5" r="2" />
-                        <path d="M12 7v4" />
-                      </svg>
-                    )}
-                  </div>
-                )}
-                <MessageContent content={messages[focusedIndex].content} tools={messages[focusedIndex].tools} image={messages[focusedIndex].image} />
+                <MessageContent
+                  content={messages[focusedIndex].content}
+                  tools={messages[focusedIndex].tools}
+                  image={messages[focusedIndex].image}
+                />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Input area — unified rounded container */}
+      {/* Input area — textarea on top, actions row below, unified container */}
       <div className="chat-input-area">
         <textarea
           ref={textareaRef}
@@ -779,26 +824,62 @@ function ChatApp() {
           value={input}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`}
+          placeholder={
+            connected === false ? 'Not connected' : `Message ${nickname}…`
+          }
           disabled={connected === false}
           rows={1}
         />
-        <div className="chat-input-actions">
-          {models.length > 1 && (
-            <div className="chat-model-select-wrapper">
+        <div className="chat-input-toolbar">
+          <div className="chat-input-actions">
+            {models.length > 1 && (
+              <div className="chat-model-select-wrapper">
+                <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
+                <select
+                  className="chat-model-select"
+                  value={currentModel}
+                  onChange={onModelChange}
+                  title="Switch model"
+                >
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {models.length <= 1 && (
               <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-              <select className="chat-model-select" value={currentModel} onChange={onModelChange} title="Switch model">
-                {models.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {models.length <= 1 && (
-            <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />
-          )}
+            )}
+          </div>
+          {/* Context usage — inline in toolbar */}
+          <div className="chat-context-bar">
+            <svg viewBox="0 0 36 36" className="chat-context-svg">
+              <path
+                className="chat-context-bg"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className={`chat-context-fill${
+                  contextPct >= 90
+                    ? ' critical'
+                    : contextPct >= 75
+                      ? ' danger'
+                      : contextPct >= 50
+                        ? ' warn'
+                        : ''
+                }`}
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`}
+              />
+            </svg>
+            <span className="chat-context-text">{Math.round(contextPct)}%</span>
+          </div>
           <button
-            className={sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'}
+            className={
+              sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'
+            }
             onClick={sending ? stop : send}
             disabled={!sending && (connected === false || !input.trim())}
             title={sending ? 'Stop' : 'Send'}
@@ -808,24 +889,22 @@ function ChatApp() {
                 <rect x="6" y="6" width="12" height="12" rx="2" />
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="12" y1="19" x2="12" y2="5" />
                 <polyline points="5 12 12 5 19 12" />
               </svg>
             )}
           </button>
         </div>
-      </div>
-
-      {/* Context usage indicator — below input */}
-      <div className="chat-context-bar">
-        <svg viewBox="0 0 36 36" className="chat-context-svg">
-          <path className="chat-context-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-          <path className={`chat-context-fill${contextPct >= 90 ? ' critical' : contextPct >= 75 ? ' danger' : contextPct >= 50 ? ' warn' : ''}`}
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            strokeDasharray={`${Math.max(0, Math.min(100, contextPct))}, 100`} />
-        </svg>
-        <span className="chat-context-text">{Math.round(contextPct)}% context</span>
       </div>
 
       {/* Avatar Cropper Modal */}
@@ -836,7 +915,6 @@ function ChatApp() {
           onCancel={handleCropCancel}
         />
       )}
-
     </div>
   );
 }
