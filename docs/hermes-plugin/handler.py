@@ -191,13 +191,14 @@ class CloeDesktopBridge:
         logger.debug("[cloe-desktop-plugin] → %s", action)
 
     def _send_context_usage(self, usage_pct: float, prompt_tokens: int,
-                            context_limit: int) -> None:
+                            context_limit: int, session_id: str = "") -> None:
         """Send context usage data to the desktop bridge for HUD display."""
         try:
             payload = {
                 "usage_pct": round(usage_pct, 1),
                 "prompt_tokens": prompt_tokens,
                 "context_limit": context_limit,
+                "session_id": session_id or "",
             }
             data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
@@ -246,12 +247,12 @@ class CloeDesktopBridge:
         self._last_usage_pct = usage_pct
 
         logger.info(
-            "[cloe-desktop-plugin] context usage: %d/%d tokens (%.1f%%)",
-            prompt_tokens, context_limit, usage_pct,
+            "[cloe-desktop-plugin] context usage: %d/%d tokens (%.1f%%) [session=%s]",
+            prompt_tokens, context_limit, usage_pct, session_id,
         )
 
-        # Send context usage data to desktop bridge for HUD display
-        self._send_context_usage(usage_pct, prompt_tokens, context_limit)
+        # Send context usage data to desktop bridge (include session_id for routing)
+        self._send_context_usage(usage_pct, prompt_tokens, context_limit, session_id)
 
         # React to high context usage
         rules = self._rules()
@@ -357,7 +358,7 @@ class CloeDesktopBridge:
         self._last_prompt_tokens = 0
         self._last_context_limit = 128_000
         self._last_usage_pct = 0.0
-        self._send_context_usage(0.0, 0, 128_000)
+        self._send_context_usage(0.0, 0, 128_000, session_id="")
 
     def on_session_start(self, session_id: str, model: str, platform: str) -> None:
         """New session → reset context usage + wave hello."""
