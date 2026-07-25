@@ -65,209 +65,14 @@ const {
   ensureCloeConfigDirAndMigrateConfig, bootstrapPackagedData,
 } = require('./src/main/config');
 
-// ==================== Action Sets — loaded from action-sets.json ====================
-let actionSetsData = null;
-let activeSetId = 'default';
-
-function loadActionSets() {
-  const primary = getActionSetsPath();
-  let p = primary;
-  if (!fs.existsSync(p) && app.isPackaged) {
-    const bundled = path.join(__dirname, 'dist', 'action-sets.json');
-    if (fs.existsSync(bundled)) p = bundled;
-  }
-  let loaded = false;
-  try {
-    if (fs.existsSync(p)) {
-      const raw = fs.readFileSync(p, 'utf-8');
-      actionSetsData = JSON.parse(raw);
-      activeSetId = actionSetsData.activeSetId || 'default';
-      console.log(`[ActionSets] Loaded ${actionSetsData.sets.length} set(s) from ${p}`);
-      loaded = true;
-    }
-  } catch (err) {
-    console.warn(`[ActionSets] Failed to load ${p}: ${err.message}`);
-  }
-  if (!loaded) {
-    console.error('[ActionSets] No action-sets.json found');
-    actionSetsData = null;
-  }
-}
-
-let actionSetsWatcher = null;
-let reloadDebounceTimer = null;
-
-function watchActionSets() {
-  if (actionSetsWatcher) return; // already watching
-
-  const filePath = getActionSetsPath();
-  const dir = path.dirname(filePath);
-
-  // Watch the directory (more reliable than watching the file directly)
-  try {
-    actionSetsWatcher = fs.watch(dir, (eventType, filename) => {
-      if (filename !== 'action-sets.json') return;
-
-      // Debounce: wait 300ms after last change before reloading
-      // (avoids double-reload and self-trigger from saveActionSets)
-      clearTimeout(reloadDebounceTimer);
-      reloadDebounceTimer = setTimeout(() => {
-        const currentHash = JSON.stringify(actionSetsData);
-        try {
-          const raw = fs.readFileSync(filePath, 'utf-8');
-          const newData = JSON.parse(raw);
-          const newHash = JSON.stringify(newData);
-
-          // Skip if data hasn't actually changed (e.g., our own save)
-          if (newHash === currentHash) return;
-
-          actionSetsData = newData;
-          activeSetId = newData.activeSetId || 'default';
-          console.log(`[ActionSets] Hot-reloaded from disk: ${newData.sets.length} set(s)`);
-
-          // Notify renderer of the active set's config
-          broadcastSetConfig(activeSetId);
-        } catch (err) {
-          console.warn(`[ActionSets] Hot-reload failed: ${err.message}`);
-        }
-      }, 300);
-    });
-    actionSetsWatcher.on('error', (err) => {
-      console.warn(`[ActionSets] Watch error: ${err.message}`);
-      actionSetsWatcher = null;
-      // Retry after 5 seconds
-      setTimeout(watchActionSets, 5000);
-    });
-    console.log(`[ActionSets] Watching ${dir} for changes`);
-  } catch (err) {
-    console.warn(`[ActionSets] Failed to watch: ${err.message}`);
-  }
-}
-
-function getActiveSet() {
-  if (!actionSetsData || actionSetsData.sets.length === 0) return null;
-  return actionSetsData.sets.find(s => s.id === activeSetId) || actionSetsData.sets[0];
-}
-
-function getSetById(setId) {
-  if (!actionSetsData) return null;
-  return actionSetsData.sets.find(s => s.id === setId) || null;
-}
-
-/**
- * Build actions list for a given set (for the management API).
- */
-function buildActionsList(setId) {
-  const set = setId ? getSetById(setId) : getActiveSet();
-  if (!set) return [];
-
-  const idleCounts = {};
-  for (const name of (set.idlePlaylist || [])) {
-    idleCounts[name] = (idleCounts[name] || 0) + 1;
-  }
-
-  const actionMap = set.actionMap || {};
-  const hookTriggers = {};
-  for (const [trigger, gifName] of Object.entries(actionMap)) {
-    if (!hookTriggers[gifName]) hookTriggers[gifName] = [];
-    hookTriggers[gifName].push(trigger);
-  }
-
-  const actionInfo = set.actionInfo || {};
-  const actions = [];
-  for (const [name, gifPath] of Object.entries(set.animations || {})) {
-    const gifFile = gifPath.split('/').pop();
-    let trigger = 'manual';
-    let idleWeight = 0;
-    let hookNames = [];
-    let special = null;
-
-    if (name in idleCounts) {
-      trigger = 'idle';
-      idleWeight = idleCounts[name];
-    }
-    if (name === 'working') special = '工作模式';
-    if (name === 'speak') special = '语音';
-
-    const hooks = hookTriggers[name];
-    if (hooks) {
-      hookNames = hooks;
-      if (trigger !== 'idle') trigger = 'hook';
-    }
-
-    const info = actionInfo[name];
-    const description = (info && info.description) || '';
-    const descriptionEn = (info && info.descriptionEn) || '';
-
-    actions.push({ name, gifFile, gifPath, trigger, idleWeight, hookNames, special, description, descriptionEn });
-  }
-  return actions;
-}
-
-/**
- * Build sets summary (lightweight, for set selector UI).
- */
-function buildSetsSummary() {
-  if (!actionSetsData) return [];
-  return actionSetsData.sets.map(set => ({
-    id: set.id,
-    name: set.name,
-    nameEn: set.nameEn || set.name,
-    reference: set.reference,
-    chromakey: set.chromakey,
-    description: set.description,
-    descriptionEn: set.descriptionEn || set.description,
-    actionCount: Object.keys(set.animations || {}).length,
-    active: set.id === activeSetId,
-  }));
-}
-
-// ==================== Action Sets CRUD Helpers ====================
-function getActionSetsPath() {
-  return path.join(getDataDir(), 'action-sets.json');
-}
-
-function saveActionSets() {
-  const filePath = getActionSetsPath();
-  fs.writeFileSync(filePath, JSON.stringify(actionSetsData, null, 2), 'utf-8');
-  console.log(`[ActionSets] Saved to ${filePath}`);
-}
-
-/**
- * Validate that a user-supplied name is safe to use as a filename component.
- * Rejects path traversal (../), slashes, null bytes, etc.
- */
-function isSafeFilename(name) {
-  return typeof name === 'string' && /^[a-zA-Z0-9_\-\u4e00-\u9fff]+$/.test(name);
-}
-
-function generateSetId(name) {
-  // Lowercase + underscore + short timestamp
-  const slug = name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-  const ts = Math.floor(Date.now() / 1000) % 100000;
-  return `${slug}_${ts}`;
-}
-
-function broadcastSetConfig(setId) {
-  const set = getSetById(setId);
-  if (!set) return;
-  const msg = {
-    type: 'set-config',
-    animations: set.animations || {},
-    idlePlaylist: set.idlePlaylist || [],
-    actionMap: set.actionMap || {},
-  };
-  // Attach default set as fallback for non-default sets
-  if (setId !== 'default') {
-    const defaultSet = getSetById('default');
-    if (defaultSet) {
-      msg.fallbackAnimations = defaultSet.animations || {};
-      msg.fallbackActionMap = defaultSet.actionMap || {};
-    }
-  }
-  const sent = bridge.broadcast(msg);
-  console.log(`[broadcast] set-config for "${setId}" → ${sent} client(s)`);
-}
+// ==================== Action Sets (see src/main/action-sets.js) ====================
+const actionSets = require('./src/main/action-sets');
+const {
+  loadActionSets, watchActionSets,
+  getActiveSet, getSetById, buildActionsList, buildSetsSummary,
+  getActionSetsPath, saveActionSets, isSafeFilename, generateSetId,
+  broadcastSetConfig,
+} = actionSets;
 
 function broadcastToClients(data) {
   bridge.broadcast(data);
@@ -650,7 +455,7 @@ function runGifGenerationJob(taskId, setId, set, name, prompt, durationSec, chro
         broadcastToClients({
           type: 'generation-complete', taskId, actionName: name, setId,
         });
-        if (setId === activeSetId) {
+        if (setId === actionSets.getActiveSetId()) {
           broadcastSetConfig(setId);
         }
       } else {
@@ -1077,7 +882,7 @@ function createBridgeServers() {
     // GET /action-sets — list all sets
     if (req.method === 'GET' && req.url === '/action-sets') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ sets: buildSetsSummary(), activeSetId }));
+      res.end(JSON.stringify({ sets: buildSetsSummary(), activeSetId: actionSets.getActiveSetId() }));
       return;
     }
 
@@ -1139,7 +944,7 @@ function createBridgeServers() {
     // GET /actions — backward compatible, returns active set's actions
     if (req.method === 'GET' && req.url === '/actions') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ actions: buildActionsList(), activeSetId }));
+      res.end(JSON.stringify({ actions: buildActionsList(), activeSetId: actionSets.getActiveSetId() }));
       return;
     }
 
@@ -1336,7 +1141,7 @@ function createBridgeServers() {
             idlePlaylist: [],
             actionMap: {},
           };
-          actionSetsData.sets.push(newSet);
+          actionSets.getActionSetsData().sets.push(newSet);
           saveActionSets();
           res.writeHead(201, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(newSet));
@@ -1351,26 +1156,26 @@ function createBridgeServers() {
     // DELETE /action-sets/:id — delete action set (must not match /action-sets/:id/actions/...)
     if (req.method === 'DELETE' && req.url.startsWith('/action-sets/') && !req.url.includes('/actions/')) {
       const setId = decodeURIComponent(req.url.split('/action-sets/')[1]?.split('?')[0]);
-      if (setId === activeSetId) {
+      if (setId === actionSets.getActiveSetId()) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'cannot delete the active set' }));
         return;
       }
-      if (actionSetsData.sets.length <= 1) {
+      if (actionSets.getActionSetsData().sets.length <= 1) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'cannot delete the last set' }));
         return;
       }
-      const idx = actionSetsData.sets.findIndex(s => s.id === setId);
+      const idx = actionSets.getActionSetsData().sets.findIndex(s => s.id === setId);
       if (idx === -1) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'set not found' }));
         return;
       }
-      actionSetsData.sets.splice(idx, 1);
+      actionSets.getActionSetsData().sets.splice(idx, 1);
       saveActionSets();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ sets: buildSetsSummary(), activeSetId }));
+      res.end(JSON.stringify({ sets: buildSetsSummary(), activeSetId: actionSets.getActiveSetId() }));
       return;
     }
 
@@ -1383,8 +1188,7 @@ function createBridgeServers() {
         res.end(JSON.stringify({ error: 'set not found' }));
         return;
       }
-      activeSetId = setId;
-      actionSetsData.activeSetId = setId;
+      actionSets.setActiveSetId(setId);
       saveActionSets();
       broadcastSetConfig(setId);
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1437,7 +1241,7 @@ function createBridgeServers() {
           saveActionSets();
 
           // Broadcast if this is the active set
-          if (setId === activeSetId) {
+          if (setId === actionSets.getActiveSetId()) {
             broadcastSetConfig(setId);
           }
 
@@ -1481,7 +1285,7 @@ function createBridgeServers() {
       saveActionSets();
 
       // Broadcast if this is the active set
-      if (setId === activeSetId) {
+      if (setId === actionSets.getActiveSetId()) {
         broadcastSetConfig(setId);
       }
 
@@ -1529,7 +1333,7 @@ function createBridgeServers() {
           }
 
           saveActionSets();
-          if (setId === activeSetId) broadcastSetConfig(setId);
+          if (setId === actionSets.getActiveSetId()) broadcastSetConfig(setId);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ actions: buildActionsList(setId) }));
