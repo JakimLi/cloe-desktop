@@ -103,7 +103,7 @@ function ThemePicker({ mode }) {
   );
 }
 
-export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatToggle, chatVisible, overlayTransparency, onToggleTransparent, children }) {
+export default function OverlayTitlebar({ onClose, mode, onModeChange, overlayTransparency, onToggleTransparent, children }) {
   return (
     <div className="terminal-titlebar">
       {/* Traffic lights (hover reveal) */}
@@ -143,19 +143,6 @@ export default function OverlayTitlebar({ onClose, mode, onModeChange, onChatTog
             <circle cx="3.5" cy="12.5" r="1" fill="currentColor" opacity="0.5"/>
           </svg>
           <span className="mode-label">Canvas</span>
-        </button>
-        <button
-          className={`mode-btn ${chatVisible ? 'active' : ''}`}
-          title="Hermes Chat"
-          onClick={onChatToggle}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1.5 2.5C1.5 1.67 2.17 1 3 1H13C13.83 1 14.5 1.67 14.5 2.5V9.5C14.5 10.33 13.83 11 13 11H5L2 14V11H3C2.17 11 1.5 10.33 1.5 9.5V2.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-            <circle cx="5" cy="6" r="0.8" fill="currentColor"/>
-            <circle cx="8" cy="6" r="0.8" fill="currentColor"/>
-            <circle cx="11" cy="6" r="0.8" fill="currentColor"/>
-          </svg>
-          <span className="mode-label">Chat</span>
         </button>
       </div>
 

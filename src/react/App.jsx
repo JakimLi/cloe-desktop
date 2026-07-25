@@ -123,7 +123,6 @@ function SessionToast({ toast, onAcknowledge }) {
 export default function App() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('terminal'); // 'terminal' | 'canvas'
-  const [chatOpen, setChatOpen] = useState(false);
   // 3-level transparency: 'semi' (0.15) → 'full' (transparent) → 'opaque' (1.0 black)
   const [overlayTransparency, setOverlayTransparency] = useState(
     () => {
@@ -264,7 +263,7 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler, true);
   }, [visible, mode, show, hide]);
 
-  // ── Chat keyboard shortcut ──
+  // ── New chat session keyboard shortcut ──
   useEffect(() => {
     const handler = (e) => {
       const stored = localStorage.getItem('cloe-chat-shortcut') || '';
@@ -272,7 +271,7 @@ export default function App() {
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
       e.stopPropagation();
-      window.electronAPI?.toggleChatWindow?.();
+      window.electronAPI?.createChatSession?.();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
@@ -413,16 +412,6 @@ export default function App() {
       }
     }, 2000);
     return () => clearInterval(iv);
-  }, []);
-
-  // ── Chat window toggle (separate BrowserWindow) ──
-  useEffect(() => {
-    const fn = window.electronAPI?.onChatWindowState?.((isOpen) => setChatOpen(isOpen));
-    return () => fn?.();
-  }, []);
-
-  const toggleChat = useCallback(() => {
-    window.electronAPI?.toggleChatWindow?.();
   }, []);
 
   // ── Overlay transparency toggle: cycle semi → full → opaque ──
@@ -1075,8 +1064,6 @@ export default function App() {
         onClose={() => { hide(); localStorage.setItem('cloe-terminal-visible', 'false'); }}
         mode={mode}
         onModeChange={setMode}
-        onChatToggle={toggleChat}
-        chatVisible={chatOpen}
         overlayTransparency={overlayTransparency}
         onToggleTransparent={toggleOverlayTransparent}
       >
