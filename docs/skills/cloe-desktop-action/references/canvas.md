@@ -71,6 +71,37 @@ curl -s http://localhost:19851/canvas/excalidraw/scene
 curl -s -X DELETE http://localhost:19851/canvas/excalidraw/scene
 ```
 
+## 视图引导（缩放 / 平移 / 聚焦 / 选中）
+
+除了 draw/scene，还有一组引导式端点用来控制画布视图（不改变元素，只改变镜头）：
+
+```bash
+# 缩放到指定级别（1=100%）
+curl -s -X POST http://localhost:19851/canvas/excalidraw/zoom -H 'Content-Type: application/json' \
+  -d '{"zoom":1.5}'
+
+# 平移到指定坐标（画布中心移到 x,y）
+curl -s -X POST http://localhost:19851/canvas/excalidraw/pan -H 'Content-Type: application/json' \
+  -d '{"x":200,"y":150}'
+
+# 选中指定元素（传元素 id 数组）
+curl -s -X POST http://localhost:19851/canvas/excalidraw/select -H 'Content-Type: application/json' \
+  -d '{"ids":["box1","arrow1"]}'
+
+# 清除选中
+curl -s -X POST http://localhost:19851/canvas/excalidraw/deselect
+
+# 聚焦指定元素（自动缩放+平移让这些元素填满视口）
+curl -s -X POST http://localhost:19851/canvas/excalidraw/focus -H 'Content-Type: application/json' \
+  -d '{"ids":["box1","text1"]}'
+
+# 删除指定元素（按 id，不传 ids 则清空全部）
+curl -s -X DELETE http://localhost:19851/canvas/excalidraw/elements -H 'Content-Type: application/json' \
+  -d '{"ids":["box1"]}'
+```
+
+这些端点适合在"一边说一边画"的讲解流程里引导用户注意力：画完后 `focus` 到刚画的元素，配合 TTS 解说。
+
 ## ⚠️ 大 payload 必须用 @file
 
 curl 内联 JSON payload 超过 ~2000 字符时会被 shell 截断，请求静默失败（返回空字符串）。

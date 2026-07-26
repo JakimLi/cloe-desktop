@@ -26,6 +26,10 @@ curl -s http://localhost:19851/status
 | [references/plugin.md](references/plugin.md) | Hermes Plugin 自动触发规则 |
 | [references/reminders-api.md](references/reminders-api.md) | 提醒系统 API（周期提醒、番茄钟、全局静音/暂停） |
 | [references/agent-sessions-api.md](references/agent-sessions-api.md) | Agent Session Tracker API（外部 agent 注册、状态通知、TTS） |
+| [references/tasks-api.md](references/tasks-api.md) | 任务管理 API（任务列表、计时、完成、排序） |
+| [references/weather-api.md](references/weather-api.md) | 天气系统 API（配置 provider、预览天气特效） |
+| [references/tts-api.md](references/tts-api.md) | TTS 语音 API（条件延迟播放、音频文件服务） |
+| [references/config-api.md](references/config-api.md) | 配置 API（api-config、窗口位置/缩放、plugin-rules） |
 
 ## 快速参考
 
@@ -67,6 +71,14 @@ curl -s -X POST http://localhost:19851/toggle-mute
 
 # 全局暂停/恢复提醒 toggle
 curl -s -X POST http://localhost:19851/toggle-global-pause
+
+# 任务管理：创建任务 + 开始计时
+curl -s -X POST http://localhost:19851/tasks -H 'Content-Type: application/json' -d '{"title":"写文档"}'
+curl -s -X POST http://localhost:19851/tasks/TASK_ID/start
+
+# 天气：启用（open-meteo 免 key）+ 预览下雨效果
+curl -s -X POST http://localhost:19851/weather/config -H 'Content-Type: application/json' -d '{"enabled":true,"provider":"open-meteo","city":"auto"}'
+curl -s -X POST http://localhost:19851/weather/preview -H 'Content-Type: application/json' -d '{"weatherType":"rain"}'
 
 # Agent Session：注册外部 agent session
 curl -s -X POST http://localhost:19851/agent-sessions -H 'Content-Type: application/json' \
