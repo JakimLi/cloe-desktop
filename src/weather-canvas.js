@@ -366,20 +366,92 @@
     const cx = width * 0.5;
     const cy = height * 1.1;
     const baseR = Math.min(width, height) * 0.7;
-    const colors = [
-      [255, 0, 0], [255, 127, 0], [255, 255, 0],
-      [0, 255, 0], [0, 150, 255], [75, 0, 130], [148, 0, 211],
+
+    // Real rainbows are soft, translucent, and show smooth color dispersion
+    // rather than discrete saturated bands. We approximate this by stepping
+    // along the radial direction and interpolating between softened spectral
+    // colors, then layering a faint outer glow.
+
+    // Softened spectral stops (not pure RGB — slightly desaturated for realism).
+    // Order from outer edge → inner edge: red, orange, yellow, green, cyan, blue, violet.
+    const stops = [
+      [255, 150, 130], [255, 200, 120], [255, 240, 150],
+      [180, 240, 170], [150, 220, 230], [160, 180, 240], [200, 170, 230],
     ];
+    const bandHalfWidth = 60;      // half-width of the colored band (px)
+    const innerR = baseR - bandHalfWidth;
+    const outerR = baseR + bandHalfWidth;
+    const segCount = 36;           // radial segments for smooth gradient
+
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    colors.forEach(([r, g, b], i) => {
-      const radius = baseR - i * 8;
+
+    // --- Outer glow (soft white halo around the whole bow) ---
+    const glowGrad = ctx.createRadialGradient(cx, cy, innerR - 8, cx, cy, outerR + 28);
+    glowGrad.addColorStop(0, `rgba(255,250,240,0)`);
+    glowGrad.addColorStop(0.45, `rgba(255,250,240,${(0.10 * alpha * data.opacity).toFixed(3)})`);
+    glowGrad.addColorStop(0.6, `rgba(255,250,240,${(0.06 * alpha * data.opacity).toFixed(3)})`);
+    glowGrad.addColorStop(1, `rgba(255,250,240,0)`);
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR + 28, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.arc(cx, cy, innerR - 8, Math.PI * 1.98, Math.PI * 1.02, true);
+    ctx.closePath();
+    ctx.fill();
+
+    // --- Main bow: radial gradient band, smooth color transition ---
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const colorAt = (t) => {
+      // t: 0 (inner, violet) → 1 (outer, red)
+      const scaled = t * (stops.length - 1);
+      const i = Math.floor(scaled);
+      const f = scaled - i;
+      const c1 = stops[stops.length - 1 - i];
+      const c2 = stops[stops.length - 1 - Math.min(i + 1, stops.length - 1)];
+      return [lerp(c1[0], c2[0], f), lerp(c1[1], c2[1], f), lerp(c1[2], c2[2], f)];
+    };
+
+    for (let s = 0; s < segCount; s++) {
+      const t0 = s / segCount;
+      const t1 = (s + 1) / segCount;
+      const r0 = innerR + t0 * (outerR - innerR);
+      const r1 = innerR + t1 * (outerR - innerR);
+      const [r, g, b] = colorAt((t0 + t1) / 2);
+      // Fade in toward the band center, fade out at the edges (soft band profile)
+      const bandCenter = 0.5;
+      const distFromCenter = Math.abs((t0 + t1) / 2 - bandCenter);
+      const bandAlpha = (1 - distFromCenter * 1.6) * 0.42 * alpha * data.opacity;
+      if (bandAlpha <= 0.003) continue;
+      ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${bandAlpha.toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, Math.PI * 1.2, Math.PI * 1.8);
-      ctx.strokeStyle = `rgba(${r},${g},${b},${(0.25 * alpha * data.opacity).toFixed(3)})`;
-      ctx.lineWidth = 8;
-      ctx.stroke();
-    });
+      ctx.arc(cx, cy, r1, Math.PI * 1.03, Math.PI * 1.97);
+      ctx.arc(cx, cy, r0, Math.PI * 1.97, Math.PI * 1.03, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // --- Secondary (double) rainbow: fainter, reversed color order, outside the primary ---
+    const secInnerR = outerR + 18;
+    const secOuterR = secInnerR + bandHalfWidth * 1.2;
+    const secSeg = 18;
+    for (let s = 0; s < secSeg; s++) {
+      const t0 = s / secSeg;
+      const t1 = (s + 1) / secSeg;
+      const r0 = secInnerR + t0 * (secOuterR - secInnerR);
+      const r1 = secInnerR + t1 * (secOuterR - secInnerR);
+      // Reversed: inner = red, outer = violet
+      const [r, g, b] = colorAt(1 - (t0 + t1) / 2);
+      const distFromCenter = Math.abs((t0 + t1) / 2 - 0.5);
+      const bandAlpha = (1 - distFromCenter * 1.6) * 0.16 * alpha * data.opacity;
+      if (bandAlpha <= 0.003) continue;
+      ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${bandAlpha.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r1, Math.PI * 1.04, Math.PI * 1.96);
+      ctx.arc(cx, cy, r0, Math.PI * 1.96, Math.PI * 1.04, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 
