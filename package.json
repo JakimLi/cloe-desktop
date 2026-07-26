@@ -85,6 +85,7 @@
       "dist/**/*",
       "launcher.js",
       "src/main/**/*",
+      "build/tray-icon.png",
       "cloe-sessions.js",
       "reminder-engine.js",
       "agent-tracker.js",
