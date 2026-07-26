@@ -122,10 +122,6 @@ function createBridgeServers() {
     getWin: () => win,
   });
 
-  const walkthroughRoutesHandler = require('./src/main/walkthrough-routes')({
-    getWin: () => win,
-  });
-
   const canvasRoutesHandler = require('./src/main/canvas-routes')({
     getWin: () => win,
   });
@@ -227,8 +223,6 @@ function createBridgeServers() {
 
 
     if (canvasRoutesHandler(req, res, urlPath)) return;
-
-    if (walkthroughRoutesHandler(req, res, urlPath)) return;
 
     if (excalidrawRoutesHandler(req, res, urlPath)) return;
     if (chatRoutesHandler(req, res, urlPath)) return;
