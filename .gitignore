@@ -16,3 +16,8 @@ reference_*.png
 *.bak
 docs/demo*.gif
 docs/__pycache__/
+
+# Local working directories (not production code)
+.hermes/
+.zcode/
+.cartoon-experiment-backup/
