@@ -22,7 +22,6 @@ curl -s http://localhost:19851/status
 | [references/layout.md](references/layout.md) | 角色位置 + 大小控制（挪动、缩放） |
 | [references/canvas.md](references/canvas.md) | Excalidraw 画布绘制 API |
 | [references/terminal.md](references/terminal.md) | 嵌入终端、模式切换、快捷键 |
-| [references/terminal-effect.md](references/terminal-effect.md) | 终端特效（字符掉落等） |
 | [references/plugin.md](references/plugin.md) | Hermes Plugin 自动触发规则 |
 | [references/reminders-api.md](references/reminders-api.md) | 提醒系统 API（周期提醒、番茄钟、全局静音/暂停） |
 | [references/agent-sessions-api.md](references/agent-sessions-api.md) | Agent Session Tracker API（外部 agent 注册、状态通知、TTS） |
@@ -53,9 +52,6 @@ curl -s -X POST http://localhost:19851/canvas/excalidraw/draw -H 'Content-Type: 
 # 画布：读取/清除
 curl -s http://localhost:19851/canvas/excalidraw/scene
 curl -s -X DELETE http://localhost:19851/canvas/excalidraw/scene
-
-# 终端特效
-curl -s http://localhost:19851/action -d '{"action":"smash_screen"}'
 
 # 角色布局：获取/设置位置和大小
 curl -s http://localhost:19851/character-layout
