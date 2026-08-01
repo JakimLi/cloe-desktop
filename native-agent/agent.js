@@ -38,6 +38,16 @@ const soul = require('./soul');
 const memory = require('./memory');
 const skills = require('./skills');
 const { buildPiTools, getToolEmoji, formatToolLabel } = require('./tools');
+const os = require('os');
+
+// ── Debug file logging ──
+const DEBUG_LOG = path.join(os.homedir(), '.cloe-desktop', 'native-agent-debug.log');
+function debugLog(msg) {
+  try {
+    const ts = new Date().toISOString();
+    fs.appendFileSync(DEBUG_LOG, `[${ts}] ${msg}\n`);
+  } catch {}
+}
 
 // ── 上下文管理常量 ──
 // 保守估算: ~4 chars ≈ 1 token (中英混合)
@@ -217,6 +227,15 @@ function buildProviderAndModel(pi, cfg) {
  *
  * We extract text content and skip tool-only entries to keep context clean.
  */
+// Zero-value usage object matching Pi's Usage shape.
+// Required on assistant messages: Pi's estimateContextTokens reads
+// assistant.usage.totalTokens, which crashes if usage is undefined.
+const ZERO_USAGE = {
+  input: 0, output: 0, cacheRead: 0, cacheWrite: 0,
+  totalTokens: 0,
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+};
+
 function convertHistoryToPiMessages(history) {
   if (!Array.isArray(history)) return [];
   const result = [];
@@ -235,11 +254,30 @@ function convertHistoryToPiMessages(history) {
 
     if (msg.role === 'assistant' && !text.trim()) continue;
 
-    result.push({
-      role: msg.role,
-      content: [{ type: 'text', text }],
-      timestamp: msg.timestamp || Date.now(),
-    });
+    const timestamp = msg.timestamp || Date.now();
+
+    if (msg.role === 'assistant') {
+      // Assistant messages need full Pi shape: api/provider/model/usage/stopReason.
+      // Missing usage triggers "Cannot read properties of undefined (reading 'totalTokens')"
+      // in Pi's estimateContextTokens.
+      result.push({
+        role: 'assistant',
+        content: [{ type: 'text', text }],
+        api: 'openai-completions',
+        provider: 'cloe-zai',
+        model: config.getCurrentModel(),
+        usage: { ...ZERO_USAGE },
+        stopReason: 'stop',
+        timestamp,
+      });
+    } else {
+      // User messages only need role/content/timestamp
+      result.push({
+        role: 'user',
+        content: [{ type: 'text', text }],
+        timestamp,
+      });
+    }
   }
   return result;
 }
@@ -259,17 +297,20 @@ class AgentSession {
     this._piAgent = null;
     this._pendingUserMessages = [];
     this._history = options.history || [];
+    debugLog(`AgentSession.constructor: sessionId=${sessionId}, history.length=${this._history.length}`);
     this._contextWindow = DEFAULT_CONTEXT_WINDOW;
   }
 
   setHistory(history) {
     this._history = Array.isArray(history) ? history : [];
+    debugLog(`AgentSession.setHistory: sessionId=${this.sessionId}, history.length=${this._history.length}`);
     if (this._piAgent) {
       this._piAgent = null;
     }
   }
 
   async _ensureAgent() {
+    debugLog(`_ensureAgent: sessionId=${this.sessionId}, _piAgent=${!!this._piAgent}, _history.length=${this._history.length}, _pending=${this._pendingUserMessages.length}`);
     if (this._piAgent) return this._piAgent;
 
     const pi = await loadPi();
@@ -321,6 +362,7 @@ class AgentSession {
     }
     this._pendingUserMessages = [];
 
+    debugLog(`_ensureAgent: piHistory=${piHistory.length}, truncated=${truncated.messages.length}, dropped=${truncated.dropped}, agent.messages=${this._piAgent.state.messages.length}`);
     if (piHistory.length > 0) {
       console.log(`[NativeAgent] Session ${this.sessionId}: restored ${piHistory.length} messages (truncated to ${truncated.messages.length}, dropped ${truncated.dropped})`);
     }

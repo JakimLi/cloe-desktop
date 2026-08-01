@@ -56,6 +56,9 @@ function getOrCreateSession(cloeSessionId) {
       console.warn('[NativeAgent] Failed to load session history:', e.message);
     }
 
+    const fs2 = require('fs'); const path2 = require('path'); const os2 = require('os');
+    try { fs2.appendFileSync(path2.join(os2.homedir(), '.cloe-desktop', 'native-agent-debug.log'),
+      `[${new Date().toISOString()}] getOrCreateSession: ${cloeSessionId}, loaded ${history.length} messages from persistence\n`); } catch {}
     persistentSessions.set(cloeSessionId, new AgentSession(cloeSessionId, { history }));
   }
   return persistentSessions.get(cloeSessionId);
@@ -82,6 +85,9 @@ function reloadSessionHistory(cloeSessionId) {
     session.setHistory(history);
     console.log(`[NativeAgent] Session ${cloeSessionId}: reloaded ${history.length} messages`);
   } else {
+    const fs3 = require('fs'); const path3 = require('path'); const os3 = require('os');
+    try { fs3.appendFileSync(path3.join(os3.homedir(), '.cloe-desktop', 'native-agent-debug.log'),
+      `[${new Date().toISOString()}] reloadSessionHistory: ${cloeSessionId}, created new session with ${history.length} messages\n`); } catch {}
     persistentSessions.set(cloeSessionId, new AgentSession(cloeSessionId, { history }));
   }
 }
