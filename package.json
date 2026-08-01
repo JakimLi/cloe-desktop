@@ -20,6 +20,8 @@
     "test:smoke:dev": "node test/smoke-test.js --dev"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.83.0",
+    "@earendil-works/pi-ai": "^0.83.0",
     "@excalidraw/excalidraw": "^0.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "@xterm/addon-fit": "^0.11.0",
@@ -27,8 +29,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
     "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
     "ws": "^8.20.0",
     "xterm": "^5.3.0"
   },
@@ -99,9 +101,25 @@
       "node_modules/node-pty/**/*",
       "node_modules/xterm/**/*",
       "node_modules/@xterm/**/*",
+      "node_modules/@earendil-works/**/*",
+      "node_modules/typebox/**/*",
+      "node_modules/diff/**/*",
+      "node_modules/ignore/**/*",
+      "node_modules/yaml/**/*",
+      "node_modules/openai/**/*",
+      "node_modules/@anthropic-ai/**/*",
+      "node_modules/@google/**/*",
+      "node_modules/@mistralai/**/*",
+      "node_modules/@aws-sdk/**/*",
+      "node_modules/@smithy/**/*",
+      "node_modules/@opentelemetry/**/*",
+      "node_modules/partial-json/**/*",
+      "node_modules/http-proxy-agent/**/*",
+      "node_modules/https-proxy-agent/**/*",
       "task-engine.js",
       "tts-scheduler.js",
-      "weather-engine.js"
+      "weather-engine.js",
+      "native-agent/**/*.js"
     ],
     "extraResources": [
       {

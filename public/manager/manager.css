@@ -202,7 +202,8 @@ html, body {
 #tab-shortcuts,
 #tab-plugin-rules,
 #tab-reminders,
-#tab-weather {
+#tab-weather,
+#tab-native-agent {
   padding: 28px 32px 64px;
 }
 

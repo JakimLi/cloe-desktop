@@ -11,7 +11,8 @@
     "idlePlaylist": "待机播放",
     "shortcuts": "快捷键",
     "reminders": "提醒",
-    "weather": "天气"
+    "weather": "天气",
+    "nativeAgent": "本地 Agent"
   },
   "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
@@ -405,5 +406,33 @@
     "statusPaused": "已暂停",
     "statusIdle": "空闲",
     "statusCompleted": "已就绪"
+  },
+  "nativeAgent": {
+    "title": "本地 Agent",
+    "loading": "加载中...",
+    "loadFailed": "加载配置失败",
+    "provider": "服务商",
+    "providerDesc": "LLM API 服务商（OpenAI 兼容）",
+    "baseURL": "接口地址",
+    "baseURLDesc": "API 接口地址，如 https://open.bigmodel.cn/api/paas/v4",
+    "baseURLPlaceholder": "https://api.example.com/v1",
+    "apiKey": "API Key",
+    "apiKeyDesc": "服务商的身份验证密钥",
+    "apiKeyPlaceholder": "sk-...",
+    "keyToggle": "显示 / 隐藏",
+    "model": "模型",
+    "modelDesc": "用于对话补全的模型 ID",
+    "modelInputPlaceholder": "或手动输入...",
+    "fetchModels": "↻ 拉取模型",
+    "fetching": "拉取中...",
+    "needBaseURL": "请填写接口地址",
+    "modelsFound": "找到 {{count}} 个模型",
+    "noModels": "未找到模型",
+    "soulPath": "灵魂文件路径",
+    "soulPathDesc": "人格文件的路径，留空则使用默认值（~/.hermes/soul.md）",
+    "soulPathPlaceholder": "~/.hermes/soul.md",
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "✓ 已保存"
   }
 }

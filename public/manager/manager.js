@@ -39,6 +39,11 @@ function switchTab(tabId) {
   if (tabId === 'weather' && typeof initWeatherTab === 'function') {
     initWeatherTab();
   }
+
+  // Lazy-load native agent tab
+  if (tabId === 'native-agent' && typeof initNativeAgentTab === 'function') {
+    initNativeAgentTab();
+  }
 }
 
 // ==================== i18n Update ====================
@@ -61,6 +66,9 @@ function updateAllText() {
   }
   if (document.getElementById('sidebar-weather')) {
     document.getElementById('sidebar-weather').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.weather');
+  }
+  if (document.getElementById('sidebar-native-agent')) {
+    document.getElementById('sidebar-native-agent').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.nativeAgent');
   }
 
   // Update actions tab text
@@ -86,6 +94,11 @@ function updateAllText() {
   // Update reminders tab text
   if (typeof updateRemindersText === 'function') {
     updateRemindersText();
+  }
+
+  // Update native agent tab text
+  if (typeof updateNativeAgentText === 'function') {
+    updateNativeAgentText();
   }
 }
 

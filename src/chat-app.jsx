@@ -301,13 +301,17 @@ function ChatApp() {
   const [connected, setConnected] = useState(null);
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
-  const [currentModel, setCurrentModel] = useState(() => localStorage.getItem('cloe-chat-model') || '');
+  const [currentModel, setCurrentModel] = useState(() => {
+    const mode = localStorage.getItem('cloe-agent-mode') || 'hermes';
+    return localStorage.getItem(mode === 'native' ? 'cloe-chat-model-native' : 'cloe-chat-model') || '';
+  });
   const [focusedIndex, setFocusedIndex] = useState(null);
   const [appearance, setAppearance] = useState(getInitialChatAppearance);
   const [penetrate, setPenetrate] = useState(() => localStorage.getItem('cloe-chat-penetrate') === 'true');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [cropperSrc, setCropperSrc] = useState(null);
   const [contextPct, setContextPct] = useState(0);
+  const [agentMode, setAgentMode] = useState(() => localStorage.getItem('cloe-agent-mode') || 'hermes');
 
   const endRef = useRef(null);
   const textareaRef = useRef(null);
@@ -450,34 +454,47 @@ function ChatApp() {
     let cancelled = false;
     const check = async () => {
       try {
-        const r = await window.electronAPI?.hermesCheckHealth?.();
-        if (!cancelled) setConnected(r?.connected ?? false);
+        if (agentMode === 'native') {
+          const r = await window.electronAPI?.nativeCheckHealth?.();
+          if (!cancelled) setConnected(r?.connected ?? false);
+        } else {
+          const r = await window.electronAPI?.hermesCheckHealth?.();
+          if (!cancelled) setConnected(r?.connected ?? false);
+        }
       } catch { if (!cancelled) setConnected(false); }
     };
     check();
     const iv = setInterval(check, 20000);
     window.electronAPI?.getChatNickname?.().then(name => { if (name && !cancelled) setNickname(name); }).catch(() => {});
-    window.electronAPI?.hermesGetModels?.().then(result => {
-      if (!cancelled && result) {
-        setModels(result.models || []);
-        if (result.current && !localStorage.getItem('cloe-chat-model')) {
-          setCurrentModel(result.current);
-          localStorage.setItem('cloe-chat-model', result.current);
+    
+    // Load models for current agent mode
+    const loadModels = async () => {
+      try {
+        const result = agentMode === 'native'
+          ? await window.electronAPI?.nativeGetModels?.()
+          : await window.electronAPI?.hermesGetModels?.();
+        if (!cancelled && result) {
+          setModels(result.models || []);
+          if (result.current && !localStorage.getItem('cloe-chat-model')) {
+            setCurrentModel(result.current);
+            localStorage.setItem('cloe-chat-model', result.current);
+          }
         }
-      }
-    }).catch(() => {});
+      } catch {}
+    };
+    loadModels();
+    
     return () => { cancelled = true; clearInterval(iv); };
-  }, []);
+  }, [agentMode]);
 
   // ── Stream listeners (registered once) ──
   useEffect(() => {
-    const unsubDelta = window.electronAPI?.onHermesDelta?.((data) => {
+    // Helper: create a handler that works for both hermes and native streams
+    const makeDeltaHandler = () => (data) => {
       const { reqId, content, sessionId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
       if (sessionId) hermesSessionIdRef.current = sessionId;
       if (!content) return;
-      // Append to the last text part if it's adjacent; otherwise start a new one.
-      // This preserves the true arrival order interleaved with tool calls.
       const parts = streamBufferRef.current.parts;
       const last = parts[parts.length - 1];
       if (last && last.type === 'text') {
@@ -486,16 +503,14 @@ function ChatApp() {
         parts.push({ type: 'text', text: content });
       }
       setStreamingParts([...parts]);
-    });
-
-    const unsubTool = window.electronAPI?.onHermesTool?.((data) => {
+    };
+    const makeToolHandler = () => (data) => {
       const { reqId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
       streamBufferRef.current.parts.push({ type: 'tool', tool: data.tool, emoji: data.emoji, label: data.label });
       setStreamingParts([...streamBufferRef.current.parts]);
-    });
-
-    const unsubEnd = window.electronAPI?.onHermesEnd?.((data) => {
+    };
+    const makeEndHandler = () => (data) => {
       const { reqId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
       const sd = streamBufferRef.current;
@@ -507,9 +522,8 @@ function ChatApp() {
       setSending(false);
       activeReqIdRef.current = null;
       setConnected(true);
-    });
-
-    const unsubError = window.electronAPI?.onHermesError?.((data) => {
+    };
+    const makeErrorHandler = () => (data) => {
       const { reqId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
       const sd = streamBufferRef.current;
@@ -521,7 +535,18 @@ function ChatApp() {
       setSending(false);
       activeReqIdRef.current = null;
       setConnected(false);
-    });
+    };
+
+    // Register for both Hermes and Native streams
+    const unsubDelta = window.electronAPI?.onHermesDelta?.(makeDeltaHandler());
+    const unsubTool = window.electronAPI?.onHermesTool?.(makeToolHandler());
+    const unsubEnd = window.electronAPI?.onHermesEnd?.(makeEndHandler());
+    const unsubError = window.electronAPI?.onHermesError?.(makeErrorHandler());
+    
+    const unsubNativeDelta = window.electronAPI?.onNativeDelta?.(makeDeltaHandler());
+    const unsubNativeTool = window.electronAPI?.onNativeTool?.(makeToolHandler());
+    const unsubNativeEnd = window.electronAPI?.onNativeEnd?.(makeEndHandler());
+    const unsubNativeError = window.electronAPI?.onNativeError?.(makeErrorHandler());
 
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
       if (!data) return;
@@ -535,6 +560,7 @@ function ChatApp() {
     return () => {
       unsubDelta?.(); unsubTool?.(); unsubEnd?.();
       unsubError?.(); unsubExternal?.(); unsubCtxUsage?.();
+      unsubNativeDelta?.(); unsubNativeTool?.(); unsubNativeEnd?.(); unsubNativeError?.();
     };
   }, []);
 
@@ -551,19 +577,31 @@ function ChatApp() {
     setSending(true);
     activeReqIdRef.current = reqId;
 
-    window.electronAPI?.hermesSendMessage?.(
-      msg,
-      hermesSessionIdRef.current || undefined,
-      currentModel || undefined,
-      reqId,
-      cloeSessionIdRef.current,
-    );
+    if (agentMode === 'native') {
+      window.electronAPI?.nativeSendMessage?.(
+        msg,
+        reqId,
+        cloeSessionIdRef.current,
+      );
+    } else {
+      window.electronAPI?.hermesSendMessage?.(
+        msg,
+        hermesSessionIdRef.current || undefined,
+        currentModel || undefined,
+        reqId,
+        cloeSessionIdRef.current,
+      );
+    }
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-  }, [input, connected, currentModel]);
+  }, [input, connected, currentModel, agentMode]);
 
   const stop = useCallback(() => {
     if (activeReqIdRef.current) {
-      window.electronAPI?.hermesChatStop?.(activeReqIdRef.current);
+      if (agentMode === 'native') {
+        window.electronAPI?.nativeChatStop?.(activeReqIdRef.current);
+      } else {
+        window.electronAPI?.hermesChatStop?.(activeReqIdRef.current);
+      }
     }
     const sd = streamBufferRef.current;
     if (sd.parts.length > 0) {
@@ -573,7 +611,7 @@ function ChatApp() {
     setStreamingParts([]);
     setSending(false);
     activeReqIdRef.current = null;
-  }, []);
+  }, [agentMode]);
 
   // ── Input handlers ──
   const onKeyDown = useCallback((e) => {
@@ -601,18 +639,36 @@ function ChatApp() {
     e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
   }, []);
 
-  const onModelChange = useCallback((e) => {
+    const onModelChange = useCallback((e) => {
     const v = e.target.value;
     setCurrentModel(v);
-    localStorage.setItem('cloe-chat-model', v);
-    window.electronAPI?.hermesSwitchModel?.(v).then(result => {
-      if (result?.success) {
-        setConnected(false);
-        setTimeout(() => {
-          window.electronAPI?.hermesCheckHealth?.().then(r => setConnected(r?.connected ?? false)).catch(() => setConnected(false));
-        }, 3000);
-      }
-    }).catch(() => {});
+    if (agentMode === 'native') {
+      localStorage.setItem('cloe-chat-model-native', v);
+      window.electronAPI?.nativeSwitchModel?.(v).catch(() => {});
+    } else {
+      localStorage.setItem('cloe-chat-model', v);
+      window.electronAPI?.hermesSwitchModel?.(v).then(result => {
+        if (result?.success) {
+          setConnected(false);
+          setTimeout(() => {
+            window.electronAPI?.hermesCheckHealth?.().then(r => setConnected(r?.connected ?? false)).catch(() => setConnected(false));
+          }, 3000);
+        }
+      }).catch(() => {});
+    }
+  }, [agentMode]);
+
+  const onAgentModeToggle = useCallback(() => {
+    setAgentMode(prev => {
+      const next = prev === 'hermes' ? 'native' : 'hermes';
+      localStorage.setItem('cloe-agent-mode', next);
+      setConnected(null);
+      setModels([]);
+      // Switch model state to the appropriate localStorage key
+      const modelKey = next === 'native' ? 'cloe-chat-model-native' : 'cloe-chat-model';
+      setCurrentModel(localStorage.getItem(modelKey) || '');
+      return next;
+    });
   }, []);
 
   const dotColor = connected === null ? '#888' : connected ? '#4cff88' : '#ff5f57';
@@ -637,6 +693,14 @@ function ChatApp() {
         <div className="chat-titlebar-left">
           {renderTitlebarAvatar()}
           <span className="chat-title">{nickname}</span>
+          <button
+            className={`chat-btn chat-agent-toggle${agentMode === 'native' ? ' chat-agent-toggle-native' : ''}`}
+            onClick={onAgentModeToggle}
+            title={agentMode === 'native' ? 'Native Agent (click to switch to Hermes)' : 'Hermes Agent (click to switch to Native)'}
+            style={{ fontSize: '10px', padding: '2px 6px', opacity: 0.7 }}
+          >
+            {agentMode === 'native' ? '⚡' : '◆'}
+          </button>
         </div>
         <div className="chat-titlebar-right">
           <button className={`chat-btn${appearance !== 'opaque' ? ' chat-btn-active' : ''}`} onClick={cycleAppearance} title={appearanceButtonTitle}>
@@ -659,7 +723,7 @@ function ChatApp() {
       <div className="chat-messages">
         {messages.length === 0 && !sending && sessionLoaded && (
           <div className="chat-empty">
-            {connected === false ? 'Cannot reach Hermes API\nEnsure api_server is enabled in hermes config' : connected ? `Say hi to ${nickname} ✨` : 'Connecting...'}
+            {connected === false ? (agentMode === 'native' ? 'Configure Native Agent in ~/.cloe/native-agent.json' : 'Cannot reach Hermes API\nEnsure api_server is enabled in hermes config') : connected ? `Say hi to ${nickname} ✨` : 'Connecting...'}
           </div>
         )}
         {messages.map((m, i) => (

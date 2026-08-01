@@ -11,7 +11,8 @@
     "idlePlaylist": "Idle Playlist",
     "shortcuts": "Shortcuts",
     "reminders": "Reminders",
-    "weather": "Weather"
+    "weather": "Weather",
+    "nativeAgent": "Native Agent"
   },
   "setCount": "{{count}} set(s)",
   "actionCount": "{{count}} actions",
@@ -405,5 +406,33 @@
     "statusPaused": "Paused",
     "statusIdle": "Idle",
     "statusCompleted": "Ready"
+  },
+  "nativeAgent": {
+    "title": "Native Agent",
+    "loading": "Loading...",
+    "loadFailed": "Failed to load config",
+    "provider": "Provider",
+    "providerDesc": "LLM API provider (OpenAI-compatible)",
+    "baseURL": "Base URL",
+    "baseURLDesc": "API endpoint, e.g. https://open.bigmodel.cn/api/paas/v4",
+    "baseURLPlaceholder": "https://api.example.com/v1",
+    "apiKey": "API Key",
+    "apiKeyDesc": "Authentication key for the provider",
+    "apiKeyPlaceholder": "sk-...",
+    "keyToggle": "Show/hide",
+    "model": "Model",
+    "modelDesc": "Model ID to use for chat completions",
+    "modelInputPlaceholder": "or type...",
+    "fetchModels": "↻ Fetch Models",
+    "fetching": "Fetching...",
+    "needBaseURL": "Need Base URL",
+    "modelsFound": "Found {{count}} models",
+    "noModels": "No models found",
+    "soulPath": "Soul File Path",
+    "soulPathDesc": "Path to personality file. Leave empty for default (~/.hermes/soul.md)",
+    "soulPathPlaceholder": "~/.hermes/soul.md",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "✓ Saved"
   }
 }

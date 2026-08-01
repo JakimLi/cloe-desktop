@@ -21,3 +21,6 @@ docs/__pycache__/
 .hermes/
 .zcode/
 .cartoon-experiment-backup/
+
+# CodeWalk review artifacts (dev-only)
+.codewalk/

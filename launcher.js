@@ -227,6 +227,73 @@ function createBridgeServers() {
     if (excalidrawRoutesHandler(req, res, urlPath)) return;
     if (chatRoutesHandler(req, res, urlPath)) return;
 
+    // ==================== Native Agent Config (HTTP for manager settings page) ====================
+    if (req.method === 'GET' && urlPath === '/native-agent/config') {
+      const nativeConfig = require('./native-agent/config');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(nativeConfig.loadConfig()));
+      return;
+    }
+    if (req.method === 'POST' && urlPath === '/native-agent/config') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        try {
+          const cfg = JSON.parse(body);
+          const nativeConfig = require('./native-agent/config');
+          nativeConfig.saveConfig(cfg);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+    // Fetch models from provider API (server-side to avoid CORS)
+    if (req.method === 'POST' && urlPath === '/native-agent/fetch-models') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        try {
+          const { baseURL, apiKey } = JSON.parse(body);
+          if (!baseURL) { res.writeHead(400); res.end(JSON.stringify({ error: 'No baseURL' })); return; }
+          const https = require('https');
+          const http = require('http');
+          const url = baseURL.replace(/\/+$/, '') + '/models';
+          const parsed = new URL(url);
+          const lib = parsed.protocol === 'https:' ? https : http;
+          const headers = {};
+          if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+          const proxyReq = lib.request(
+            { hostname: parsed.hostname, port: parsed.port, path: parsed.pathname, method: 'GET', headers, timeout: 10000 },
+            (proxyRes) => {
+              let proxyBody = '';
+              proxyRes.on('data', c => proxyBody += c);
+              proxyRes.on('end', () => {
+                try {
+                  const data = JSON.parse(proxyBody);
+                  const models = (data.data || []).map(m => m.id).filter(Boolean).sort();
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ models, error: null }));
+                } catch {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ models: [], error: 'Parse failed' }));
+                }
+              });
+            }
+          );
+          proxyReq.on('error', e => { res.writeHead(200); res.end(JSON.stringify({ models: [], error: e.message })); });
+          proxyReq.on('timeout', () => { proxyReq.destroy(); res.writeHead(200); res.end(JSON.stringify({ models: [], error: 'Timeout' })); });
+          proxyReq.end();
+        } catch (e) {
+          res.writeHead(400); res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
 
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
@@ -470,6 +537,9 @@ const { createManagerWindow, toggleChatWindow } = require('./src/main/windows');
 // ==================== Hermes API Proxy (see src/main/hermes-proxy.js — registers hermes-* ipc handlers) ====================
 require('./src/main/hermes-proxy');
 
+// ==================== Native Agent Proxy (alternative to Hermes, embeds agent in Electron) ====================
+const nativeProxy = require('./src/main/native-proxy');
+
 // ==================== Canvas Window ====================
 // ==================== System Tray / App Menu / PATH (see src/main/lifecycle.js) ====================
 const { createTray, createAppMenu, fixPath } = require('./src/main/lifecycle');
@@ -490,6 +560,10 @@ app.whenReady().then(async () => {
   watchActionSets();
   await startBridge();
   await waitForBridge();
+  
+  // Initialize native agent (soul watch + cron scheduler)
+  try { nativeProxy.init(); } catch (e) { console.error('[NativeAgent] Init failed:', e.message); }
+  
   createWindow();
   tray = createTray();
   createAppMenu();

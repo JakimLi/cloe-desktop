@@ -18,6 +18,43 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('hermes-chat-send', { message, sessionId, model, reqId, cloeSessionId }),
   hermesChatStop: (reqId) => ipcRenderer.send('hermes-chat-stop', reqId),
 
+  // ── Native Agent API (mirrors Hermes interface) ──
+  nativeCheckHealth: () => ipcRenderer.invoke('native-check-health'),
+  nativeGetModels: () => ipcRenderer.invoke('native-get-models'),
+  nativeSwitchModel: (model) => ipcRenderer.invoke('native-switch-model', model),
+  nativeSendMessage: (message, reqId, cloeSessionId) =>
+    ipcRenderer.send('native-chat-send', { message, reqId, cloeSessionId }),
+  nativeChatStop: (reqId) => ipcRenderer.send('native-chat-stop', reqId),
+  nativeResetSession: (cloeSessionId) => ipcRenderer.invoke('native-reset-session', cloeSessionId),
+  nativeGetConfig: () => ipcRenderer.invoke('native-get-config'),
+  nativeSaveConfig: (cfg) => ipcRenderer.invoke('native-save-config', cfg),
+  nativeCronList: () => ipcRenderer.invoke('native-cron-list'),
+  nativeCronCreate: (data) => ipcRenderer.invoke('native-cron-create', data),
+  nativeCronUpdate: (id, changes) => ipcRenderer.invoke('native-cron-update', id, changes),
+  nativeCronRemove: (id) => ipcRenderer.invoke('native-cron-remove', id),
+
+  // Native agent stream events (each carries reqId)
+  onNativeDelta: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('native-stream-delta', h);
+    return () => ipcRenderer.removeListener('native-stream-delta', h);
+  },
+  onNativeTool: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('native-stream-tool', h);
+    return () => ipcRenderer.removeListener('native-stream-tool', h);
+  },
+  onNativeEnd: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('native-stream-end', h);
+    return () => ipcRenderer.removeListener('native-stream-end', h);
+  },
+  onNativeError: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('native-stream-error', h);
+    return () => ipcRenderer.removeListener('native-stream-error', h);
+  },
+
   // Stream events (each carries reqId for precise routing)
   onHermesDelta: (cb) => {
     const h = (_e, d) => cb(d);
