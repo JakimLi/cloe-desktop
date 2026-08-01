@@ -525,6 +525,7 @@ class AgentSession {
     const allToolCalls = [];
     let lastErrorMessage = '';
     let streamingStarted = false;
+    let lastRealUsage = null;  // Capture real usage from API response
 
     try {
       const agent = await this._ensureAgent();
@@ -576,10 +577,23 @@ class AgentSession {
               onTool?.(toolInfo);
               break;
             }
+            case 'turn_end': {
+              // Capture real token usage from API response
+              const turnMsg = event.message;
+              if (turnMsg?.usage) {
+                lastRealUsage = turnMsg.usage;
+                debugLog(`run: real usage from API — input=${turnMsg.usage.input}, output=${turnMsg.usage.output}, total=${turnMsg.usage.totalTokens}`);
+              }
+              break;
+            }
             case 'agent_end': {
               const lastMsg = event.messages[event.messages.length - 1];
               if (lastMsg?.stopReason === 'error' && lastMsg.errorMessage) {
                 lastErrorMessage = lastMsg.errorMessage;
+              }
+              // Also check agent_end messages for usage (final fallback)
+              if (!lastRealUsage && lastMsg?.usage) {
+                lastRealUsage = lastMsg.usage;
               }
               break;
             }
@@ -662,7 +676,7 @@ class AgentSession {
       }
     } finally {
       this.isRunning = false;
-      const ctx = this.getContextUsage();
+      const ctx = this.getContextUsage(lastRealUsage);
       onEnd?.(fullText, allToolCalls, ctx);
     }
   }
@@ -672,23 +686,27 @@ class AgentSession {
    * Includes system prompt + all messages in the agent's state.
    * @returns {{ usagePct: number, promptTokens: number, contextWindow: number }}
    */
-  getContextUsage() {
-    let totalTokens = 0;
+  getContextUsage(realUsage) {
+    const contextWindow = this._contextWindow || DEFAULT_CONTEXT_WINDOW;
 
-    // System prompt tokens
+    // Prefer real usage from the API response (input tokens = prompt + context)
+    if (realUsage && typeof realUsage.input === 'number' && realUsage.input > 0) {
+      const promptTokens = realUsage.input + (realUsage.output || 0);
+      const usagePct = contextWindow > 0 ? Math.min(100, (promptTokens / contextWindow) * 100) : 0;
+      return { usagePct, promptTokens, contextWindow };
+    }
+
+    // Fallback: estimate from messages + system prompt
+    let totalTokens = 0;
     if (this._systemPrompt) {
       totalTokens += Math.ceil(this._systemPrompt.length / CHARS_PER_TOKEN);
     }
-
-    // Message tokens
     if (this._piAgent) {
       const msgs = this._piAgent.state.messages;
       for (const m of msgs) {
         totalTokens += estimateMessageTokens(m);
       }
     }
-
-    const contextWindow = this._contextWindow || DEFAULT_CONTEXT_WINDOW;
     const usagePct = contextWindow > 0 ? Math.min(100, (totalTokens / contextWindow) * 100) : 0;
     return { usagePct, promptTokens: totalTokens, contextWindow };
   }
