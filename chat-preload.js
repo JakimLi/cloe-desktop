@@ -55,6 +55,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('native-stream-error', h);
     return () => ipcRenderer.removeListener('native-stream-error', h);
   },
+  onNativeRetry: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('native-stream-retry', h);
+    return () => ipcRenderer.removeListener('native-stream-retry', h);
+  },
 
   // Stream events (each carries reqId for precise routing)
   onHermesDelta: (cb) => {

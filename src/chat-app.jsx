@@ -536,6 +536,27 @@ function ChatApp() {
       activeReqIdRef.current = null;
       setConnected(false);
     };
+    const makeRetryHandler = () => (data) => {
+      const { reqId } = data || {};
+      if (reqId !== activeReqIdRef.current) return;
+      // Show retry status as a temporary tool-like indicator
+      const info = data || {};
+      const retryPart = {
+        type: 'tool',
+        tool: 'retry',
+        emoji: '🔄',
+        label: `Retrying (${info.attempt}/${info.maxRetries}) in ${info.delayMs}ms…`,
+      };
+      const parts = streamBufferRef.current.parts;
+      // Replace previous retry indicator if exists
+      const lastIdx = parts.length - 1;
+      if (lastIdx >= 0 && parts[lastIdx]?.type === 'tool' && parts[lastIdx]?.tool === 'retry') {
+        parts[lastIdx] = retryPart;
+      } else {
+        parts.push(retryPart);
+      }
+      setStreamingParts([...parts]);
+    };
 
     // Register for both Hermes and Native streams
     const unsubDelta = window.electronAPI?.onHermesDelta?.(makeDeltaHandler());
@@ -547,6 +568,7 @@ function ChatApp() {
     const unsubNativeTool = window.electronAPI?.onNativeTool?.(makeToolHandler());
     const unsubNativeEnd = window.electronAPI?.onNativeEnd?.(makeEndHandler());
     const unsubNativeError = window.electronAPI?.onNativeError?.(makeErrorHandler());
+    const unsubNativeRetry = window.electronAPI?.onNativeRetry?.(makeRetryHandler());
 
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
       if (!data) return;
@@ -560,7 +582,7 @@ function ChatApp() {
     return () => {
       unsubDelta?.(); unsubTool?.(); unsubEnd?.();
       unsubError?.(); unsubExternal?.(); unsubCtxUsage?.();
-      unsubNativeDelta?.(); unsubNativeTool?.(); unsubNativeEnd?.(); unsubNativeError?.();
+      unsubNativeDelta?.(); unsubNativeTool?.(); unsubNativeEnd?.(); unsubNativeError?.(); unsubNativeRetry?.();
     };
   }, []);
 

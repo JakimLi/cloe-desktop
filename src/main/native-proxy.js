@@ -19,6 +19,7 @@
  *   native-stream-delta   — { content, reqId }
  *   native-stream-tool    — { tool, emoji, label, reqId }
  *   native-stream-error   — { error, reqId }
+ *   native-stream-retry   — { attempt, maxRetries, delayMs, error, reqId }
  *   native-stream-end     — { reqId }
  */
 
@@ -198,6 +199,9 @@ ipcMain.on('native-chat-send', async (event, payload) => {
     onTool: (toolInfo) => {
       accumulatedTools.push(toolInfo);
       sendTo('native-stream-tool', toolInfo);
+    },
+    onRetry: (info) => {
+      sendTo('native-stream-retry', info);
     },
     onError: (err) => {
       sendTo('native-stream-error', { error: err });

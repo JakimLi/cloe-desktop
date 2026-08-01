@@ -4,7 +4,8 @@
  * Native Agent — 基于 Pi (pi-agent-core) 的 Agent Loop
  *
  * 用 Pi 框架的 Agent 类替代原来手写的 SSE 解析 + 工具循环。
- * Pi 提供成熟的 streaming / tool-calling / abort / state / retry 能力。
+ * Pi 提供成熟的 streaming / tool-calling / abort / state 能力。
+ * 重试 / 退避由我们在 AgentSession.run() 层实现（Pi 框架本身不含重试逻辑）。
  *
  * 对外保持原有接口不变(native-proxy.js / channels.js 无需改动):
  *   new AgentSession(sessionId, { history })
@@ -28,6 +29,13 @@
  *   - 加载历史时: 如果消息过多(超过 contextWindow 的 60%)，自动截断旧消息
  *   - 运行时: 通过 transformContext hook 在每次 LLM 调用前检查并截断
  *   - 截断策略: 保留最近的消息，丢弃最早的，不做摘要(快速、无额外 API 调用)
+ *
+ * 错误重试:
+ *   - LLM 调用失败(网络错误、超时、429/500/502/503)时自动重试
+ *   - 指数退避: baseDelay * 2^attempt，加随机 jitter
+ *   - 最多重试 maxRetries 次(默认 3)
+ *   - 可重试错误 vs 不可重试错误智能区分
+ *   - 已经开始流式输出后不重试(部分内容已发给用户)
  */
 
 const fs = require('fs');
@@ -58,6 +66,12 @@ const DEFAULT_CONTEXT_WINDOW = 128000;
 const CONTEXT_THRESHOLD = 0.6;
 // 最少保留的消息轮数（截断时的下限）
 const MIN_KEEP_TURNS = 6;
+
+// ── 重试常量 ──
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+const RETRY_MAX_DELAY_MS = 15000;
+
 // 估算单条消息的 token 数
 function estimateMessageTokens(msg) {
   if (!msg?.content) return 0;
@@ -129,6 +143,83 @@ function truncateToFit(messages, maxTokens) {
   }
 
   return { messages: result, dropped, droppedTokens };
+}
+
+// ── 错误分类 ──
+
+/**
+ * Determine if an error is retryable.
+ *
+ * Retryable: network errors, timeouts, rate limits (429),
+ * server errors (500/502/503/504), connection resets.
+ *
+ * Not retryable: authentication errors (401/403), bad request (400),
+ * model not found, invalid API key, content policy violations.
+ */
+function isRetryableError(errorMessage) {
+  if (!errorMessage || typeof errorMessage !== 'string') return false;
+  const msg = errorMessage.toLowerCase();
+
+  // ── 不可重试的错误 ──
+  const nonRetryable = [
+    '401', 'unauthorized', 'invalid api key', 'invalid_api_key',
+    'authentication', 'permission denied', 'forbidden', '403',
+    '400', 'bad request', 'invalid_request',
+    'model not found', 'does not exist',
+    'content policy', 'content_filter', 'safety',
+    'invalid model',
+  ];
+  for (const pattern of nonRetryable) {
+    if (msg.includes(pattern)) return false;
+  }
+
+  // ── 可重试的错误 ──
+  const retryable = [
+    '429', 'rate limit', 'rate_limit', 'too many requests',
+    '500', '502', '503', '504', 'bad gateway', 'service unavailable',
+    'gateway timeout', 'internal server error',
+    'timeout', 'timed out', 'etimedout', 'econnreset',
+    'fetch failed', 'network error', 'econnrefused',
+    'enotfound', 'eai_again', 'socket hang up',
+    'und_err_socket', 'aborted',  // 有时网络中断表现为 abort
+    'proxy error', 'connect etimedout',
+    'stream error', 'terminated',
+    'socket', 'connection', 'econnaborted',
+  ];
+  for (const pattern of retryable) {
+    if (msg.includes(pattern)) return true;
+  }
+
+  // 默认: 未知错误也尝试重试（宁可多试一次也不要直接放弃）
+  return true;
+}
+
+/**
+ * Calculate retry delay with exponential backoff + jitter.
+ * delay = min(baseDelay * 2^attempt + random(0..baseDelay), maxDelay)
+ */
+function getRetryDelay(attempt) {
+  const exponential = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+  const jitter = Math.random() * RETRY_BASE_DELAY_MS;
+  return Math.min(exponential + jitter, RETRY_MAX_DELAY_MS);
+}
+
+/**
+ * Sleep for ms, but resolve early if signal aborts.
+ */
+function sleep(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve();
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 // ── Pi 模块懒加载缓存 ──
@@ -382,47 +473,66 @@ class AgentSession {
     }
   }
 
+  /**
+   * Remove trailing error/failure messages from the agent's message list.
+   *
+   * When Pi's LLM call fails, it appends a placeholder assistant message with
+   * stopReason="error" and empty content. We need to clean that up before retrying
+   * so the LLM doesn't see a broken message in context.
+   *
+   * @returns {number} number of messages removed
+   */
+  _stripTrailingErrors() {
+    if (!this._piAgent) return 0;
+    const msgs = this._piAgent.state.messages;
+    let removed = 0;
+    while (msgs.length > 0) {
+      const last = msgs[msgs.length - 1];
+      // Error assistant messages: stopReason is "error" or "aborted", content is empty/no text
+      if (last?.role === 'assistant' && (
+        last.stopReason === 'error' || last.stopReason === 'aborted'
+      )) {
+        msgs.pop();
+        removed++;
+      } else {
+        break;
+      }
+    }
+    return removed;
+  }
+
+  /**
+   * Run the agent loop with automatic error retry.
+   *
+   * Retry strategy:
+   *   1. Run agent.prompt() (first attempt) or agent.continue() (retries)
+   *   2. If error occurs AND no streaming output started AND error is retryable:
+   *      - Strip error messages from context
+   *      - Wait with exponential backoff
+   *      - Retry (up to MAX_RETRIES times)
+   *   3. If streaming already started (user saw partial output), don't retry
+   *   4. If error is not retryable (auth/400), fail immediately
+   *
+   * @param {object} callbacks - { onDelta, onTool, onError, onEnd, onRetry }
+   * @param {AbortSignal} signal
+   */
   async run(callbacks, signal) {
-    const { onDelta, onTool, onError, onEnd } = callbacks;
+    const { onDelta, onTool, onError, onEnd, onRetry } = callbacks;
     this.isRunning = true;
 
     let fullText = '';
     const allToolCalls = [];
     let lastErrorMessage = '';
+    let streamingStarted = false;
 
     try {
       const agent = await this._ensureAgent();
 
-      const unsubscribe = agent.subscribe((event) => {
-        switch (event.type) {
-          case 'message_update': {
-            const ame = event.assistantMessageEvent;
-            if (ame?.type === 'text_delta' && ame.delta) {
-              fullText += ame.delta;
-              onDelta?.(ame.delta);
-            }
-            break;
-          }
-          case 'tool_execution_start': {
-            const toolInfo = {
-              tool: event.toolName,
-              emoji: getToolEmoji(event.toolName),
-              label: formatToolLabel(event.toolName, event.args),
-            };
-            allToolCalls.push(toolInfo);
-            onTool?.(toolInfo);
-            break;
-          }
-          case 'agent_end': {
-            const lastMsg = event.messages[event.messages.length - 1];
-            if (lastMsg?.stopReason === 'error' && lastMsg.errorMessage) {
-              lastErrorMessage = lastMsg.errorMessage;
-            }
-            break;
-          }
-        }
-      });
+      if (signal) {
+        signal.addEventListener('abort', () => agent.abort());
+      }
 
+      // Extract the user prompt (last user message)
       const messages = agent.state.messages;
       const lastUser = messages[messages.length - 1];
       const promptText = lastUser?.content?.[0]?.text || '';
@@ -430,18 +540,123 @@ class AgentSession {
         messages.pop();
       }
 
-      if (signal) {
-        signal.addEventListener('abort', () => agent.abort());
-      }
+      // ── Retry loop ──
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        fullText = '';
+        streamingStarted = false;
+        lastErrorMessage = '';
 
-      await agent.prompt(promptText);
-      unsubscribe();
+        // Set up event listener for this attempt
+        const attemptCallbacks = [];
 
-      if (lastErrorMessage) {
-        onError?.(lastErrorMessage);
+        const unsubscribe = agent.subscribe((event) => {
+          switch (event.type) {
+            case 'message_update': {
+              const ame = event.assistantMessageEvent;
+              if (ame?.type === 'text_delta' && ame.delta) {
+                if (!streamingStarted) {
+                  streamingStarted = true;
+                  debugLog(`run: streaming started at attempt ${attempt}`);
+                }
+                fullText += ame.delta;
+                onDelta?.(ame.delta);
+              }
+              break;
+            }
+            case 'tool_execution_start': {
+              // Tool execution means LLM responded successfully — streaming effectively started
+              streamingStarted = true;
+              const toolInfo = {
+                tool: event.toolName,
+                emoji: getToolEmoji(event.toolName),
+                label: formatToolLabel(event.toolName, event.args),
+              };
+              allToolCalls.push(toolInfo);
+              onTool?.(toolInfo);
+              break;
+            }
+            case 'agent_end': {
+              const lastMsg = event.messages[event.messages.length - 1];
+              if (lastMsg?.stopReason === 'error' && lastMsg.errorMessage) {
+                lastErrorMessage = lastMsg.errorMessage;
+              }
+              break;
+            }
+          }
+        });
+
+        try {
+          if (attempt === 0) {
+            await agent.prompt(promptText);
+          } else {
+            // Retry: use continue() since user message is already in context
+            await agent.continue();
+          }
+        } finally {
+          unsubscribe();
+        }
+
+        // ── Check if we need to retry ──
+        if (!lastErrorMessage) {
+          // Success! No error.
+          break;
+        }
+
+        // Error occurred — decide whether to retry
+        const canRetry = attempt < MAX_RETRIES;
+        const shouldRetry = canRetry
+          && !streamingStarted
+          && !signal?.aborted
+          && isRetryableError(lastErrorMessage);
+
+        if (!shouldRetry) {
+          // Can't or shouldn't retry — report the error
+          debugLog(`run: not retrying (attempt=${attempt}, canRetry=${canRetry}, streamingStarted=${streamingStarted}, aborted=${signal?.aborted}, retryable=${isRetryableError(lastErrorMessage)}): ${lastErrorMessage}`);
+          onError?.(lastErrorMessage);
+          break;
+        }
+
+        // ── Prepare for retry ──
+        const delay = getRetryDelay(attempt);
+        debugLog(`run: retrying attempt ${attempt + 1}/${MAX_RETRIES} after ${Math.round(delay)}ms (error: ${lastErrorMessage})`);
+        console.log(`[NativeAgent] Retry ${attempt + 1}/${MAX_RETRIES} in ${Math.round(delay)}ms: ${lastErrorMessage}`);
+
+        // Notify UI about the retry
+        onRetry?.({
+          attempt: attempt + 1,
+          maxRetries: MAX_RETRIES,
+          delayMs: Math.round(delay),
+          error: lastErrorMessage,
+        });
+
+        // Strip the error message from agent state so next attempt starts clean
+        const stripped = this._stripTrailingErrors();
+        debugLog(`run: stripped ${stripped} error message(s) before retry`);
+
+        // Ensure the user prompt is still the last message for continue() to work
+        const msgs = agent.state.messages;
+        const lastMsg = msgs[msgs.length - 1];
+        if (!lastMsg || lastMsg.role !== 'user') {
+          // Re-add the user prompt if it was consumed
+          msgs.push({
+            role: 'user',
+            content: [{ type: 'text', text: promptText }],
+            timestamp: Date.now(),
+          });
+        }
+
+        // Wait before retrying
+        await sleep(delay, signal);
+
+        // Check if aborted during sleep
+        if (signal?.aborted) {
+          debugLog('run: aborted during retry sleep');
+          break;
+        }
       }
     } catch (e) {
       if (e?.name !== 'AbortError') {
+        debugLog(`run: caught exception: ${e.message}`);
         onError?.(e.message);
       }
     } finally {
