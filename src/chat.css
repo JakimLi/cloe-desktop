@@ -663,7 +663,8 @@ body.chat-theme-light,
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Model select */
@@ -707,6 +708,18 @@ body.chat-theme-light,
   background: #1a1a1a;
   color: var(--text-primary);
   font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+/* Agent select — slightly more prominent than model select */
+.chat-agent-select {
+  color: var(--text-secondary);
+  font-weight: 500;
+  max-width: 130px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.chat-agent-select:hover {
+  color: var(--text-primary);
 }
 
 /* Action buttons */

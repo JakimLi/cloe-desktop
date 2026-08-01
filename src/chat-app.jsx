@@ -349,7 +349,7 @@ function ChatApp() {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [cropperSrc, setCropperSrc] = useState(null);
   const [contextPct, setContextPct] = useState(0);
-  const [agentMode, setAgentMode] = useState(() => localStorage.getItem('cloe-agent-mode') || 'hermes');
+  const [agentMode, setAgentMode] = useState(() => localStorage.getItem('cloe-agent-mode') || 'native');
   const [thinkingLevel, setThinkingLevel] = useState('medium');
 
   const endRef = useRef(null);
@@ -588,22 +588,20 @@ function ChatApp() {
     const makeRetryHandler = () => (data) => {
       const { reqId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
-      // Show retry status as a temporary tool-like indicator
       const info = data || {};
-      const retryPart = {
+      // Clear the stream buffer on retry — remove partial text/thinking from the
+      // failed attempt so the retried response starts fresh (prevents duplication).
+      // Keep tool parts (cumulative log), but drop text/thinking and old retry markers.
+      const parts = streamBufferRef.current.parts.filter(
+        p => p.type === 'tool' && p.tool !== 'retry'
+      );
+      parts.push({
         type: 'tool',
         tool: 'retry',
         emoji: '🔄',
-        label: `Retrying (${info.attempt}/${info.maxRetries}) in ${info.delayMs}ms…`,
-      };
-      const parts = streamBufferRef.current.parts;
-      // Replace previous retry indicator if exists
-      const lastIdx = parts.length - 1;
-      if (lastIdx >= 0 && parts[lastIdx]?.type === 'tool' && parts[lastIdx]?.tool === 'retry') {
-        parts[lastIdx] = retryPart;
-      } else {
-        parts.push(retryPart);
-      }
+        label: `网络波动，自动重试中 (${info.attempt}/${info.maxRetries})…`,
+      });
+      streamBufferRef.current = { parts };
       setStreamingParts([...parts]);
     };
 
@@ -637,6 +635,7 @@ function ChatApp() {
 
   // ── Send ──
   const send = useCallback(() => {
+    if (sending) return;
     if (!inputTextRef.current.trim() || connected === false || !cloeSessionIdRef.current) return;
     const msg = inputTextRef.current.trim();
     const reqId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -667,7 +666,7 @@ function ChatApp() {
       );
     }
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-  }, [connected, currentModel, agentMode]);
+  }, [connected, currentModel, agentMode, sending]);
 
   const stop = useCallback(() => {
     if (activeReqIdRef.current) {
@@ -704,9 +703,9 @@ function ChatApp() {
       });
     } else {
       e.preventDefault();
-      send();
+      if (!sending) send();
     }
-  }, [send]);
+  }, [send, sending]);
 
   const onInputChange = useCallback((e) => {
     inputTextRef.current = e.target.value;
@@ -787,14 +786,6 @@ function ChatApp() {
         <div className="chat-titlebar-left">
           {renderTitlebarAvatar()}
           <span className="chat-title">{nickname}</span>
-          <button
-            className={`chat-btn chat-agent-toggle${agentMode === 'native' ? ' chat-agent-toggle-native' : ''}`}
-            onClick={onAgentModeToggle}
-            title={agentMode === 'native' ? 'Native Agent (click to switch to Hermes)' : 'Hermes Agent (click to switch to Native)'}
-            style={{ fontSize: '10px', padding: '2px 6px', opacity: 0.7 }}
-          >
-            {agentMode === 'native' ? '⚡' : '◆'}
-          </button>
         </div>
         <div className="chat-titlebar-right">
           <button className={`chat-btn${appearance !== 'opaque' ? ' chat-btn-active' : ''}`} onClick={cycleAppearance} title={appearanceButtonTitle}>
@@ -860,6 +851,16 @@ function ChatApp() {
         <textarea ref={textareaRef} className="chat-textarea" defaultValue="" onChange={onInputChange} onKeyDown={onKeyDown} placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`} disabled={connected === false} rows={1} spellCheck={false} />
         <div className="chat-input-toolbar">
           <div className="chat-input-actions">
+            <select
+              className="chat-model-select chat-agent-select"
+              value={agentMode}
+              onChange={(e) => { if (e.target.value !== agentMode) onAgentModeToggle(); }}
+              title="Switch agent"
+              spellCheck={false}
+            >
+              <option value="native">Cloe Agent</option>
+              <option value="hermes">Hermes</option>
+            </select>
             {models.length > 1 && (
               <div className="chat-model-select-wrapper">
                 <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />

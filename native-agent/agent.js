@@ -424,7 +424,7 @@ class AgentSession {
   }
 
   async run(callbacks, signal) {
-    const { onDelta, onTool, onError, onEnd } = callbacks;
+    const { onDelta, onTool, onError, onEnd, onRetry } = callbacks;
     this.isRunning = true;
 
     let fullText = '';
@@ -442,7 +442,9 @@ class AgentSession {
       if (attempt > 0) {
         const delay = RETRY_DELAYS[Math.min(attempt - 1, RETRY_DELAYS.length - 1)];
         console.log(`[NativeAgent] Retry ${attempt}/${MAX_RETRIES} after ${delay}ms (previous error: ${lastErrorMessage})`);
-        onDelta?.(`\n\n⚠️ 网络波动，自动重试中 (${attempt}/${MAX_RETRIES})...\n\n`, 'system');
+        // Notify UI to clear its stream buffer so the retried response doesn't
+        // append on top of the failed attempt's partial output (causes duplication).
+        onRetry?.({ attempt, maxRetries: MAX_RETRIES, delayMs: delay, error: lastErrorMessage });
         await AgentSession.sleep(delay);
       }
 

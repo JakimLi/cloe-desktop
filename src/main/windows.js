@@ -249,8 +249,8 @@ function createChatWindowForSession(sessionId) {
     alwaysOnTop: true,
     resizable: true,
     fullscreenable: false,
-    minWidth: 300,
-    minHeight: 250,
+    minWidth: 360,
+    minHeight: 280,
     hasShadow: true,
     show: false,
     webPreferences: {

@@ -37,6 +37,9 @@ const activeSessions = new Map(); // reqId → { session, abortController, sende
 // Persistent agent sessions by cloeSessionId
 const persistentSessions = new Map();
 
+// Queued messages per cloeSessionId — when agent is running, new messages wait here
+const messageQueues = new Map(); // cloeSessionId → [{ message, reqId, event }]
+
 /**
  * Get or create an AgentSession for the given cloeSessionId.
  * On first creation, loads persisted message history from cloe-sessions
@@ -172,12 +175,31 @@ ipcMain.handle('native-fetch-models', async (_event, { baseURL, apiKey }) => {
 // ── Send message (main entry) ──
 ipcMain.on('native-chat-send', async (event, payload) => {
   const { message, reqId, cloeSessionId } = payload || {};
-  
+
   if (!message || !reqId) return;
-  
+
   const session = getOrCreateSession(cloeSessionId || reqId);
+
+  // If agent is already running, queue the message for after the current run finishes.
+  // This prevents concurrent prompt() calls (Pi throws "already processing").
+  if (session.isRunning) {
+    const sid = cloeSessionId || reqId;
+    if (!messageQueues.has(sid)) messageQueues.set(sid, []);
+    messageQueues.get(sid).push({ message, reqId, sender: event.sender });
+    console.log(`[NativeAgent] Session busy, queued message (reqId=${reqId})`);
+    return;
+  }
+
+  runNativeAgent(session, message, reqId, cloeSessionId, event);
+});
+
+/**
+ * Run the native agent for a single message.
+ * Extracted so it can be called both directly and from the queue drain.
+ */
+function runNativeAgent(session, message, reqId, cloeSessionId, event) {
   const abortController = new AbortController();
-  
+
   activeSessions.set(reqId, { session, abortController, sender: event.sender });
   
   const sendTo = (ch, data) => {
@@ -257,8 +279,19 @@ ipcMain.on('native-chat-send', async (event, payload) => {
     console.error('[NativeAgent] Run failed:', e.message);
     sendTo('native-stream-error', { error: e.message });
     activeSessions.delete(reqId);
+  }).finally(() => {
+    // Drain queued messages for this session
+    const sid = cloeSessionId || reqId;
+    const queue = messageQueues.get(sid);
+    if (queue && queue.length > 0 && !session.isRunning) {
+      const next = queue.shift();
+      console.log(`[NativeAgent] Draining queued message (reqId=${next.reqId}), ${queue.length} remaining`);
+      runNativeAgent(session, next.message, next.reqId, cloeSessionId, { sender: next.sender });
+    } else if (queue && queue.length === 0) {
+      messageQueues.delete(sid);
+    }
   });
-});
+}
 
 // ── Stop / abort ──
 ipcMain.on('native-chat-stop', (_event, reqId) => {
