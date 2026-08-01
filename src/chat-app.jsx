@@ -137,7 +137,7 @@ function MessageContent({ content, tools, parts, image, isStreaming }) {
         if (part.type === 'thinking') {
           return (
             <details className="chat-thinking-block" key={`thinking-${i}`}>
-              <summary>💭 Thinking…</summary>
+              <summary>Thinking</summary>
               <div className="chat-thinking-content">{part.text}</div>
             </details>
           );
@@ -842,11 +842,11 @@ function ChatApp() {
                 title="Thinking / reasoning effort"
                 spellCheck={false}
               >
-                <option value="off">🚫 No thinking</option>
-                <option value="minimal">💭 Minimal</option>
-                <option value="low">💭 Low</option>
-                <option value="medium">🧠 Medium</option>
-                <option value="high">🧠 High</option>
+                <option value="off">Thinking: Off</option>
+                <option value="minimal">Thinking: Minimal</option>
+                <option value="low">Thinking: Low</option>
+                <option value="medium">Thinking: Medium</option>
+                <option value="high">Thinking: High</option>
               </select>
             )}
           </div>
