@@ -206,9 +206,17 @@ ipcMain.on('native-chat-send', async (event, payload) => {
     onError: (err) => {
       sendTo('native-stream-error', { error: err });
     },
-    onEnd: (fullText, toolCalls) => {
+    onEnd: (fullText, toolCalls, ctxUsage) => {
       activeSessions.delete(reqId);
       sendTo('native-stream-end', {});
+      // Send context usage update to chat window
+      if (ctxUsage) {
+        sendTo('context-usage', {
+          usage_pct: ctxUsage.usagePct,
+          prompt_tokens: ctxUsage.promptTokens,
+          context_limit: ctxUsage.contextWindow,
+        });
+      }
       
       // Return accumulated content for persistence
       // (the caller in native-proxy will persist this to cloeSessions)

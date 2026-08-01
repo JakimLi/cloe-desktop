@@ -416,6 +416,7 @@ class AgentSession {
       memory: memory.render(),
       skillsHint: skills.renderIndex(),
     });
+    this._systemPrompt = systemPrompt;
 
     // Max tokens for conversation history (leave room for system prompt + response)
     const maxHistoryTokens = Math.floor(this._contextWindow * CONTEXT_THRESHOLD);
@@ -661,8 +662,35 @@ class AgentSession {
       }
     } finally {
       this.isRunning = false;
-      onEnd?.(fullText, allToolCalls);
+      const ctx = this.getContextUsage();
+      onEnd?.(fullText, allToolCalls, ctx);
     }
+  }
+
+  /**
+   * Calculate current context usage as a percentage of the model's context window.
+   * Includes system prompt + all messages in the agent's state.
+   * @returns {{ usagePct: number, promptTokens: number, contextWindow: number }}
+   */
+  getContextUsage() {
+    let totalTokens = 0;
+
+    // System prompt tokens
+    if (this._systemPrompt) {
+      totalTokens += Math.ceil(this._systemPrompt.length / CHARS_PER_TOKEN);
+    }
+
+    // Message tokens
+    if (this._piAgent) {
+      const msgs = this._piAgent.state.messages;
+      for (const m of msgs) {
+        totalTokens += estimateMessageTokens(m);
+      }
+    }
+
+    const contextWindow = this._contextWindow || DEFAULT_CONTEXT_WINDOW;
+    const usagePct = contextWindow > 0 ? Math.min(100, (totalTokens / contextWindow) * 100) : 0;
+    return { usagePct, promptTokens: totalTokens, contextWindow };
   }
 
   abort() {
