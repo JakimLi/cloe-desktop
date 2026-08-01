@@ -116,6 +116,7 @@ function createBridgeServers() {
 
   const ttsRoutesHandler = require('./src/main/tts-routes')({
     getTtsAudioDir,
+    broadcast: broadcastToClients,
   });
 
   const excalidrawRoutesHandler = require('./src/main/excalidraw-routes')({

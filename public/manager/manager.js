@@ -40,6 +40,11 @@ function switchTab(tabId) {
     initWeatherTab();
   }
 
+  // Lazy-load TTS tab
+  if (tabId === 'tts' && typeof initTtsTab === 'function') {
+    initTtsTab();
+  }
+
   // Lazy-load native agent tab
   if (tabId === 'native-agent' && typeof initNativeAgentTab === 'function') {
     initNativeAgentTab();
@@ -69,6 +74,9 @@ function updateAllText() {
   }
   if (document.getElementById('sidebar-native-agent')) {
     document.getElementById('sidebar-native-agent').querySelector('.sidebar-item-label').textContent = I18n.t('tabs.nativeAgent');
+  }
+  if (document.getElementById('sidebar-tts')) {
+    document.getElementById('sidebar-tts').querySelector('.sidebar-item-label').textContent = 'TTS';
   }
 
   // Update actions tab text

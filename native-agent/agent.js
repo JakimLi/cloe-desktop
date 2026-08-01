@@ -401,6 +401,28 @@ class AgentSession {
     }
   }
 
+  /**
+   * Check if an error is transient (worth retrying).
+   * Network timeouts, rate limits, and 5xx server errors are transient.
+   * Abort, auth errors, and content policy are not.
+   */
+  static isTransientError(msg) {
+    if (!msg) return false;
+    const m = msg.toLowerCase();
+    // Abort — never retry
+    if (m.includes('abort')) return false;
+    // Auth / config errors — won't fix with retry
+    if (m.includes('unauthorized') || m.includes('invalid api key') || m.includes('401') || m.includes('403')) return false;
+    // Content policy — retrying won't help
+    if (m.includes('content') && (m.includes('policy') || m.includes('filter'))) return false;
+    // Transient: timeout, connection, rate limit, 5xx, ECONNRESET, etc.
+    return true;
+  }
+
+  static sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
   async run(callbacks, signal) {
     const { onDelta, onTool, onError, onEnd } = callbacks;
     this.isRunning = true;
@@ -410,71 +432,108 @@ class AgentSession {
     let lastErrorMessage = '';
     let lastRealUsage = null;
 
-    try {
-      const agent = await this._ensureAgent();
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [2000, 4000, 8000]; // 2s, 4s, 8s backoff
 
-      const unsubscribe = agent.subscribe((event) => {
-        switch (event.type) {
-          case 'message_update': {
-            const ame = event.assistantMessageEvent;
-            if (ame?.type === 'thinking_delta' && ame.delta) {
-              onDelta?.(ame.delta, 'thinking');
-            } else if (ame?.type === 'text_delta' && ame.delta) {
-              fullText += ame.delta;
-              onDelta?.(ame.delta);
+    let attempt = 0;
+    let succeeded = false;
+
+    while (attempt <= MAX_RETRIES && !succeeded) {
+      if (attempt > 0) {
+        const delay = RETRY_DELAYS[Math.min(attempt - 1, RETRY_DELAYS.length - 1)];
+        console.log(`[NativeAgent] Retry ${attempt}/${MAX_RETRIES} after ${delay}ms (previous error: ${lastErrorMessage})`);
+        onDelta?.(`\n\n⚠️ 网络波动，自动重试中 (${attempt}/${MAX_RETRIES})...\n\n`, 'system');
+        await AgentSession.sleep(delay);
+      }
+
+      // Reset per-attempt state
+      fullText = '';
+      lastErrorMessage = '';
+      // Keep allToolCalls across retries (cumulative log)
+
+      try {
+        const agent = await this._ensureAgent();
+
+        const unsubscribe = agent.subscribe((event) => {
+          switch (event.type) {
+            case 'message_update': {
+              const ame = event.assistantMessageEvent;
+              if (ame?.type === 'thinking_delta' && ame.delta) {
+                onDelta?.(ame.delta, 'thinking');
+              } else if (ame?.type === 'text_delta' && ame.delta) {
+                fullText += ame.delta;
+                onDelta?.(ame.delta);
+              }
+              break;
             }
-            break;
-          }
-          case 'tool_execution_start': {
-            const toolInfo = {
-              tool: event.toolName,
-              emoji: getToolEmoji(event.toolName),
-              label: formatToolLabel(event.toolName, event.args),
-            };
-            allToolCalls.push(toolInfo);
-            onTool?.(toolInfo);
-            break;
-          }
-          case 'agent_end': {
-            const lastMsg = event.messages[event.messages.length - 1];
-            if (lastMsg?.stopReason === 'error' && lastMsg.errorMessage) {
-              lastErrorMessage = lastMsg.errorMessage;
+            case 'tool_execution_start': {
+              const toolInfo = {
+                tool: event.toolName,
+                emoji: getToolEmoji(event.toolName),
+                label: formatToolLabel(event.toolName, event.args),
+              };
+              allToolCalls.push(toolInfo);
+              onTool?.(toolInfo);
+              break;
             }
-            // Capture real token usage from the API response for context %
-            if (lastMsg?.usage) {
-              lastRealUsage = lastMsg.usage;
+            case 'agent_end': {
+              const lastMsg = event.messages[event.messages.length - 1];
+              if (lastMsg?.stopReason === 'error' && lastMsg.errorMessage) {
+                lastErrorMessage = lastMsg.errorMessage;
+              }
+              // Capture real token usage from the API response for context %
+              if (lastMsg?.usage) {
+                lastRealUsage = lastMsg.usage;
+              }
+              break;
             }
-            break;
           }
+        });
+
+        const messages = agent.state.messages;
+        const lastUser = messages[messages.length - 1];
+        const promptText = lastUser?.content?.[0]?.text || '';
+        if (lastUser?.role === 'user') {
+          messages.pop();
         }
-      });
 
-      const messages = agent.state.messages;
-      const lastUser = messages[messages.length - 1];
-      const promptText = lastUser?.content?.[0]?.text || '';
-      if (lastUser?.role === 'user') {
-        messages.pop();
-      }
+        // Only attach abort listener on first attempt
+        if (signal && attempt === 0) {
+          signal.addEventListener('abort', () => agent.abort());
+        }
 
-      if (signal) {
-        signal.addEventListener('abort', () => agent.abort());
-      }
+        await agent.prompt(promptText);
+        unsubscribe();
 
-      await agent.prompt(promptText);
-      unsubscribe();
-
-      if (lastErrorMessage) {
-        onError?.(lastErrorMessage);
-      }
-    } catch (e) {
-      if (e?.name !== 'AbortError') {
+        if (lastErrorMessage) {
+          // Agent-level error (stopReason=error)
+          if (AgentSession.isTransientError(lastErrorMessage) && attempt < MAX_RETRIES) {
+            attempt++;
+            continue; // retry
+          }
+          onError?.(lastErrorMessage);
+        }
+        succeeded = true;
+      } catch (e) {
+        if (e?.name === 'AbortError') {
+          // User aborted — don't retry, don't error
+          succeeded = true; // exit loop cleanly
+          break;
+        }
+        lastErrorMessage = e.message;
+        if (AgentSession.isTransientError(e.message) && attempt < MAX_RETRIES) {
+          attempt++;
+          continue; // retry
+        }
+        // Non-transient or exhausted retries
         onError?.(e.message);
+        succeeded = true; // exit loop
       }
-    } finally {
-      this.isRunning = false;
-      const ctxUsage = this.getContextUsage(lastRealUsage);
-      onEnd?.(fullText, allToolCalls, ctxUsage);
     }
+
+    this.isRunning = false;
+    const ctxUsage = this.getContextUsage(lastRealUsage);
+    onEnd?.(fullText, allToolCalls, ctxUsage);
   }
 
   /**

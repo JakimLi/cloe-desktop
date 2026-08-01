@@ -81,17 +81,33 @@ function triggerCloeAction(action, options = {}) {
   });
 }
 
-// Helper: TTS via bridge
+// Helper: TTS via bridge POST /tts/generate
+// The bridge reads ~/.cloe/tts-config.json, calls the TTS API (MOSI),
+// converts WAV→MP3, saves to audio_cache, and triggers speak.
+// No external scripts or Python dependency — fully self-contained.
 function triggerTTS(text) {
   return new Promise((resolve) => {
-    const data = JSON.stringify({ action: 'speak', text });
+    const data = JSON.stringify({ text, speak: true });
     const req = http.request(
-      { hostname: '127.0.0.1', port: 19851, path: '/action', method: 'POST',
+      { hostname: '127.0.0.1', port: 19851, path: '/tts/generate', method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-        timeout: 10000 },
-      (res) => { let b=''; res.on('data', c=>b+=c); res.on('end', ()=>resolve(b)); }
+        timeout: 25000 },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => body += c);
+        res.on('end', () => {
+          try {
+            const result = JSON.parse(body);
+            if (result.ok) resolve('TTS played.');
+            else resolve('TTS failed: ' + (result.error || 'unknown'));
+          } catch {
+            resolve('TTS played.');
+          }
+        });
+      }
     );
-    req.on('error', () => resolve('tts sent (no response)'));
+    req.on('timeout', () => { req.destroy(); resolve('TTS timed out.'); });
+    req.on('error', (e) => resolve('TTS error: ' + e.message));
     req.write(data);
     req.end();
   });
