@@ -19,15 +19,15 @@
  *   Pi agent_end                    → onEnd(fullText, toolCalls)
  *   Pi 错误                          → onError(message)
  *
- * 注意:Pi 的 ESM 包用了 import attributes 语法(`with { type: "json" }`),
- * Node 22+ 才支持,Electron 28 内部是 Node 18。因此:
- *   - 不能用内置的 zaiProvider()(它的 zai.models.js 用了新语法)
- *   - 改为直接读 zai.json 数据 + createProvider 构造 provider
- *
  * Session 持久化:
  *   AgentSession 在构造时可接收 history (来自 cloe-sessions 持久化存储)。
  *   这些历史消息会在 Pi Agent 构造时注入到 state.messages，
  *   让 LLM 拥有完整的上下文。
+ *
+ * 上下文管理:
+ *   - 加载历史时: 如果消息过多(超过 contextWindow 的 60%)，自动截断旧消息
+ *   - 运行时: 通过 transformContext hook 在每次 LLM 调用前检查并截断
+ *   - 截断策略: 保留最近的消息，丢弃最早的，不做摘要(快速、无额外 API 调用)
  */
 
 const fs = require('fs');
@@ -39,8 +39,89 @@ const memory = require('./memory');
 const skills = require('./skills');
 const { buildPiTools, getToolEmoji, formatToolLabel } = require('./tools');
 
+// ── 上下文管理常量 ──
+// 保守估算: ~4 chars ≈ 1 token (中英混合)
+const CHARS_PER_TOKEN = 4;
+// 默认 context window（如果 model 定义里没有）
+const DEFAULT_CONTEXT_WINDOW = 128000;
+// 安全阈值: 当估算 token 数超过 contextWindow 的此比例时触发截断
+const CONTEXT_THRESHOLD = 0.6;
+// 最少保留的消息轮数（截断时的下限）
+const MIN_KEEP_TURNS = 6;
+// 估算单条消息的 token 数
+function estimateMessageTokens(msg) {
+  if (!msg?.content) return 0;
+  if (typeof msg.content === 'string') return Math.ceil(msg.content.length / CHARS_PER_TOKEN);
+  if (Array.isArray(msg.content)) {
+    let chars = 0;
+    for (const part of msg.content) {
+      if (part?.text) chars += part.text.length;
+      if (part?.type === 'image') chars += 4800; // 图片估算
+    }
+    return Math.ceil(chars / CHARS_PER_TOKEN);
+  }
+  return 100; // fallback
+}
+
+/**
+ * Truncate message list to fit within a token budget.
+ * Strategy: keep the most recent messages, drop the oldest.
+ * Always keeps complete user-assistant turns (never splits a pair).
+ *
+ * @param {Array} messages - Pi AgentMessage array
+ * @param {number} maxTokens - Maximum tokens to keep
+ * @returns {{ messages: Array, dropped: number, droppedTokens: number }}
+ */
+function truncateToFit(messages, maxTokens) {
+  if (!messages.length) return { messages, dropped: 0, droppedTokens: 0 };
+
+  // Calculate total tokens
+  let totalTokens = 0;
+  const msgTokens = messages.map(m => {
+    const t = estimateMessageTokens(m);
+    totalTokens += t;
+    return t;
+  });
+
+  if (totalTokens <= maxTokens) {
+    return { messages, dropped: 0, droppedTokens: 0 };
+  }
+
+  // Need to truncate — drop messages from the front
+  // But keep at least MIN_KEEP_TURNS messages (3 user-assistant pairs)
+  const minKeep = MIN_KEEP_TURNS;
+  let cutIndex = 0;
+  let retainedTokens = totalTokens;
+
+  for (let i = 0; i < messages.length - minKeep; i++) {
+    retainedTokens -= msgTokens[i];
+    cutIndex = i + 1;
+    if (retainedTokens <= maxTokens) break;
+  }
+
+  // Align cutIndex to start of a turn (don't start with an assistant message)
+  while (cutIndex < messages.length - minKeep && messages[cutIndex]?.role === 'assistant') {
+    retainedTokens -= msgTokens[cutIndex];
+    cutIndex++;
+  }
+
+  const dropped = cutIndex;
+  const droppedTokens = totalTokens - retainedTokens;
+  const result = messages.slice(cutIndex);
+
+  // Prepend a system note about truncated context
+  if (dropped > 0) {
+    result.unshift({
+      role: 'user',
+      content: [{ type: 'text', text: `[Earlier in this conversation, ${dropped} messages were truncated to fit the context window.]` }],
+      timestamp: Date.now(),
+    });
+  }
+
+  return { messages: result, dropped, droppedTokens };
+}
+
 // ── Pi 模块懒加载缓存 ──
-// 动态 import 是异步的,缓存加载结果避免每次建 session 都 import
 let _piCache = null;
 
 async function loadPi() {
@@ -49,7 +130,6 @@ async function loadPi() {
   const piAi = await import('@earendil-works/pi-ai');
   const { openAICompletionsApi } = await import('@earendil-works/pi-ai/api/openai-completions.lazy');
 
-  // 直接读 zai.json(绕开有 import attributes 语法的 zai.models.js)
   const zaiJsonPath = path.join(
     __dirname, '..', 'node_modules', '@earendil-works', 'pi-ai',
     'dist', 'providers', 'data', 'zai.json'
@@ -66,13 +146,11 @@ async function loadPi() {
   return _piCache;
 }
 
-// 预加载(供 native-proxy.js init 时调用,提前 warm up)
 function preloadPi() {
   loadPi().catch(e => console.error('[NativeAgent] preload failed:', e.message));
 }
 
 // ── Provider / Model 构造 ──
-// 每次建 session 时根据当前 config 构造,确保 baseURL/apiKey/model 是最新的
 function buildProviderAndModel(pi, cfg) {
   const { piAi, openAICompletionsApi, zaiModelDefs } = pi;
   const providerInfo = config.getProvider();
@@ -85,12 +163,9 @@ function buildProviderAndModel(pi, cfg) {
   const PROVIDER_ID = 'cloe-zai';
   const targetBase = providerInfo.baseURL.replace(/\/+$/, '');
 
-  // 从内置 zai.json 取 model 定义,覆盖 baseUrl + provider id
-  // 若用户配置的 model 不在 zai.json 里,造一个基本定义
   const buildModel = (id) => {
     const def = zaiModelDefs[id];
     if (def) return { ...def, baseUrl: targetBase, provider: PROVIDER_ID };
-    // 未知 model — 给一个兼容智谱 OpenAI 接口的最小定义
     return {
       id, name: id, api: 'openai-completions', provider: PROVIDER_ID,
       baseUrl: targetBase,
@@ -101,12 +176,11 @@ function buildProviderAndModel(pi, cfg) {
         supportsStore: false, supportsDeveloperRole: false,
         supportsReasoningEffort: false, maxTokensField: 'max_tokens',
       },
-      contextWindow: 128000, maxTokens: 8192,
+      contextWindow: DEFAULT_CONTEXT_WINDOW, maxTokens: 8192,
     };
   };
 
   const modelsList = Object.keys(zaiModelDefs).map(id => buildModel(id));
-  // 确保用户配置的 model 在列表里
   if (!modelsList.some(m => m.id === modelId)) {
     modelsList.push(buildModel(modelId));
   }
@@ -149,19 +223,16 @@ function convertHistoryToPiMessages(history) {
   for (const msg of history) {
     if (!msg || !msg.role) continue;
 
-    // Extract text content
     let text = '';
     if (typeof msg.content === 'string') {
       text = msg.content;
     } else if (Array.isArray(msg.parts)) {
-      // Reconstruct from parts (tool calls + text)
       text = msg.parts
         .filter(p => p.type === 'text' && p.text)
         .map(p => p.text)
         .join('\n');
     }
 
-    // Skip empty assistant messages
     if (msg.role === 'assistant' && !text.trim()) continue;
 
     result.push({
@@ -185,41 +256,37 @@ class AgentSession {
   constructor(sessionId, options = {}) {
     this.sessionId = sessionId;
     this.isRunning = false;
-    this._piAgent = null;      // Pi Agent 实例(lazy 构造)
-    this._pendingUserMessages = [];  // Pi Agent 构造前缓存的消息
-    this._history = options.history || [];  // 持久化的历史消息
+    this._piAgent = null;
+    this._pendingUserMessages = [];
+    this._history = options.history || [];
+    this._contextWindow = DEFAULT_CONTEXT_WINDOW;
   }
 
-  /**
-   * Set or update the history (called when session is reopened from persistence).
-   * If Pi Agent isn't constructed yet, history will be injected during _ensureAgent().
-   * If Pi Agent already exists (e.g. same process, new history loaded), we inject directly.
-   */
   setHistory(history) {
     this._history = Array.isArray(history) ? history : [];
-    // If agent already exists, we can't easily inject into its running state,
-    // so we mark for reconstruction on next run.
     if (this._piAgent) {
       this._piAgent = null;
     }
   }
 
-  /**
-   * Lazy-construct the Pi Agent.
-   * Must be async (dynamic import + provider build).
-   */
   async _ensureAgent() {
     if (this._piAgent) return this._piAgent;
 
     const pi = await loadPi();
     const { models, targetModel } = buildProviderAndModel(pi, config.loadConfig());
-    const tools = await buildPiTools();  // async (TypeBox import)
+    const tools = await buildPiTools();
+
+    // Record context window from model definition
+    this._contextWindow = targetModel?.contextWindow || DEFAULT_CONTEXT_WINDOW;
 
     const systemPrompt = soul.buildSystemPrompt({
       soul: soul.loadSoul(),
       memory: memory.render(),
       skillsHint: skills.renderIndex(),
     });
+
+    // Max tokens for conversation history (leave room for system prompt + response)
+    const maxHistoryTokens = Math.floor(this._contextWindow * CONTEXT_THRESHOLD);
 
     this._piAgent = new pi.Agent({
       streamFn: (m, ctx, opts) => models.streamSimple(m, ctx, opts),
@@ -228,11 +295,23 @@ class AgentSession {
         model: targetModel,
         tools,
       },
+      // transformContext: called before each LLM call.
+      // Truncate if messages exceed the token budget.
+      transformContext: async (messages) => {
+        const result = truncateToFit(messages, maxHistoryTokens);
+        if (result.dropped > 0) {
+          console.log(`[NativeAgent] Context truncated: dropped ${result.dropped} messages (${result.droppedTokens} est. tokens) to fit ${maxHistoryTokens} token budget`);
+        }
+        return result.messages;
+      },
     });
 
     // Inject persisted history into Pi Agent's message list
     const piHistory = convertHistoryToPiMessages(this._history);
-    for (const msg of piHistory) {
+
+    // Pre-truncate the history before injection (avoid loading 100k tokens on init)
+    const truncated = truncateToFit(piHistory, maxHistoryTokens);
+    for (const msg of truncated.messages) {
       this._piAgent.state.messages.push(msg);
     }
 
@@ -243,16 +322,12 @@ class AgentSession {
     this._pendingUserMessages = [];
 
     if (piHistory.length > 0) {
-      console.log(`[NativeAgent] Session ${this.sessionId}: restored ${piHistory.length} messages from history`);
+      console.log(`[NativeAgent] Session ${this.sessionId}: restored ${piHistory.length} messages (truncated to ${truncated.messages.length}, dropped ${truncated.dropped})`);
     }
 
     return this._piAgent;
   }
 
-  /**
-   * Add a user message to the conversation.
-   * If Pi Agent isn't constructed yet, queue for later.
-   */
   addUserMessage(text) {
     if (this._piAgent) {
       this._piAgent.state.messages.push({
@@ -265,15 +340,6 @@ class AgentSession {
     }
   }
 
-  /**
-   * Run the agent loop.
-   * @param {object} callbacks - Event callbacks
-   * @param {function} callbacks.onDelta - (text) => called on text chunk
-   * @param {function} callbacks.onTool - (toolInfo) => called on tool execution
-   * @param {function} callbacks.onError - (errorMsg) => called on error
-   * @param {function} callbacks.onEnd - (fullText, toolCalls) => called when loop finishes
-   * @param {AbortSignal} signal - Optional abort signal
-   */
   async run(callbacks, signal) {
     const { onDelta, onTool, onError, onEnd } = callbacks;
     this.isRunning = true;
@@ -285,7 +351,6 @@ class AgentSession {
     try {
       const agent = await this._ensureAgent();
 
-      // 订阅 Pi 事件 → 映射到原 callback 接口
       const unsubscribe = agent.subscribe((event) => {
         switch (event.type) {
           case 'message_update': {
@@ -307,7 +372,6 @@ class AgentSession {
             break;
           }
           case 'agent_end': {
-            // 提取错误信息(如果有)
             const lastMsg = event.messages[event.messages.length - 1];
             if (lastMsg?.stopReason === 'error' && lastMsg.errorMessage) {
               lastErrorMessage = lastMsg.errorMessage;
@@ -317,16 +381,13 @@ class AgentSession {
         }
       });
 
-      // 取出最后一条 user message 作为 prompt(Pi 的 prompt 会自己加 message)
       const messages = agent.state.messages;
       const lastUser = messages[messages.length - 1];
       const promptText = lastUser?.content?.[0]?.text || '';
-      // 移除我们手动加的,让 Pi 的 prompt() 统一管理
       if (lastUser?.role === 'user') {
         messages.pop();
       }
 
-      // 外部 abort signal → 调用 Pi Agent 内部的 abort()
       if (signal) {
         signal.addEventListener('abort', () => agent.abort());
       }
@@ -347,18 +408,12 @@ class AgentSession {
     }
   }
 
-  /**
-   * Abort the current run.
-   */
   abort() {
     if (this._piAgent) {
       this._piAgent.abort();
     }
   }
 
-  /**
-   * Reset conversation (clear transcript).
-   */
   reset() {
     if (this._piAgent) {
       this._piAgent.reset();
