@@ -30,12 +30,16 @@ const cron = require('../../native-agent/cron');
 const config = require('../../native-agent/config');
 const soul = require('../../native-agent/soul');
 const memory = require('../../native-agent/memory');
+const taskManager = require('../../native-agent/task-manager');
 
 // Active sessions by reqId (mirrors chatReqs in hermes-proxy)
 const activeSessions = new Map(); // reqId → { session, abortController, sender }
 
 // Persistent agent sessions by cloeSessionId
 const persistentSessions = new Map();
+
+// Track sender (webContents) per cloeSessionId for followUp streaming
+const sessionSenders = new Map(); // cloeSessionId → webContents
 
 // Queued messages per cloeSessionId — when agent is running, new messages wait here
 const messageQueues = new Map(); // cloeSessionId → [{ message, reqId, event }]
@@ -200,6 +204,11 @@ ipcMain.on('native-chat-send', async (event, payload) => {
 function runNativeAgent(session, message, reqId, cloeSessionId, event) {
   const abortController = new AbortController();
 
+  // Store sender for followUp (sub-agent completion notifications)
+  if (cloeSessionId && event?.sender) {
+    sessionSenders.set(cloeSessionId, event.sender);
+  }
+
   activeSessions.set(reqId, { session, abortController, sender: event.sender });
   
   const sendTo = (ch, data) => {
@@ -242,15 +251,18 @@ function runNativeAgent(session, message, reqId, cloeSessionId, event) {
       }
       
       // Return accumulated content for persistence
-      // (the caller in native-proxy will persist this to cloeSessions)
+      // FollowUp messages: persist the assistant response but store the
+      // system notification as role 'system' instead of 'user'
       if (cloeSessionId) {
         try {
           const cloeSessions = require('../../cloe-sessions');
           const cloeSession = cloeSessions.getSession(cloeSessionId);
           if (cloeSession) {
+            const isFollowUp = reqId.startsWith('followup-');
+            const userRole = isFollowUp ? 'system' : 'user';
             const newMessages = [
               ...cloeSession.messages,
-              { role: 'user', content: message },
+              { role: userRole, content: message },
               {
                 role: 'assistant',
                 content: accumulatedText,
@@ -261,7 +273,7 @@ function runNativeAgent(session, message, reqId, cloeSessionId, event) {
                 ],
               },
             ];
-            const titleUpdate = (!cloeSession.title || cloeSession.title === 'New chat') && message
+            const titleUpdate = (!cloeSession.title || cloeSession.title === 'New chat') && message && !isFollowUp
               ? { title: message.slice(0, 40) + (message.length > 40 ? '…' : '') }
               : {};
             cloeSessions.updateSession(cloeSessionId, {
@@ -367,6 +379,33 @@ ipcMain.handle('native-cron-remove', async (_event, id) => {
  * Call this once at app startup (after bridge is ready).
  */
 function init() {
+  // ── Multi-agent followUp mechanism ──
+  // When a sub-agent task completes, trigger a followUp turn on the parent session.
+  // This streams the result to the chat window just like a normal response.
+  taskManager.setFollowUpTrigger((cloeSessionId, taskId, notification) => {
+    const session = persistentSessions.get(cloeSessionId);
+    const sender = sessionSenders.get(cloeSessionId);
+    if (!session) {
+      console.warn(`[NativeAgent] followUp: session ${cloeSessionId} not found`);
+      return;
+    }
+    if (!sender || sender.isDestroyed()) {
+      console.warn(`[NativeAgent] followUp: sender for ${cloeSessionId} unavailable`);
+      return;
+    }
+
+    const reqId = `followup-${taskId}-${Date.now()}`;
+    console.log(`[NativeAgent] followUp triggered: ${reqId} for session ${cloeSessionId}`);
+
+    // Notify chat window to prepare a new response area for this followUp
+    try {
+      sender.send('native-followup-notify', { reqId, cloeSessionId, taskId });
+    } catch {}
+
+    // Wrap sender to match the event.sender interface
+    const fakeEvent = { sender };
+    runNativeAgent(session, notification, reqId, cloeSessionId, fakeEvent);
+  });
   // Watch soul file for hot reload
   soul.watchSoul();
 

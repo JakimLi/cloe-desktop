@@ -63,6 +63,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('native-stream-retry', h);
   },
 
+  // FollowUp notification — sub-agent task completed, main agent will stream a new response
+  onNativeFollowUp: (cb) => {
+    const h = (_e, d) => cb(d);
+    ipcRenderer.on('native-followup-notify', h);
+    return () => ipcRenderer.removeListener('native-followup-notify', h);
+  },
+
   // Stream events (each carries reqId for precise routing)
   onHermesDelta: (cb) => {
     const h = (_e, d) => cb(d);

@@ -216,8 +216,8 @@ async function checkSyntax(filePath) {
  * Build the tool definitions array.
  * Returns OpenAI function-calling format.
  */
-function buildToolDefinitions() {
-  return [
+function buildToolDefinitions(options = {}) {
+  const defs = [
     {
       type: 'function',
       function: {
@@ -410,6 +410,43 @@ function buildToolDefinitions() {
       },
     },
   ];
+
+  // Add multi-agent tools for main agent only (not sub-agents)
+  if (!options.excludeSpawnTools) {
+    defs.push(
+      {
+        type: 'function',
+        function: {
+          name: 'spawn_agent',
+          description: 'Spawn a sub-agent to handle a task independently. The sub-agent has its own context and tools (but cannot spawn further agents). Use mode "async" to run in background and get auto-notified on completion, or "sync" to block until the result is ready. Async is preferred for tasks that may take more than a few seconds.',
+          parameters: {
+            type: 'object',
+            properties: {
+              task: { type: 'string', description: 'Detailed task description for the sub-agent. Be specific about what to investigate, analyze, or produce.' },
+              mode: { type: 'string', enum: ['async', 'sync'], description: 'async (default): run in background, you get notified on completion. sync: block until result is ready.', default: 'async' },
+            },
+            required: ['task'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'check_task',
+          description: 'Check the status and result of a spawned agent task. Returns status (running/done/failed/timeout), result if complete, and tools used so far.',
+          parameters: {
+            type: 'object',
+            properties: {
+              task_id: { type: 'string', description: 'The task ID returned by spawn_agent' },
+            },
+            required: ['task_id'],
+          },
+        },
+      },
+    );
+  }
+
+  return defs;
 }
 
 /**
@@ -418,7 +455,7 @@ function buildToolDefinitions() {
  * @param {object} args - Tool arguments
  * @returns {Promise<string>} Tool result text
  */
-async function executeTool(name, args) {
+async function executeTool(name, args, options = {}) {
   switch (name) {
     case 'terminal': {
       return await runShell(args.command, (args.timeout || 30) * 1000);
@@ -542,6 +579,30 @@ async function executeTool(name, args) {
     case 'cloe_tts': {
       await triggerTTS(args.text);
       return 'TTS played.';
+    }
+    case 'spawn_agent': {
+      try {
+        const taskManager = require('./task-manager');
+        const mode = args.mode || 'async';
+        const cloeSessionId = options.cloeSessionId || null;
+        const taskId = await taskManager.spawn(args.task, { cloeSessionId, mode });
+        if (mode === 'sync') {
+          const result = await taskManager.waitForCompletion(taskId);
+          return `Task ${taskId} completed.\n\nResult:\n${result}`;
+        }
+        return `Task ${taskId} started in background. You will be automatically notified when it completes. You can also use check_task to check its status anytime.`;
+      } catch (e) {
+        return `Failed to spawn agent: ${e.message}`;
+      }
+    }
+    case 'check_task': {
+      try {
+        const taskManager = require('./task-manager');
+        const result = taskManager.check(args.task_id);
+        return JSON.stringify(result, null, 2);
+      } catch (e) {
+        return `Failed to check task: ${e.message}`;
+      }
     }
     default:
       return `Unknown tool: ${name}`;
@@ -678,6 +739,8 @@ function getToolEmoji(toolName) {
     memory: '🧠',
     cloe_action: '✨',
     cloe_tts: '🔊',
+    spawn_agent: '🤖',
+    check_task: '📋',
   };
   return map[toolName] || '🔧';
 }
@@ -696,6 +759,8 @@ function formatToolLabel(toolName, args = {}) {
     case 'memory': return `${args.action || ''} ${args.content || args.query || ''}`.trim();
     case 'cloe_action': return args.action || '';
     case 'cloe_tts': return (args.text || '').slice(0, 40);
+    case 'spawn_agent': return `${args.mode || 'async'}: ${(args.task || '').slice(0, 60)}`;
+    case 'check_task': return args.task_id || '';
     default: return '';
   }
 }
@@ -703,8 +768,9 @@ function formatToolLabel(toolName, args = {}) {
 /**
  * Build tool definitions in Pi AgentTool format.
  * Returns a Promise (needs async TypeBox Type import).
+ * @param {object} options - { excludeSpawnTools, cloeSessionId }
  */
-async function buildPiTools() {
+async function buildPiTools(options = {}) {
   const T = await getType();
   const tools = [];
   for (const [name, meta] of Object.entries(TOOL_META)) {
@@ -714,7 +780,7 @@ async function buildPiTools() {
       description: meta.description,
       parameters: meta.params(T),
       async execute(_toolCallId, args) {
-        const result = await executeTool(name, args);
+        const result = await executeTool(name, args, options);
         return {
           content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result) }],
           details: { tool: name, args },
@@ -722,6 +788,43 @@ async function buildPiTools() {
       },
     });
   }
+
+  // Add multi-agent tools for main agent only
+  if (!options.excludeSpawnTools) {
+    tools.push({
+      name: 'spawn_agent',
+      label: 'Spawn Agent',
+      description: 'Spawn a sub-agent to handle a task independently. The sub-agent has its own context and tools (but cannot spawn further agents). Use mode "async" (default) to run in background — you will be auto-notified on completion via a follow-up message. Use mode "sync" to block until the result is ready.',
+      parameters: T.Object({
+        task: T.String({ description: 'Detailed task description for the sub-agent. Be specific about what to investigate, analyze, or produce.' }),
+        mode: T.Optional(T.Union([T.Literal('async'), T.Literal('sync')], { description: 'async (default): background with auto-notification. sync: block until done.' })),
+      }),
+      async execute(_toolCallId, args) {
+        const result = await executeTool('spawn_agent', args, options);
+        return {
+          content: [{ type: 'text', text: result }],
+          details: { tool: 'spawn_agent', args },
+        };
+      },
+    });
+
+    tools.push({
+      name: 'check_task',
+      label: 'Check Task',
+      description: 'Check the status and result of a spawned agent task. Returns status (running/done/failed/timeout), result if complete, and tools used so far.',
+      parameters: T.Object({
+        task_id: T.String({ description: 'The task ID returned by spawn_agent' }),
+      }),
+      async execute(_toolCallId, args) {
+        const result = await executeTool('check_task', args, options);
+        return {
+          content: [{ type: 'text', text: result }],
+          details: { tool: 'check_task', args },
+        };
+      },
+    });
+  }
+
   return tools;
 }
 

@@ -617,6 +617,25 @@ function ChatApp() {
     const unsubNativeError = window.electronAPI?.onNativeError?.(makeErrorHandler());
     const unsubNativeRetry = window.electronAPI?.onNativeRetry?.(makeRetryHandler());
 
+    // FollowUp: sub-agent task completed → main agent will stream a new response
+    const unsubNativeFollowUp = window.electronAPI?.onNativeFollowUp?.((data) => {
+      const { reqId } = data || {};
+      if (!reqId) return;
+      // Prepare a new streaming area for the followUp response
+      activeReqIdRef.current = reqId;
+      streamBufferRef.current = { parts: [] };
+      setStreamingParts([]);
+      setSending(true);
+      // Add a marker so the user knows this is a background task result
+      streamBufferRef.current.parts.push({
+        type: 'tool',
+        tool: 'followup',
+        emoji: '🤖',
+        label: '后台任务完成，正在整理结果…',
+      });
+      setStreamingParts([...streamBufferRef.current.parts]);
+    });
+
     const unsubExternal = window.electronAPI?.onExternalChatMessage?.((data) => {
       if (!data) return;
       setMessages(prev => [...prev, { role: data.role || 'assistant', content: data.content, image: data.image }]);
@@ -629,7 +648,7 @@ function ChatApp() {
     return () => {
       unsubDelta?.(); unsubTool?.(); unsubEnd?.();
       unsubError?.(); unsubExternal?.(); unsubCtxUsage?.();
-      unsubNativeDelta?.(); unsubNativeTool?.(); unsubNativeEnd?.(); unsubNativeError?.(); unsubNativeRetry?.();
+      unsubNativeDelta?.(); unsubNativeTool?.(); unsubNativeEnd?.(); unsubNativeError?.(); unsubNativeRetry?.(); unsubNativeFollowUp?.();
     };
   }, []);
 

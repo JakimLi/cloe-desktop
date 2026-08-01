@@ -298,6 +298,10 @@ class AgentSession {
     this._pendingUserMessages = [];
     this._history = options.history || [];
     this._contextWindow = DEFAULT_CONTEXT_WINDOW;
+
+    // Sub-agent mode: focused task agent, no soul/memory/skills, no spawn tools
+    this._subAgent = options.subAgent || false;
+    this._taskPrompt = options.taskPrompt || '';
   }
 
   setHistory(history) {
@@ -331,17 +335,39 @@ class AgentSession {
 
     const pi = await loadPi();
     const { models, targetModel, providerId } = buildProviderAndModel(pi, config.loadConfig());
-    const tools = await buildPiTools();
+    // Build tools — sub-agents get basic tools only (no spawn_agent/check_task)
+    const tools = await buildPiTools({
+      excludeSpawnTools: this._subAgent,
+      cloeSessionId: this._subAgent ? null : this.sessionId,
+    });
     this._providerId = providerId;
 
     // Record context window from model definition
     this._contextWindow = targetModel?.contextWindow || DEFAULT_CONTEXT_WINDOW;
 
-    const systemPrompt = soul.buildSystemPrompt({
-      soul: soul.loadSoul(),
-      memory: memory.render(),
-      skillsHint: skills.renderIndex(),
-    });
+    let systemPrompt;
+    if (this._subAgent) {
+      // Sub-agent: minimal task-focused system prompt, no personality
+      systemPrompt = [
+        'You are a focused task-execution agent. You have been assigned a specific task by the parent agent.',
+        '',
+        'Guidelines:',
+        '- Complete the task thoroughly using available tools',
+        '- Your final response is a clear, structured summary of findings/results',
+        '- Do NOT include conversational filler, greetings, or personality',
+        '- Focus purely on the task: investigate, analyze, and report',
+        '- If you encounter errors, report them clearly and suggest alternatives',
+        '- Keep your final output concise but complete — the parent agent will relay it to the user',
+        '- Do not use cloe_action or cloe_tts tools',
+      ].join('\n');
+    } else {
+      // Main agent: full system prompt with soul/memory/skills
+      systemPrompt = soul.buildSystemPrompt({
+        soul: soul.loadSoul(),
+        memory: memory.render(),
+        skillsHint: skills.renderIndex(),
+      });
+    }
     this._systemPrompt = systemPrompt;
 
     // Max tokens for conversation history (leave room for system prompt + response)
