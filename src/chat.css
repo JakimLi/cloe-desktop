@@ -1335,3 +1335,48 @@ body.chat-theme-light .chat-avatar-menu-danger:hover {
   background: rgba(255, 255, 255, 0.96);
   color: rgba(34, 34, 38, 0.9);
 }
+
+/* ── Thinking level selector ── */
+.chat-thinking-select {
+  max-width: 110px;
+  opacity: 0.8;
+}
+.chat-thinking-select:hover {
+  opacity: 1;
+}
+
+/* ── Thinking/reasoning content block ── */
+.chat-thinking-block {
+  margin: 4px 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+.chat-thinking-block summary {
+  cursor: pointer;
+  opacity: 0.5;
+  user-select: none;
+  font-weight: 500;
+}
+.chat-thinking-block summary:hover {
+  opacity: 0.8;
+}
+.chat-thinking-block[open] summary {
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+.chat-thinking-content {
+  opacity: 0.45;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  font-style: italic;
+  max-height: 300px;
+  overflow-y: auto;
+}
+/* Light theme overrides */
+.chat-root.chat-theme-light .chat-thinking-block {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}

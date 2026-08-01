@@ -134,6 +134,14 @@ function MessageContent({ content, tools, parts, image, isStreaming }) {
             </div>
           );
         }
+        if (part.type === 'thinking') {
+          return (
+            <details className="chat-thinking-block" key={`thinking-${i}`}>
+              <summary>💭 Thinking…</summary>
+              <div className="chat-thinking-content">{part.text}</div>
+            </details>
+          );
+        }
         return (
           <ReactMarkdown key={`text-${i}`} remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
             {part.text}
@@ -312,6 +320,7 @@ function ChatApp() {
   const [cropperSrc, setCropperSrc] = useState(null);
   const [contextPct, setContextPct] = useState(0);
   const [agentMode, setAgentMode] = useState(() => localStorage.getItem('cloe-agent-mode') || 'hermes');
+  const [thinkingLevel, setThinkingLevel] = useState('medium');
 
   const endRef = useRef(null);
   const textareaRef = useRef(null);
@@ -491,16 +500,26 @@ function ChatApp() {
   useEffect(() => {
     // Helper: create a handler that works for both hermes and native streams
     const makeDeltaHandler = () => (data) => {
-      const { reqId, content, sessionId } = data || {};
+      const { reqId, content, contentType, sessionId } = data || {};
       if (reqId !== activeReqIdRef.current) return;
       if (sessionId) hermesSessionIdRef.current = sessionId;
       if (!content) return;
       const parts = streamBufferRef.current.parts;
-      const last = parts[parts.length - 1];
-      if (last && last.type === 'text') {
-        last.text += content;
+      if (contentType === 'thinking') {
+        // Thinking content — show in a separate collapsible block
+        const last = parts[parts.length - 1];
+        if (last && last.type === 'thinking') {
+          last.text += content;
+        } else {
+          parts.push({ type: 'thinking', text: content });
+        }
       } else {
-        parts.push({ type: 'text', text: content });
+        const last = parts[parts.length - 1];
+        if (last && last.type === 'text') {
+          last.text += content;
+        } else {
+          parts.push({ type: 'text', text: content });
+        }
       }
       setStreamingParts([...parts]);
     };
@@ -680,6 +699,24 @@ function ChatApp() {
     }
   }, [agentMode]);
 
+  // Load thinking level when entering native mode
+  useEffect(() => {
+    if (agentMode !== 'native') return;
+    window.electronAPI?.nativeGetThinkingLevel?.().then(lvl => {
+      if (lvl) setThinkingLevel(lvl);
+    }).catch(() => {});
+  }, [agentMode]);
+
+  const onThinkingLevelChange = useCallback(async (e) => {
+    const level = e.target.value;
+    setThinkingLevel(level);
+    try {
+      await window.electronAPI?.nativeSetThinkingLevel?.(level);
+    } catch (err) {
+      console.error('Failed to set thinking level:', err);
+    }
+  }, []);
+
   const onAgentModeToggle = useCallback(() => {
     setAgentMode(prev => {
       const next = prev === 'hermes' ? 'native' : 'hermes';
@@ -797,6 +834,21 @@ function ChatApp() {
               </div>
             )}
             {models.length <= 1 && <span className="chat-dot chat-dot-model" style={{ background: dotColor }} />}
+            {agentMode === 'native' && (
+              <select
+                className="chat-model-select chat-thinking-select"
+                value={thinkingLevel}
+                onChange={onThinkingLevelChange}
+                title="Thinking / reasoning effort"
+                spellCheck={false}
+              >
+                <option value="off">🚫 No thinking</option>
+                <option value="minimal">💭 Minimal</option>
+                <option value="low">💭 Low</option>
+                <option value="medium">🧠 Medium</option>
+                <option value="high">🧠 High</option>
+              </select>
+            )}
           </div>
           <div className="chat-context-bar">
             <svg viewBox="0 0 36 36" className="chat-context-svg">

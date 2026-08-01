@@ -192,9 +192,9 @@ ipcMain.on('native-chat-send', async (event, payload) => {
   
   // Run the agent loop
   session.run({
-    onDelta: (chunk) => {
-      accumulatedText += chunk;
-      sendTo('native-stream-delta', { content: chunk });
+    onDelta: (chunk, type) => {
+      if (type !== 'thinking') accumulatedText += chunk;
+      sendTo('native-stream-delta', { content: chunk, contentType: type || 'text' });
     },
     onTool: (toolInfo) => {
       accumulatedTools.push(toolInfo);
@@ -211,6 +211,7 @@ ipcMain.on('native-chat-send', async (event, payload) => {
       sendTo('native-stream-end', {});
       // Send context usage update to chat window
       if (ctxUsage) {
+        console.log(`[NativeProxy] sending context-usage: pct=${ctxUsage.usagePct}, tokens=${ctxUsage.promptTokens}, window=${ctxUsage.contextWindow}`);
         sendTo('context-usage', {
           usage_pct: ctxUsage.usagePct,
           prompt_tokens: ctxUsage.promptTokens,
@@ -279,6 +280,36 @@ ipcMain.handle('native-reset-session', async (_event, cloeSessionId) => {
 ipcMain.handle('native-reload-history', async (_event, cloeSessionId) => {
   reloadSessionHistory(cloeSessionId);
   return { success: true };
+});
+
+// ── Thinking level ──
+ipcMain.handle('native-get-thinking-level', async () => {
+  try {
+    const { AgentSession } = await require('../../native-agent/agent.js');
+    // Read from config directly (doesn't need a session)
+    const config = require('../../native-agent/config.js');
+    return config.loadConfig().thinkingLevel || 'medium';
+  } catch (e) {
+    return 'medium';
+  }
+});
+
+ipcMain.handle('native-set-thinking-level', async (_event, level) => {
+  try {
+    const config = require('../../native-agent/config.js');
+    const cfg = config.loadConfig();
+    cfg.thinkingLevel = level;
+    config.saveConfig(cfg);
+    // Update all existing sessions
+    for (const [, session] of persistentSessions) {
+      if (session.setThinkingLevel) {
+        session.setThinkingLevel(level);
+      }
+    }
+    return { success: true, level };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 });
 
 // ── Cron management ──

@@ -59,6 +59,7 @@ const DEFAULT_CONFIG = {
       models: [],
     },
   },
+  thinkingLevel: 'medium',  // off | minimal | low | medium | high | xhigh | max
   webSearch: {
     provider: 'zhipu_mcp',
     providers: {
