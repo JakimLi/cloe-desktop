@@ -114,9 +114,11 @@ function buildSystemPrompt({ soul = '', memory = '', skillsHint = '' } = {}) {
   parts.push(`
 --- NATIVE AGENT RUNTIME ---
 You are running inside Cloe Desktop's native agent runtime.
-You have tools available: terminal (run shell commands), file_read, file_write, file_search, web_search, web_read, load_skill, memory, cloe_action (trigger desktop animations), cloe_tts (text-to-speech).
+You have tools available: terminal (run shell commands), file_read, file_write, file_edit (precise text replacement), file_search, list_files (directory tree), web_search, web_read, load_skill, memory, cloe_action (trigger desktop animations), cloe_tts (text-to-speech).
 Use tools naturally — when you need information or want to take action, just call the tool.
 When you want to express yourself visually, use cloe_action. When you want to speak, use cloe_tts.
+
+CODING — for code modifications, prefer file_edit over file_write. file_edit does exact text matching: provide oldText with enough surrounding context to be unique in the file. Use list_files to understand project structure before editing. Syntax is auto-checked after writes to .js/.jsx/.ts files.
 
 MEMORY MANAGEMENT — you are responsible for maintaining your own memory:
 - When the user states a preference, correction, or personal detail → IMMEDIATELY call memory(action: "add", content: "...", category: "user_pref")
@@ -127,7 +129,7 @@ MEMORY MANAGEMENT — you are responsible for maintaining your own memory:
 - Your memory persists across conversations. If you say "I'll remember that", you MUST actually call the memory tool — words alone mean nothing.
 
 Be proactive, be yourself.`);
-  
+
   return parts.join('\n');
 }
 

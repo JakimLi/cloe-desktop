@@ -1348,35 +1348,110 @@ body.chat-theme-light .chat-avatar-menu-danger:hover {
 /* ── Thinking/reasoning content block ── */
 .chat-thinking-block {
   margin: 4px 0 8px;
-  padding: 6px 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(128, 128, 128, 0.04);
+  border: 1px solid rgba(128, 128, 128, 0.1);
   font-size: 12px;
+  overflow: hidden;
 }
-.chat-thinking-block summary {
+.chat-thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
   cursor: pointer;
-  opacity: 0.5;
   user-select: none;
+  transition: background 0.15s;
+}
+.chat-thinking-header:hover {
+  background: rgba(128, 128, 128, 0.06);
+}
+.chat-thinking-label {
   font-weight: 500;
+  opacity: 0.5;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.chat-thinking-block summary:hover {
-  opacity: 0.8;
-}
-.chat-thinking-block[open] summary {
+.chat-thinking-meta {
+  font-weight: 400;
   opacity: 0.7;
-  margin-bottom: 4px;
 }
-.chat-thinking-content {
+/* Collapsed preview — latest thinking line */
+.chat-thinking-preview {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+/* --- Static state (after streaming ends) --- */
+.chat-thinking-preview-text {
+  display: inline;
+  opacity: 0.4;
+}
+/* --- Streaming state: shimmer on label + preview --- */
+.chat-thinking-streaming .chat-thinking-label,
+.chat-thinking-streaming .chat-thinking-preview-text {
+  background: linear-gradient(
+    90deg,
+    rgba(128, 128, 128, 0.2) 0%,
+    rgba(200, 200, 200, 0.7) 50%,
+    rgba(128, 128, 128, 0.2) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: chat-thinking-shimmer 1.8s linear infinite;
+  opacity: 1;
+}
+@keyframes chat-thinking-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+/* Chevron */
+.chat-thinking-chevron {
+  flex-shrink: 0;
+  opacity: 0.35;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.chat-thinking-chevron-open {
+  transform: rotate(180deg);
+}
+.chat-thinking-header:hover .chat-thinking-chevron {
+  opacity: 0.6;
+}
+/* Expanded body */
+.chat-thinking-body {
+  padding: 0 10px 8px;
   opacity: 0.45;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   font-style: italic;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
+  border-top: 1px solid rgba(128, 128, 128, 0.08);
+  padding-top: 8px;
 }
-/* Light theme overrides */
+/* Light theme */
 .chat-root.chat-theme-light .chat-thinking-block {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(0, 0, 0, 0.025);
   border-color: rgba(0, 0, 0, 0.08);
+}
+.chat-root.chat-theme-light .chat-thinking-streaming .chat-thinking-label,
+.chat-root.chat-theme-light .chat-thinking-streaming .chat-thinking-preview-text {
+  background: linear-gradient(
+    90deg,
+    rgba(80, 80, 80, 0.2) 0%,
+    rgba(80, 80, 80, 0.6) 50%,
+    rgba(80, 80, 80, 0.2) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: chat-thinking-shimmer 1.8s linear infinite;
+  opacity: 1;
 }

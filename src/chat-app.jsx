@@ -14,6 +14,38 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import './chat.css';
 
+/* ── Thinking block — collapsed by default, shimmer preview ── */
+
+function ThinkingBlock({ text, isStreaming }) {
+  const [open, setOpen] = useState(false);
+  // Get the last non-empty line for preview
+  const lines = (text || '').split('\n').filter(l => l.trim());
+  const lastLine = lines.length > 0 ? lines[lines.length - 1] : '';
+
+  return (
+    <div className={`chat-thinking-block ${open ? 'chat-thinking-open' : ''} ${isStreaming ? 'chat-thinking-streaming' : ''}`}>
+      <div className="chat-thinking-header" onClick={() => setOpen(!open)}>
+        <span className="chat-thinking-label">
+          {isStreaming ? 'Thinking' : 'Thought process'}
+        </span>
+        {!open && lastLine && (
+          <span className="chat-thinking-preview">
+            <span className="chat-thinking-preview-text">{lastLine}</span>
+          </span>
+        )}
+        <span className={`chat-thinking-chevron ${open ? 'chat-thinking-chevron-open' : ''}`}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      </div>
+      {open && (
+        <div className="chat-thinking-body">{text}</div>
+      )}
+    </div>
+  );
+}
+
 /* ── Collapsible tool call — inline, minimal ── */
 
 function ToolIcon() {
@@ -136,10 +168,7 @@ function MessageContent({ content, tools, parts, image, isStreaming }) {
         }
         if (part.type === 'thinking') {
           return (
-            <details className="chat-thinking-block" key={`thinking-${i}`}>
-              <summary>Thinking</summary>
-              <div className="chat-thinking-content">{part.text}</div>
-            </details>
+            <ThinkingBlock key={`thinking-${i}`} text={part.text} isStreaming={isStreaming && i === parts.length - 1} />
           );
         }
         return (
@@ -305,7 +334,8 @@ function ChatApp() {
   const streamBufferRef = useRef({ parts: [] });
 
   // UI state
-  const [input, setInput] = useState('');
+  const inputTextRef = useRef('');
+  const [hasInput, setHasInput] = useState(false);
   const [connected, setConnected] = useState(null);
   const [nickname, setNickname] = useState('Hermes');
   const [models, setModels] = useState([]);
@@ -390,7 +420,7 @@ function ChatApp() {
 
   // ── Auto-scroll ──
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    endRef.current?.scrollIntoView({ behavior: sending ? "auto" : "smooth", block: "end" });
   }, [messages, streamingParts]);
 
   // ── ESC to close focus modal ──
@@ -607,11 +637,14 @@ function ChatApp() {
 
   // ── Send ──
   const send = useCallback(() => {
-    if (!input.trim() || connected === false || !cloeSessionIdRef.current) return;
-    const msg = input.trim();
+    if (!inputTextRef.current.trim() || connected === false || !cloeSessionIdRef.current) return;
+    const msg = inputTextRef.current.trim();
     const reqId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    setInput('');
+    inputTextRef.current = '';
+    if (textareaRef.current) textareaRef.current.value = '';
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setHasInput(false);
     setMessages(prev => [...prev, { role: 'user', content: msg }]);
     streamBufferRef.current = { parts: [] };
     setStreamingParts([]);
@@ -634,7 +667,7 @@ function ChatApp() {
       );
     }
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-  }, [input, connected, currentModel, agentMode]);
+  }, [connected, currentModel, agentMode]);
 
   const stop = useCallback(() => {
     if (activeReqIdRef.current) {
@@ -660,13 +693,14 @@ function ChatApp() {
     if (e.shiftKey || e.altKey) {
       e.preventDefault();
       const { selectionStart, selectionEnd } = e.target;
-      setInput(prev => {
-        const next = prev.substring(0, selectionStart) + '\n' + prev.substring(selectionEnd);
-        requestAnimationFrame(() => {
-          const ta = textareaRef.current;
-          if (ta) { ta.selectionStart = ta.selectionEnd = selectionStart + 1; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px'; }
-        });
-        return next;
+      const ta = e.target;
+      const newVal = ta.value.substring(0, selectionStart) + '\n' + ta.value.substring(selectionEnd);
+      ta.value = newVal;
+      inputTextRef.current = newVal;
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = selectionStart + 1;
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 100) + 'px';
       });
     } else {
       e.preventDefault();
@@ -675,7 +709,8 @@ function ChatApp() {
   }, [send]);
 
   const onInputChange = useCallback((e) => {
-    setInput(e.target.value);
+    inputTextRef.current = e.target.value;
+    setHasInput(e.target.value.trim().length > 0);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
   }, []);
@@ -822,7 +857,7 @@ function ChatApp() {
       )}
 
       <div className="chat-input-area">
-        <textarea ref={textareaRef} className="chat-textarea" value={input} onChange={onInputChange} onKeyDown={onKeyDown} placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`} disabled={connected === false} rows={1} spellCheck={false} />
+        <textarea ref={textareaRef} className="chat-textarea" defaultValue="" onChange={onInputChange} onKeyDown={onKeyDown} placeholder={connected === false ? 'Not connected' : `Message ${nickname}…`} disabled={connected === false} rows={1} spellCheck={false} />
         <div className="chat-input-toolbar">
           <div className="chat-input-actions">
             {models.length > 1 && (
@@ -842,11 +877,11 @@ function ChatApp() {
                 title="Thinking / reasoning effort"
                 spellCheck={false}
               >
-                <option value="off">Thinking: Off</option>
-                <option value="minimal">Thinking: Minimal</option>
-                <option value="low">Thinking: Low</option>
-                <option value="medium">Thinking: Medium</option>
-                <option value="high">Thinking: High</option>
+                <option value="off">Off</option>
+                <option value="minimal">Minimal</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
               </select>
             )}
           </div>
@@ -857,7 +892,7 @@ function ChatApp() {
             </svg>
             <span className="chat-context-text">{Math.round(contextPct)}%</span>
           </div>
-          <button className={sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'} onClick={sending ? stop : send} disabled={!sending && (connected === false || !input.trim())} title={sending ? 'Stop' : 'Send'}>
+          <button className={sending ? 'chat-action-btn chat-stop-btn' : 'chat-action-btn chat-send-btn'} onClick={sending ? stop : send} disabled={!sending && (connected === false || !hasInput)} title={sending ? 'Stop' : 'Send'}>
             {sending ? (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
             ) : (

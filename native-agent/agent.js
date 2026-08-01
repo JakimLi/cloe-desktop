@@ -418,7 +418,6 @@ class AgentSession {
           case 'message_update': {
             const ame = event.assistantMessageEvent;
             if (ame?.type === 'thinking_delta' && ame.delta) {
-              // Forward thinking/reasoning content to UI
               onDelta?.(ame.delta, 'thinking');
             } else if (ame?.type === 'text_delta' && ame.delta) {
               fullText += ame.delta;
