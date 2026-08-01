@@ -7,7 +7,7 @@
  * Pi 提供成熟的 streaming / tool-calling / abort / state / retry 能力。
  *
  * 对外保持原有接口不变(native-proxy.js / channels.js 无需改动):
- *   new AgentSession(sessionId)
+ *   new AgentSession(sessionId, { history })
  *   session.addUserMessage(text)
  *   session.run({ onDelta, onTool, onError, onEnd }, signal)
  *   session.abort()
@@ -23,6 +23,11 @@
  * Node 22+ 才支持,Electron 28 内部是 Node 18。因此:
  *   - 不能用内置的 zaiProvider()(它的 zai.models.js 用了新语法)
  *   - 改为直接读 zai.json 数据 + createProvider 构造 provider
+ *
+ * Session 持久化:
+ *   AgentSession 在构造时可接收 history (来自 cloe-sessions 持久化存储)。
+ *   这些历史消息会在 Pi Agent 构造时注入到 state.messages，
+ *   让 LLM 拥有完整的上下文。
  */
 
 const fs = require('fs');
@@ -128,15 +133,75 @@ function buildProviderAndModel(pi, cfg) {
 }
 
 /**
+ * Convert cloe-sessions message format → Pi AgentMessage format.
+ *
+ * cloe-sessions stores messages as:
+ *   { role: 'user'|'assistant', content: string, tools?: [...], parts?: [...] }
+ *
+ * Pi expects:
+ *   { role: 'user'|'assistant', content: [{type:'text',text}], timestamp }
+ *
+ * We extract text content and skip tool-only entries to keep context clean.
+ */
+function convertHistoryToPiMessages(history) {
+  if (!Array.isArray(history)) return [];
+  const result = [];
+  for (const msg of history) {
+    if (!msg || !msg.role) continue;
+
+    // Extract text content
+    let text = '';
+    if (typeof msg.content === 'string') {
+      text = msg.content;
+    } else if (Array.isArray(msg.parts)) {
+      // Reconstruct from parts (tool calls + text)
+      text = msg.parts
+        .filter(p => p.type === 'text' && p.text)
+        .map(p => p.text)
+        .join('\n');
+    }
+
+    // Skip empty assistant messages
+    if (msg.role === 'assistant' && !text.trim()) continue;
+
+    result.push({
+      role: msg.role,
+      content: [{ type: 'text', text }],
+      timestamp: msg.timestamp || Date.now(),
+    });
+  }
+  return result;
+}
+
+/**
  * Agent session state.
  * Each chat session creates one of these.
+ *
+ * @param {string} sessionId - Cloe session ID
+ * @param {object} options
+ * @param {Array} options.history - Pre-loaded message history (from cloe-sessions)
  */
 class AgentSession {
-  constructor(sessionId) {
+  constructor(sessionId, options = {}) {
     this.sessionId = sessionId;
     this.isRunning = false;
     this._piAgent = null;      // Pi Agent 实例(lazy 构造)
     this._pendingUserMessages = [];  // Pi Agent 构造前缓存的消息
+    this._history = options.history || [];  // 持久化的历史消息
+  }
+
+  /**
+   * Set or update the history (called when session is reopened from persistence).
+   * If Pi Agent isn't constructed yet, history will be injected during _ensureAgent().
+   * If Pi Agent already exists (e.g. same process, new history loaded), we inject directly.
+   */
+  setHistory(history) {
+    this._history = Array.isArray(history) ? history : [];
+    // If agent already exists, we can't easily inject into its running state,
+    // so we mark for reconstruction on next run.
+    if (this._piAgent) {
+      this._piAgent = null;
+    }
   }
 
   /**
@@ -165,11 +230,21 @@ class AgentSession {
       },
     });
 
+    // Inject persisted history into Pi Agent's message list
+    const piHistory = convertHistoryToPiMessages(this._history);
+    for (const msg of piHistory) {
+      this._piAgent.state.messages.push(msg);
+    }
+
     // Flush any messages queued before construction
     for (const text of this._pendingUserMessages) {
       this._piAgent.state.messages.push({ role: 'user', content: [{ type: 'text', text }], timestamp: Date.now() });
     }
     this._pendingUserMessages = [];
+
+    if (piHistory.length > 0) {
+      console.log(`[NativeAgent] Session ${this.sessionId}: restored ${piHistory.length} messages from history`);
+    }
 
     return this._piAgent;
   }
@@ -289,6 +364,7 @@ class AgentSession {
       this._piAgent.reset();
     }
     this._pendingUserMessages = [];
+    this._history = [];
   }
 }
 

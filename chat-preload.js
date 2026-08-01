@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('native-chat-send', { message, reqId, cloeSessionId }),
   nativeChatStop: (reqId) => ipcRenderer.send('native-chat-stop', reqId),
   nativeResetSession: (cloeSessionId) => ipcRenderer.invoke('native-reset-session', cloeSessionId),
+  nativeReloadHistory: (cloeSessionId) => ipcRenderer.invoke('native-reload-history', cloeSessionId),
   nativeGetConfig: () => ipcRenderer.invoke('native-get-config'),
   nativeSaveConfig: (cfg) => ipcRenderer.invoke('native-save-config', cfg),
   nativeCronList: () => ipcRenderer.invoke('native-cron-list'),

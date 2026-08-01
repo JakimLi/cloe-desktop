@@ -335,43 +335,43 @@ function ChatApp() {
   // ── Receive session ID from launcher ──
   // The session ID is sent via 'chat-window-session' IPC after the window loads.
   // We register the listener immediately (before React renders) to avoid races.
+  // Helper: load a session from API and restore context for native agent
+  const loadSessionIntoView = useCallback((sessionId) => {
+    cloeSessionIdRef.current = sessionId;
+    fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(sessionId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.session) {
+          setMessages(data.session.messages || []);
+          hermesSessionIdRef.current = data.session.hermesSessionId || null;
+          // For native agent mode: inject history into the agent's context
+          // so the LLM knows what was discussed before app restart
+          const mode = localStorage.getItem('cloe-agent-mode') || 'hermes';
+          if (mode === 'native' && data.session.messages?.length > 0) {
+            window.electronAPI?.nativeReloadHistory?.(sessionId)?.catch?.(() => {});
+          }
+        }
+        setSessionLoaded(true);
+      })
+      .catch(() => setSessionLoaded(true));
+  }, []);
+
   useEffect(() => {
     const unsub = window.electronAPI?.onChatWindowSession?.((sessionId) => {
       if (!sessionId) return;
-      cloeSessionIdRef.current = sessionId;
-      // Load session data from API
-      fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(sessionId)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.session) {
-            setMessages(data.session.messages || []);
-            hermesSessionIdRef.current = data.session.hermesSessionId || null;
-          }
-          setSessionLoaded(true);
-        })
-        .catch(() => setSessionLoaded(true));
+      loadSessionIntoView(sessionId);
     });
 
     // Also check if the session ID was already sent before we registered
     // (launcher may have sent it during did-finish-load, before React mounted)
     window.electronAPI?.getPendingSessionId?.()?.then?.((id) => {
       if (id) {
-        cloeSessionIdRef.current = id;
-        fetch(`${API_BASE}/agent-sessions/${encodeURIComponent(id)}`)
-          .then(r => r.json())
-          .then(data => {
-            if (data.session) {
-              setMessages(data.session.messages || []);
-              hermesSessionIdRef.current = data.session.hermesSessionId || null;
-            }
-            setSessionLoaded(true);
-          })
-          .catch(() => setSessionLoaded(true));
+        loadSessionIntoView(id);
       }
     });
 
     return () => unsub?.();
-  }, []);
+  }, [loadSessionIntoView]);
 
   // ── Shortcuts ──
   useShortcut('cloe-chat-shortcut', () => window.electronAPI?.quickChatSession?.());

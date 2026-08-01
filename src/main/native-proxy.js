@@ -36,11 +36,54 @@ const activeSessions = new Map(); // reqId → { session, abortController, sende
 // Persistent agent sessions by cloeSessionId
 const persistentSessions = new Map();
 
+/**
+ * Get or create an AgentSession for the given cloeSessionId.
+ * On first creation, loads persisted message history from cloe-sessions
+ * so the LLM has full context after app restart.
+ */
 function getOrCreateSession(cloeSessionId) {
   if (!persistentSessions.has(cloeSessionId)) {
-    persistentSessions.set(cloeSessionId, new AgentSession(cloeSessionId));
+    // Load persisted history from cloe-sessions store
+    let history = [];
+    try {
+      const cloeSessions = require('../../cloe-sessions');
+      const stored = cloeSessions.getSession(cloeSessionId);
+      if (stored && Array.isArray(stored.messages)) {
+        history = stored.messages;
+        console.log(`[NativeAgent] Session ${cloeSessionId}: loaded ${history.length} messages from persistence`);
+      }
+    } catch (e) {
+      console.warn('[NativeAgent] Failed to load session history:', e.message);
+    }
+
+    persistentSessions.set(cloeSessionId, new AgentSession(cloeSessionId, { history }));
   }
   return persistentSessions.get(cloeSessionId);
+}
+
+/**
+ * Reload history for an existing session (e.g. when user reopens a session
+ * that was created in a previous app run). Called from native-reload-history.
+ */
+function reloadSessionHistory(cloeSessionId) {
+  let history = [];
+  try {
+    const cloeSessions = require('../../cloe-sessions');
+    const stored = cloeSessions.getSession(cloeSessionId);
+    if (stored && Array.isArray(stored.messages)) {
+      history = stored.messages;
+    }
+  } catch (e) {
+    console.warn('[NativeAgent] Failed to reload session history:', e.message);
+  }
+
+  const session = persistentSessions.get(cloeSessionId);
+  if (session) {
+    session.setHistory(history);
+    console.log(`[NativeAgent] Session ${cloeSessionId}: reloaded ${history.length} messages`);
+  } else {
+    persistentSessions.set(cloeSessionId, new AgentSession(cloeSessionId, { history }));
+  }
 }
 
 // ── Health check ──
@@ -211,6 +254,12 @@ ipcMain.on('native-chat-stop', (_event, reqId) => {
 ipcMain.handle('native-reset-session', async (_event, cloeSessionId) => {
   const session = persistentSessions.get(cloeSessionId);
   if (session) session.reset();
+  return { success: true };
+});
+
+// ── Reload session history (called when reopening a session after restart) ──
+ipcMain.handle('native-reload-history', async (_event, cloeSessionId) => {
+  reloadSessionHistory(cloeSessionId);
   return { success: true };
 });
 
