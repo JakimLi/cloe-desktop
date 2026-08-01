@@ -294,6 +294,36 @@ function createBridgeServers() {
       return;
     }
 
+    // ==================== Web Search Config & Test ====================
+    // Get available web search providers metadata
+    if (req.method === 'GET' && urlPath === '/native-agent/web-search/providers') {
+      const webSearch = require('./native-agent/web-search');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(webSearch.getProviders()));
+      return;
+    }
+    // Test web search
+    if (req.method === 'POST' && urlPath === '/native-agent/web-search/test') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', async () => {
+        try {
+          const { query } = JSON.parse(body);
+          // Reload config to pick up latest saved settings
+          const nativeConfig = require('./native-agent/config');
+          nativeConfig.reloadConfig();
+          const webSearch = require('./native-agent/web-search');
+          const results = await webSearch.search(query || 'test', { maxResults: 3 });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, results, count: results.length }));
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: e.message }));
+        }
+      });
+      return;
+    }
+
 
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));

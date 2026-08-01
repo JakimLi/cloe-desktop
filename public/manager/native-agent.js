@@ -6,6 +6,8 @@ let _nativeCfg = null;
 let _nativeProvider = '';
 let _nativeFetchedModels = [];
 let _nativeInited = false;
+let _wsProviders = null;       // web search provider metadata
+let _wsCurrentProvider = '';   // current web search provider name
 
 function initNativeAgentTab() {
   if (_nativeInited) { renderNativeAgent(); return; }
@@ -21,6 +23,18 @@ async function loadNativeAgentConfig() {
     _nativeCfg = await resp.json();
     _nativeProvider = _nativeCfg.provider || Object.keys(_nativeCfg.providers || {})[0] || '';
     _nativeFetchedModels = _nativeCfg.providers?.[_nativeProvider]?.models || [];
+
+    // Load web search provider metadata
+    try {
+      const wsResp = await fetch(`${API_NATIVE}/native-agent/web-search/providers`);
+      _wsProviders = await wsResp.json();
+    } catch { _wsProviders = {}; }
+    // Ensure webSearch exists in config
+    if (!_nativeCfg.webSearch) {
+      _nativeCfg.webSearch = { provider: 'zhipu_mcp', providers: {} };
+    }
+    _wsCurrentProvider = _nativeCfg.webSearch.provider || 'zhipu_mcp';
+
     renderNativeAgent();
   } catch (e) {
     container.innerHTML = `<div class="empty-state"><p>${I18n.t('nativeAgent.loadFailed')}</p><p class="sub">${e.message}</p></div>`;
@@ -37,6 +51,10 @@ function renderNativeAgent() {
 
   // Merge fetched models + stored models + current
   const allModels = [...new Set([..._nativeFetchedModels, ...(p.models || []), currentModel].filter(Boolean))].sort();
+
+  // ── Web Search section data ──
+  const wsProviderKeys = Object.keys(_wsProviders || {});
+  const wsP = _nativeCfg.webSearch?.providers?.[_wsCurrentProvider] || {};
 
   container.innerHTML = `
     <div class="pref-section">
@@ -120,9 +138,50 @@ function renderNativeAgent() {
         </div>
       </div>
     </div>
+
+    <!-- ═══ Web Search Configuration ═══ -->
+    <div class="pref-section">
+      <h2 class="pref-section-title">${I18n.t('nativeAgent.webSearchTitle')}</h2>
+      <div class="pref-group">
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('nativeAgent.wsProvider')}</div>
+            <div class="pref-desc">${I18n.t('nativeAgent.wsProviderDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <select id="ws-provider" class="form-select" style="min-width:200px;">
+              ${wsProviderKeys.map(k => {
+                const meta = _wsProviders[k] || {};
+                const label = meta.label || k;
+                const note = meta.needsApiKey ? '' : ' ' + I18n.t('nativeAgent.wsFree');
+                return `<option value="${k}" ${k === _wsCurrentProvider ? 'selected' : ''}>${label}${note}</option>`;
+              }).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div id="ws-provider-config">
+          ${renderWsProviderConfig(_wsCurrentProvider, wsP)}
+        </div>
+
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('nativeAgent.wsTest')}</div>
+            <div class="pref-desc">${I18n.t('nativeAgent.wsTestDesc')}</div>
+          </div>
+          <div class="pref-control" style="min-width:280px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="ws-test-query" type="text" class="form-input" style="flex:1;" placeholder="${I18n.t('nativeAgent.wsTestPlaceholder')}" value="${I18n.t('nativeAgent.wsTestDefault')}">
+              <button type="button" class="btn btn-secondary btn-sm" id="ws-test-btn">${I18n.t('nativeAgent.wsTestBtn')}</button>
+            </div>
+            <div id="ws-test-result" style="margin-top:8px;font-size:12px;display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 
-  // ── Bind events ──
+  // ── Bind LLM provider events ──
 
   document.getElementById('na-provider').addEventListener('change', (e) => {
     _nativeProvider = e.target.value;
@@ -167,7 +226,6 @@ function renderNativeAgent() {
       const data = await resp.json();
       if (data.models && data.models.length > 0) {
         _nativeFetchedModels = data.models;
-        // Persist into config object
         if (!_nativeCfg.providers[_nativeProvider]) _nativeCfg.providers[_nativeProvider] = {};
         _nativeCfg.providers[_nativeProvider].models = data.models;
         status.textContent = I18n.t('nativeAgent.modelsFound', { count: data.models.length }); status.style.color = 'var(--accent)';
@@ -193,17 +251,19 @@ function renderNativeAgent() {
       || document.getElementById('na-model-select').value;
     const soulPath = document.getElementById('na-soul-path').value.trim();
 
-    // Update config object
+    // Update config object — LLM provider
     _nativeCfg.provider = _nativeProvider;
     _nativeCfg.model = modelVal;
     _nativeCfg.soulPath = soulPath;
     if (!_nativeCfg.providers[_nativeProvider]) _nativeCfg.providers[_nativeProvider] = {};
     _nativeCfg.providers[_nativeProvider].baseURL = baseURL;
     _nativeCfg.providers[_nativeProvider].apiKey = apiKey;
-    // Merge current model into stored list
     const stored = _nativeCfg.providers[_nativeProvider].models || _nativeFetchedModels || [];
     if (modelVal && !stored.includes(modelVal)) stored.push(modelVal);
     _nativeCfg.providers[_nativeProvider].models = stored;
+
+    // Update config object — Web Search
+    collectWsConfig();
 
     try {
       await fetch(`${API_NATIVE}/native-agent/config`, {
@@ -218,6 +278,186 @@ function renderNativeAgent() {
       btn.disabled = false; btn.textContent = I18n.t('nativeAgent.save');
     }
   });
+
+  // ── Bind Web Search events ──
+
+  document.getElementById('ws-provider').addEventListener('change', (e) => {
+    _wsCurrentProvider = e.target.value;
+    const wsP = _nativeCfg.webSearch?.providers?.[_wsCurrentProvider] || {};
+    // Re-render just the provider config section
+    const configDiv = document.getElementById('ws-provider-config');
+    configDiv.innerHTML = renderWsProviderConfig(_wsCurrentProvider, wsP);
+    bindWsKeyToggle();
+  });
+
+  bindWsKeyToggle();
+
+  document.getElementById('ws-test-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('ws-test-btn');
+    const resultDiv = document.getElementById('ws-test-result');
+    const query = document.getElementById('ws-test-query').value.trim() || 'test';
+
+    // Collect current config and save first (so server uses latest)
+    collectWsConfig();
+    _nativeCfg.webSearch.provider = _wsCurrentProvider;
+
+    btn.disabled = true; btn.textContent = I18n.t('nativeAgent.wsTesting');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<span style="color:var(--text-dim)">${I18n.t('nativeAgent.wsTestingHint')}</span>`;
+
+    // Save config first
+    try {
+      await fetch(`${API_NATIVE}/native-agent/config`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(_nativeCfg),
+      });
+    } catch {}
+
+    try {
+      const resp = await fetch(`${API_NATIVE}/native-agent/web-search/test`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const data = await resp.json();
+      if (data.ok && data.results) {
+        resultDiv.innerHTML = `<span style="color:var(--accent)">✓ ${I18n.t('nativeAgent.wsTestOk', { count: data.count })}</span>` +
+          data.results.slice(0, 3).map(r =>
+            `<div style="margin-top:4px;padding-left:12px;border-left:2px solid var(--border);">` +
+            `<span style="color:var(--text)">${escapeHtml(r.title || '(no title)')}</span><br>` +
+            `<span style="color:var(--text-dim);font-size:11px;">${escapeHtml((r.snippet || '').slice(0, 120))}...</span>` +
+            `</div>`
+          ).join('');
+      } else {
+        resultDiv.innerHTML = `<span style="color:var(--danger)">✗ ${escapeHtml(data.error || 'Unknown error')}</span>`;
+      }
+    } catch (e) {
+      resultDiv.innerHTML = `<span style="color:var(--danger)">✗ ${escapeHtml(e.message)}</span>`;
+    }
+    btn.disabled = false; btn.textContent = I18n.t('nativeAgent.wsTestBtn');
+  });
+}
+
+// ── Helper: render provider-specific config fields ──
+function renderWsProviderConfig(providerKey, pConfig) {
+  const meta = _wsProviders?.[providerKey] || {};
+  const needsKey = meta.needsApiKey;
+  const keyLabel = meta.apiKeyLabel || 'API Key';
+
+  let html = '';
+
+  if (needsKey) {
+    const apiKey = pConfig.apiKey || '';
+    // For zhipu_mcp, show a hint about inheriting
+    const inheritHint = providerKey === 'zhipu_mcp'
+      ? `<div class="pref-desc">${I18n.t('nativeAgent.wsZhipuHint')}</div>`
+      : '';
+    html += `
+      <div class="pref-item">
+        <div class="pref-info">
+          <div class="pref-label">${escapeHtml(keyLabel)}</div>
+          ${inheritHint}
+        </div>
+        <div class="pref-control">
+          <div class="pref-api-key-wrap">
+            <input id="ws-api-key" type="password" class="form-input" style="min-width:280px;" value="${escapeHtml(apiKey)}" placeholder="${I18n.t('nativeAgent.apiKeyPlaceholder')}" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn-icon btn-icon-sm" id="ws-key-toggle" title="${I18n.t('nativeAgent.keyToggle')}">👁</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Extra fields per provider
+  const extra = meta.extra || {};
+  for (const [field, label] of Object.entries(extra)) {
+    const val = pConfig[field] || '';
+    html += `
+      <div class="pref-item">
+        <div class="pref-info">
+          <div class="pref-label">${escapeHtml(label)}</div>
+        </div>
+        <div class="pref-control">
+          <input id="ws-extra-${field}" type="text" class="form-input" style="min-width:280px;" value="${escapeHtml(val)}" autocomplete="off" spellcheck="false">
+        </div>
+      </div>`;
+  }
+
+  // zhipu_mcp has custom URLs
+  if (providerKey === 'zhipu_mcp') {
+    const searchURL = pConfig.searchURL || 'https://open.bigmodel.cn/api/mcp/web_search_prime/mcp';
+    const readerURL = pConfig.readerURL || 'https://open.bigmodel.cn/api/mcp/web_reader/mcp';
+    html += `
+      <div class="pref-item">
+        <div class="pref-info">
+          <div class="pref-label">${I18n.t('nativeAgent.wsSearchURL')}</div>
+          <div class="pref-desc">${I18n.t('nativeAgent.wsSearchURLDesc')}</div>
+        </div>
+        <div class="pref-control">
+          <input id="ws-extra-searchURL" type="text" class="form-input" style="min-width:380px;" value="${escapeHtml(searchURL)}" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div class="pref-item">
+        <div class="pref-info">
+          <div class="pref-label">${I18n.t('nativeAgent.wsReaderURL')}</div>
+          <div class="pref-desc">${I18n.t('nativeAgent.wsReaderURLDesc')}</div>
+        </div>
+        <div class="pref-control">
+          <input id="ws-extra-readerURL" type="text" class="form-input" style="min-width:380px;" value="${escapeHtml(readerURL)}" autocomplete="off" spellcheck="false">
+        </div>
+      </div>`;
+  }
+
+  if (!html) {
+    html = `<div class="pref-item"><div class="pref-info"><div class="pref-desc">${I18n.t('nativeAgent.wsNoConfig')}</div></div></div>`;
+  }
+
+  return html;
+}
+
+// ── Helper: collect web search config from UI into _nativeCfg ──
+function collectWsConfig() {
+  if (!_nativeCfg.webSearch) _nativeCfg.webSearch = { provider: _wsCurrentProvider, providers: {} };
+  _nativeCfg.webSearch.provider = _wsCurrentProvider;
+
+  if (!_nativeCfg.webSearch.providers) _nativeCfg.webSearch.providers = {};
+  if (!_nativeCfg.webSearch.providers[_wsCurrentProvider]) _nativeCfg.webSearch.providers[_wsCurrentProvider] = {};
+
+  const wsCfg = _nativeCfg.webSearch.providers[_wsCurrentProvider];
+
+  // API Key
+  const apiKeyEl = document.getElementById('ws-api-key');
+  if (apiKeyEl) wsCfg.apiKey = apiKeyEl.value.trim();
+
+  // Extra fields
+  const meta = _wsProviders?.[_wsCurrentProvider] || {};
+  for (const field of Object.keys(meta.extra || {})) {
+    const el = document.getElementById(`ws-extra-${field}`);
+    if (el) wsCfg[field] = el.value.trim();
+  }
+
+  // zhipu_mcp URLs
+  if (_wsCurrentProvider === 'zhipu_mcp') {
+    const searchURLEl = document.getElementById('ws-extra-searchURL');
+    const readerURLEl = document.getElementById('ws-extra-readerURL');
+    if (searchURLEl) wsCfg.searchURL = searchURLEl.value.trim();
+    if (readerURLEl) wsCfg.readerURL = readerURLEl.value.trim();
+  }
+}
+
+// ── Helper: bind key toggle ──
+function bindWsKeyToggle() {
+  const toggle = document.getElementById('ws-key-toggle');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      const input = document.getElementById('ws-api-key');
+      if (input) input.type = input.type === 'password' ? 'text' : 'password';
+    });
+  }
+}
+
+// ── Helper: escape HTML ──
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function updateNativeAgentText() {

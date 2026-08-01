@@ -433,6 +433,24 @@
     "soulPathPlaceholder": "~/.hermes/soul.md",
     "save": "Save",
     "saving": "Saving...",
-    "saved": "✓ Saved"
+    "saved": "✓ Saved",
+    "webSearchTitle": "Web Search",
+    "wsProvider": "Search Engine",
+    "wsProviderDesc": "Choose the web search provider for web_search and web_read tools",
+    "wsFree": "(Free)",
+    "wsZhipuHint": "Leave empty to inherit the Zhipu LLM API Key above",
+    "wsSearchURL": "Search Endpoint",
+    "wsSearchURLDesc": "Zhipu MCP search service URL (usually no need to change)",
+    "wsReaderURL": "Reader Endpoint",
+    "wsReaderURLDesc": "Zhipu MCP web reader service URL (usually no need to change)",
+    "wsNoConfig": "No configuration needed for this provider",
+    "wsTest": "Test Search",
+    "wsTestDesc": "Test the search with current settings",
+    "wsTestPlaceholder": "Enter search query...",
+    "wsTestDefault": "today news",
+    "wsTestBtn": "🔍 Test",
+    "wsTesting": "Searching...",
+    "wsTestingHint": "Searching, please wait...",
+    "wsTestOk": "Search successful, {{count}} results"
   }
 }

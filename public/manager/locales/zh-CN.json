@@ -433,6 +433,24 @@
     "soulPathPlaceholder": "~/.hermes/soul.md",
     "save": "保存",
     "saving": "保存中...",
-    "saved": "✓ 已保存"
+    "saved": "✓ 已保存",
+    "webSearchTitle": "Web 搜索",
+    "wsProvider": "搜索引擎",
+    "wsProviderDesc": "选择网页搜索的服务商，影响 web_search 和 web_read 工具",
+    "wsFree": "(免费)",
+    "wsZhipuHint": "留空则自动使用上方智谱 LLM 的 API Key",
+    "wsSearchURL": "搜索接口地址",
+    "wsSearchURLDesc": "智谱 MCP 搜索服务地址（一般不需要改）",
+    "wsReaderURL": "阅读接口地址",
+    "wsReaderURLDesc": "智谱 MCP 网页阅读服务地址（一般不需要改）",
+    "wsNoConfig": "该搜索引擎无需额外配置",
+    "wsTest": "测试搜索",
+    "wsTestDesc": "用当前配置测试搜索效果",
+    "wsTestPlaceholder": "输入搜索关键词...",
+    "wsTestDefault": "今天新闻",
+    "wsTestBtn": "🔍 测试",
+    "wsTesting": "搜索中...",
+    "wsTestingHint": "正在搜索，请稍候...",
+    "wsTestOk": "搜索成功，返回 {{count}} 条结果"
   }
 }

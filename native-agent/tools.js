@@ -8,7 +8,7 @@
  *   file_read    — 读取文件
  *   file_write   — 写入文件
  *   file_search  — 搜索文件内容 (grep)
- *   web_search   — 网页搜索
+ *   web_search   — 网页搜索 (多 provider: zhipu_mcp / tavily / ddg / bing / serpapi)
  *   web_read     — 读取网页内容
  *   load_skill   — 加载 skill 全文
  *   memory_op    — 记忆操作 (add/remove/search)
@@ -31,6 +31,7 @@ const https = require('https');
 // Import sibling modules
 const skills = require('./skills');
 const memory = require('./memory');
+const webSearch = require('./web-search');
 
 // Helper: run shell command and return stdout
 function runShell(cmd, timeoutMs = 30000) {
@@ -45,7 +46,7 @@ function runShell(cmd, timeoutMs = 30000) {
   });
 }
 
-// Helper: HTTP GET
+// Helper: HTTP GET (kept for legacy/internal use)
 function httpGet(url, headers = {}, timeoutMs = 15000) {
   return new Promise((resolve) => {
     const parsed = new URL(url);
@@ -168,7 +169,7 @@ function buildToolDefinitions() {
       type: 'function',
       function: {
         name: 'web_search',
-        description: 'Search the web. Returns top results with title/url/summary.',
+        description: 'Search the web. Returns top results with title/url/snippet.',
         parameters: {
           type: 'object',
           properties: {
@@ -293,29 +294,27 @@ async function executeTool(name, args) {
       return await runShell(cmd, 15000);
     }
     case 'web_search': {
-      // Use the MCP web search endpoint if available, otherwise fall back to a simple approach
-      const result = await httpGet(
-        `https://www.google.com/search?q=${encodeURIComponent(args.query)}&num=5`,
-        { 'User-Agent': 'Mozilla/5.0' }
-      );
-      if (result.status === 0) return `Search failed: ${result.body}`;
-      // Simple HTML → text extraction
-      const text = result.body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                               .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                               .replace(/<[^>]+>/g, ' ')
-                               .replace(/\s+/g, ' ')
-                               .trim();
-      return text.slice(0, 3000);
+      try {
+        const results = await webSearch.search(args.query, {
+          maxResults: 5,
+          contentSize: 'medium',
+        });
+        if (!results || results.length === 0) return 'No results found.';
+        return results.map((r, i) =>
+          `[${i + 1}] ${r.title}\n    URL: ${r.url}\n    ${r.snippet}`
+        ).join('\n\n');
+      } catch (e) {
+        return `Web search failed: ${e.message}`;
+      }
     }
     case 'web_read': {
-      const result = await httpGet(args.url, { 'User-Agent': 'Mozilla/5.0' });
-      if (result.status === 0) return `Fetch failed: ${result.body}`;
-      const text = result.body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                               .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                               .replace(/<[^>]+>/g, ' ')
-                               .replace(/\s+/g, ' ')
-                               .trim();
-      return text.slice(0, 5000);
+      try {
+        const result = await webSearch.read(args.url);
+        const header = result.title ? `# ${result.title}\n\n` : '';
+        return header + result.content;
+      } catch (e) {
+        return `Web read failed: ${e.message}`;
+      }
     }
     case 'load_skill': {
       const body = skills.loadSkillBody(args.name);
@@ -393,14 +392,14 @@ const TOOL_META = {
   },
   web_search: {
     label: 'Web Search',
-    description: 'Search the web. Returns top results with title/url/summary.',
+    description: 'Search the web using the configured provider (zhipu_mcp/tavily/ddg/bing/serpapi). Returns top results with title/url/snippet.',
     params: (T) => T.Object({
       query: T.String({ description: 'Search query' }),
     }),
   },
   web_read: {
     label: 'Read Web Page',
-    description: 'Fetch and read a web page. Returns text content.',
+    description: 'Fetch and read a web page. Returns markdown content via the configured provider.',
     params: (T) => T.Object({
       url: T.String({ description: 'URL to fetch' }),
     }),
@@ -501,4 +500,5 @@ module.exports = {
   executeTool,
   getToolEmoji,
   formatToolLabel,
+  TOOL_META,
 };

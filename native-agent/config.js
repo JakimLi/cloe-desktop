@@ -8,24 +8,24 @@
  * 结构:
  * {
  *   "enabled": false,           // 总开关
- *   "provider": "openai",       // 当前 provider (openai/anthropic/zhipu/deepseek/custom)
+ *   "provider": "zhipu",       // 当前 LLM provider
  *   "model": "glm-4-flash",    // 当前模型 ID
- *   "providers": {
- *     "openai": {
- *       "baseURL": "https://api.openai.com/v1",
- *       "apiKey": "sk-...",
- *       "models": ["gpt-4o", "gpt-4o-mini"]
- *     },
- *     "zhipu": {
- *       "baseURL": "https://open.bigmodel.cn/api/paas/v4",
- *       "apiKey": "...",
- *       "models": ["glm-4-flash", "glm-4-plus", "glm-4-long"]
- *     },
+ *   "soulPath": "",            // 灵魂文件路径
+ *   "providers": {             // LLM Provider 配置
+ *     "zhipu": { "baseURL": "...", "apiKey": "...", "models": [...] },
  *     ...
+ *   },
+ *   "webSearch": {             // Web Search 配置
+ *     "provider": "zhipu_mcp", // 当前搜索引擎 provider
+ *     "providers": {
+ *       "zhipu_mcp": { "apiKey": "...", "searchURL": "...", "readerURL": "..." },
+ *       "tavily": { "apiKey": "..." },
+ *       "bing": { "apiKey": "...", "endpoint": "..." },
+ *       "serpapi": { "apiKey": "...", "engine": "google" },
+ *       "ddg": {}              // 免费，无需配置
+ *     }
  *   }
  * }
- *
- * 所有 provider 统一走 OpenAI-compatible API 格式。
  */
 
 const fs = require('fs');
@@ -59,7 +59,51 @@ const DEFAULT_CONFIG = {
       models: [],
     },
   },
+  webSearch: {
+    provider: 'zhipu_mcp',
+    providers: {
+      zhipu_mcp: {
+        apiKey: '',  // empty = inherit from LLM zhipu provider
+        searchURL: 'https://open.bigmodel.cn/api/mcp/web_search_prime/mcp',
+        readerURL: 'https://open.bigmodel.cn/api/mcp/web_reader/mcp',
+      },
+      tavily: {
+        apiKey: '',
+      },
+      ddg: {},
+      bing: {
+        apiKey: '',
+        endpoint: 'https://api.bing.microsoft.com/v7.0/search',
+      },
+      serpapi: {
+        apiKey: '',
+        engine: 'google',
+      },
+    },
+  },
 };
+
+/**
+ * Deep merge two objects (target wins over source for existing keys,
+ * source fills in missing keys).
+ */
+function deepMerge(source, target) {
+  if (typeof source !== 'object' || source === null) return target;
+  if (typeof target !== 'object' || target === null) return target;
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    if (key in target) {
+      if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key]) &&
+          typeof target[key] === 'object' && target[key] !== null && !Array.isArray(target[key])) {
+        result[key] = deepMerge(source[key], target[key]);
+      }
+      // else: target wins
+    } else {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
 
 let cached = null;
 
@@ -70,7 +114,8 @@ function loadConfig() {
       const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       // Deep-merge with defaults so new fields appear for old configs
-      cached = { ...DEFAULT_CONFIG, ...parsed };
+      cached = deepMerge(DEFAULT_CONFIG, parsed);
+      // Ensure providers keys exist (shallow merge for user-added providers)
       cached.providers = { ...DEFAULT_CONFIG.providers, ...(parsed.providers || {}) };
     } else {
       cached = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
@@ -92,6 +137,15 @@ function saveConfig(cfg) {
   }
 }
 
+/**
+ * Force reload config from disk (clears cache).
+ * Called when config is saved via HTTP API.
+ */
+function reloadConfig() {
+  cached = null;
+  return loadConfig();
+}
+
 function isEnabled() {
   return !!loadConfig().enabled;
 }
@@ -111,8 +165,10 @@ function getCurrentModel() {
 
 module.exports = {
   CONFIG_FILE,
+  DEFAULT_CONFIG,
   loadConfig,
   saveConfig,
+  reloadConfig,
   isEnabled,
   getProvider,
   getCurrentModel,
