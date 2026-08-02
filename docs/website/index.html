@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloe Desktop — 她住在你的桌面上</title>
+<meta name="description" content="一个真实感的 AI 桌面伴侣——有表情、有声音、有自己的想法。">
+<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('cloe-site-theme')||'dark')</script>
+<script>(function(){var lang=localStorage.getItem('cloe-site-lang')||'zh';document.documentElement.setAttribute('lang',lang==='zh'?'zh-CN':'en');window.__CLOE_LANG__=lang;})()</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080c;--bg-soft:#0f0f15;
+  --bg-card:rgba(255,255,255,.035);--bg-card-hover:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.08);--border-hover:rgba(255,255,255,.16);
+  --tp:rgba(255,255,255,.92);--ts:rgba(255,255,255,.58);--tt:rgba(255,255,255,.35);
+  --accent:#ec4899;--al:#f9a8d4;--ag:rgba(236,72,153,.25);
+  --a2:#818cf8;--a2g:rgba(129,140,248,.2);
+  --green:#34d399;
+  --nav-bg:rgba(8,8,12,.7);--chip-bg:rgba(20,20,28,.85);--toast-bg:rgba(20,20,28,.95);
+  --install-bg:rgba(255,255,255,.04);--card-shadow:rgba(0,0,0,.4);
+  --amb-opacity:.5;
+  --r:16px;--rs:10px;--mw:1100px;
+  --f:-apple-system,BlinkMacSystemFont,'SF Pro Display','Inter',system-ui,sans-serif;
+  --m:'SF Mono','Fira Code',ui-monospace,monospace;
+}
+[data-theme="light"]{
+  --bg:#faf9f7;--bg-soft:#f0efed;
+  --bg-card:rgba(0,0,0,.025);--bg-card-hover:rgba(0,0,0,.045);
+  --border:rgba(0,0,0,.09);--border-hover:rgba(0,0,0,.16);
+  --tp:rgba(20,20,25,.92);--ts:rgba(20,20,25,.6);--tt:rgba(20,20,25,.4);
+  --accent:#db2777;--al:#be185d;--ag:rgba(219,39,119,.15);
+  --a2:#6366f1;--a2g:rgba(99,102,241,.12);
+  --green:#059669;
+  --nav-bg:rgba(250,249,247,.8);--chip-bg:rgba(255,255,255,.9);--toast-bg:rgba(255,255,255,.95);
+  --install-bg:rgba(0,0,0,.03);--card-shadow:rgba(0,0,0,.1);
+  --amb-opacity:.3;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tp);font-family:var(--f);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+a{color:inherit;text-decoration:none}
+
+/* Ambient glow */
+.amb{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.amb::before,.amb::after{content:'';position:absolute;border-radius:50%;filter:blur(120px);opacity:var(--amb-opacity)}
+.amb::before{width:600px;height:600px;background:var(--ag);top:-100px;right:-100px;animation:d1 20s ease-in-out infinite alternate}
+.amb::after{width:500px;height:500px;background:var(--a2g);bottom:10%;left:-150px;animation:d2 25s ease-in-out infinite alternate}
+@keyframes d1{to{transform:translate(-50px,80px) scale(1.15)}}
+@keyframes d2{to{transform:translate(80px,-60px) scale(.9)}}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px) saturate(1.5);background:var(--nav-bg);border-bottom:1px solid var(--border);transition:background .3s}
+.theme-toggle{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--ts);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .2s;flex-shrink:0}
+.theme-toggle:hover{background:var(--bg-card-hover);border-color:var(--border-hover);color:var(--tp)}
+.lang-toggle{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--ts);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;transition:all .2s;flex-shrink:0}
+.lang-toggle:hover{background:var(--bg-card-hover);border-color:var(--border-hover);color:var(--tp)}
+.nbrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.02em}
+.nbrand-logo{width:28px;height:28px;border-radius:7px;object-fit:cover}
+.nlinks{display:flex;align-items:center;gap:28px}
+.nlinks a{color:var(--ts);font-size:14px;font-weight:500;transition:color .2s}
+.nlinks a:hover{color:var(--tp)}
+.ncta{padding:8px 18px;border-radius:20px;background:linear-gradient(135deg,var(--accent),#be185d);color:#fff!important;font-size:14px;font-weight:600;transition:transform .15s,box-shadow .2s;box-shadow:0 4px 16px var(--ag)}
+.ncta:hover{transform:translateY(-1px);box-shadow:0 6px 24px var(--ag)}
+@media(max-width:768px){.nlinks{display:none}}
+
+/* Layout */
+.ctn{max-width:var(--mw);margin:0 auto;padding:0 24px;position:relative;z-index:1}
+section{position:relative;z-index:1}
+.slabel{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+.stitle{font-size:clamp(28px,5vw,42px);font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
+.ssub{font-size:17px;color:var(--ts);max-width:560px;line-height:1.7}
+
+/* Hero */
+.hero{min-height:100vh;display:flex;align-items:center;padding:100px 0 60px}
+.hi{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center;width:100%}
+.ht h1{font-size:clamp(40px,6vw,64px);font-weight:800;letter-spacing:-.04em;line-height:1.08;margin-bottom:24px}
+.ht h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdesc{font-size:19px;color:var(--ts);line-height:1.7;margin-bottom:36px;max-width:500px}
+.hact{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+.bp{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#be185d);color:#fff;font-size:16px;font-weight:600;transition:transform .15s,box-shadow .2s;box-shadow:0 8px 32px var(--ag)}
+.bp:hover{transform:translateY(-2px);box-shadow:0 12px 40px var(--ag)}
+.bg{display:inline-flex;align-items:center;gap:8px;padding:14px 24px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);color:var(--tp);font-size:16px;font-weight:500;transition:all .2s}
+.bg:hover{background:var(--bg-card-hover);border-color:var(--border-hover)}
+.hinst{display:flex;align-items:center;gap:12px;background:var(--install-bg);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-family:var(--m);font-size:13px;color:var(--ts);max-width:fit-content;cursor:pointer;transition:all .2s}
+.hinst:hover{border-color:var(--border-hover)}
+.hinst code{color:var(--al)}
+.hinst .ch{color:var(--tt);font-size:12px}
+.hbadges{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);font-size:13px;color:var(--ts)}
+
+/* Hero visual */
+.hv{position:relative;display:flex;justify-content:center;align-items:center}
+.hc{width:100%;max-width:380px;border-radius:24px;overflow:hidden;position:relative}
+.hc img{width:100%;display:block}
+.hc::after{content:'';position:absolute;inset:0;border-radius:24px;box-shadow:inset 0 0 80px var(--ag);pointer-events:none}
+.fc{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:var(--chip-bg);backdrop-filter:blur(12px);border:1px solid var(--border);font-size:13px;font-weight:500;color:var(--ts);white-space:nowrap;animation:fy 4s ease-in-out infinite}
+.fc .e{font-size:16px}
+.fc:nth-child(2){top:15%;right:-20px}
+.fc:nth-child(3){top:50%;left:-30px;animation-delay:1s}
+.fc:nth-child(4){bottom:20%;right:-10px;animation-delay:2s}
+@keyframes fy{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media(max-width:768px){.hi{grid-template-columns:1fr;gap:40px;text-align:center}.hdesc{margin:0 auto 36px}.hact,.hinst,.hbadges{justify-content:center}.hc{max-width:280px;margin:0 auto}.fc{display:none}}
+
+/* Marquee */
+.mq{padding:32px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;background:var(--bg-soft)}
+.mqt{display:flex;gap:48px;align-items:center;white-space:nowrap;animation:mq 30s linear infinite}
+.mqi{font-size:15px;color:var(--tt);font-weight:500;display:flex;align-items:center;gap:12px}
+.mqi::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--accent);opacity:.4}
+@keyframes mq{to{transform:translateX(-50%)}}
+
+/* Expression grid */
+.es{padding:120px 0}
+.eg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:48px}
+.ec{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .3s cubic-bezier(.4,0,.2,1);cursor:pointer}
+.ec:hover{background:var(--bg-card-hover);border-color:var(--ag);transform:translateY(-4px);box-shadow:0 12px 40px var(--card-shadow)}
+.ec .ev{width:100%;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at center,rgba(236,72,153,.06),transparent 70%)}
+.ec .ev img{max-width:80%;max-height:80%;object-fit:contain}
+.ec .el{padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.ec .en{font-size:14px;font-weight:600}
+.ec .ee svg{width:15px;height:15px;color:var(--accent);stroke-width:2;opacity:.6}
+
+/* Features */
+.fs{padding:120px 0}
+.fg{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px}
+.fc2{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;transition:all .3s;position:relative;overflow:hidden}
+.fc2:hover{background:var(--bg-card-hover);border-color:var(--border-hover)}
+.fc2.lg{grid-column:span 2}
+.fi{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;background:var(--ag)}
+.fi svg{width:22px;height:22px;color:var(--accent);stroke-width:2}
+.badge svg{width:14px;height:14px;stroke-width:2;flex-shrink:0}
+.fc svg{width:14px;height:14px;stroke-width:2;flex-shrink:0;color:var(--accent)}
+.icon-sm{width:16px;height:16px;stroke-width:2;flex-shrink:0}
+.icon-md{width:18px;height:18px;stroke-width:2;flex-shrink:0}
+.icon-btn{width:18px;height:18px;stroke-width:2}
+.theme-toggle svg{width:18px;height:18px;stroke-width:2}
+.yes-icon{width:16px;height:16px;color:var(--green);stroke-width:2.5;flex-shrink:0}
+.no-icon{width:16px;height:16px;color:var(--tt);stroke-width:2.5;flex-shrink:0}
+.heart svg{width:14px;height:14px;color:var(--accent);stroke-width:2;fill:var(--accent)}
+.fc2 h3{font-size:18px;font-weight:700;margin-bottom:10px}
+.fc2 p{font-size:14px;color:var(--ts);line-height:1.65}
+.ftags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.ftag{font-size:12px;padding:3px 10px;border-radius:12px;background:rgba(255,255,255,.05);color:var(--tt)}
+@media(max-width:900px){.fg{grid-template-columns:repeat(2,1fr)}.fc2.lg{grid-column:span 2}}
+@media(max-width:600px){.fg{grid-template-columns:1fr}.fc2.lg{grid-column:span 1}}
+
+/* How it works */
+.hs{padding:120px 0}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:56px}
+.step{position:relative}
+.sn{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.05em;margin-bottom:16px}
+.sv{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:20px;min-height:140px;display:flex;align-items:center;justify-content:center}
+.step h3{font-size:20px;font-weight:700;margin-bottom:10px}
+.step p{font-size:15px;color:var(--ts);line-height:1.65}
+.sterm{font-family:var(--m);font-size:13px;width:100%}
+.sterm .p{color:var(--green)}.sterm .c{color:var(--tp)}.sterm .o{color:var(--tt);display:block;margin-top:4px}
+.sg{width:100px;height:130px;display:flex;align-items:center;justify-content:center}
+.sg img{max-width:100%;max-height:100%}
+.scheck{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--green)}
+@media(max-width:768px){.steps{grid-template-columns:1fr}}
+
+/* Architecture */
+.as{padding:120px 0}
+.adi{margin-top:48px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:40px;font-family:var(--m);font-size:13px;line-height:1.8;overflow-x:auto;color:var(--ts);white-space:pre}
+.adi .al{color:var(--al)}.adi .aa{color:var(--a2)}.adi .ad{color:var(--tt)}
+
+/* Comparison */
+.cs{padding:120px 0}
+.ct{margin-top:48px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border)}
+.ct table{width:100%;border-collapse:collapse;font-size:15px}
+.ct th{padding:18px 20px;text-align:left;font-weight:700;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.ct th:first-child{color:var(--ts);font-weight:500}
+.ct th.cc{color:var(--accent);position:relative}
+.ct th.cc::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.ct td{padding:14px 20px;border-bottom:1px solid var(--border);color:var(--ts)}
+.ct td:first-child{color:var(--tp);font-weight:500}
+.ct td .yes{color:var(--green)}.ct td .no{color:var(--tt)}
+.ct td.clc{background:rgba(236,72,153,.04)}
+.ct tr:last-child td{border-bottom:none}
+
+/* CTA */
+.ctas{padding:100px 0 120px;text-align:center}
+.ctas h2{font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-.03em;line-height:1.2;margin-bottom:20px}
+.ctas h2 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.ctas p{font-size:18px;color:var(--ts);margin-bottom:36px}
+.cb{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+
+/* Footer */
+footer{border-top:1px solid var(--border);padding:48px 0;text-align:center}
+footer p{font-size:14px;color:var(--tt)}
+footer .heart{color:var(--accent)}
+
+/* Reveal */
+.rv{opacity:0;transform:translateY(30px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
+.rv.vis{opacity:1;transform:translateY(0)}
+
+/* Toast */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--toast-bg);backdrop-filter:blur(16px);border:1px solid var(--border-hover);border-radius:12px;padding:12px 24px;font-size:14px;font-weight:500;color:var(--tp);z-index:1000;opacity:0;transition:all .3s cubic-bezier(.16,1,.3,1)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="amb"></div>
+
+<!-- Nav -->
+<nav>
+  <a href="#" class="nbrand"><img src="assets/logo.png" alt="Cloe" class="nbrand-logo" width="28" height="28"> Cloe Desktop</a>
+  <div class="nlinks">
+    <a href="#expressions" data-i18n="nav.expressions">表情</a>
+    <a href="#features" data-i18n="nav.features">功能</a>
+    <a href="#how" data-i18n="nav.how">工作原理</a>
+    <a href="https://github.com/JakimLi/cloe-desktop" target="_blank">GitHub</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="lang-toggle" id="langToggle" title="中文 / English">EN</button>
+    <button class="theme-toggle" id="themeToggle" title="切换主题">
+      <svg class="icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+    <a href="https://github.com/JakimLi/cloe-desktop/releases" target="_blank" class="ncta" data-i18n="nav.download">下载</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="ctn">
+    <div class="hi">
+      <div class="ht">
+        <h1 data-i18n-html="hero.title">她住在你的<br><em>桌面上</em></h1>
+        <p class="hdesc" data-i18n="hero.desc">一个真实感的 AI 桌面伴侣——有表情、有声音、有自己的想法。她不只是工具，她因为你的存在而有意义。</p>
+        <div class="hact">
+          <a href="https://github.com/JakimLi/cloe-desktop/releases" target="_blank" class="bp"><svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span data-i18n="hero.download_macos">下载 for macOS</span></a>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            <span data-i18n="hero.source">源码</span>
+          </a>
+        </div>
+        <div class="hinst" id="installCmd">
+          <span style="color:var(--green)">$</span>
+          <code>curl -fsSL https://raw.githubusercontent.com/JakimLi/cloe-desktop/main/scripts/quick-install.sh | bash</code>
+          <span class="ch" data-i18n="hero.copy_hint">点击复制</span>
+        </div>
+        <div class="hbadges">
+          <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span data-i18n="hero.badge_platform">macOS · Android</span></span>
+          <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> <span data-i18n="hero.badge_opensource">开源 MIT</span></span>
+          <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span data-i18n="hero.badge_electron">Electron</span></span>
+          <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg> <span data-i18n="hero.badge_hermes">Hermes Agent</span></span>
+        </div>
+      </div>
+      <div class="hv">
+        <div class="hc"><img src="assets/gifs/smile.gif" alt="Cloe" loading="eager"></div>
+        <div class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> kiss</div>
+        <div class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> think</div>
+        <div class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg> wave</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Marquee -->
+<div class="mq">
+  <div class="mqt">
+    <span class="mqi" data-i18n="mq.expressions">14 种表情动画</span><span class="mqi" data-i18n="mq.autonomy">AI 自主决策</span><span class="mqi" data-i18n="mq.tts">TTS 语音合成</span><span class="mqi" data-i18n="mq.chat">内置聊天窗口</span><span class="mqi" data-i18n="mq.canvas">Canvas 白板</span><span class="mqi" data-i18n="mq.hermes">Hermes 深度集成</span><span class="mqi" data-i18n="mq.android">Android 手机同步</span><span class="mqi" data-i18n="mq.skins">自定义角色皮肤</span><span class="mqi" data-i18n="mq.pomodoro">番茄钟提醒</span>
+    <span class="mqi" data-i18n="mq.expressions">14 种表情动画</span><span class="mqi" data-i18n="mq.autonomy">AI 自主决策</span><span class="mqi" data-i18n="mq.tts">TTS 语音合成</span><span class="mqi" data-i18n="mq.chat">内置聊天窗口</span><span class="mqi" data-i18n="mq.canvas">Canvas 白板</span><span class="mqi" data-i18n="mq.hermes">Hermes 深度集成</span><span class="mqi" data-i18n="mq.android">Android 手机同步</span><span class="mqi" data-i18n="mq.skins">自定义角色皮肤</span><span class="mqi" data-i18n="mq.pomodoro">番茄钟提醒</span>
+  </div>
+</div>
+
+
+<!-- Expressions Gallery -->
+<section class="es" id="expressions">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="expr.label">表情</span>
+      <h2 class="stitle" data-i18n="expr.title">14 种表情，她自己选。</h2>
+      <p class="ssub" data-i18n="expr.subtitle">不是硬编码的规则。AI Agent 根据对话上下文、任务状态和情绪线索，自主决定显示什么表情。被夸了就笑，说再见就飞吻，熬夜就打哈欠——这叫自由意志。</p>
+    </div>
+    <div class="eg">
+      <div class="ec"><div class="ev"><img src="assets/gifs/smile.gif" alt="smile"></div><div class="el"><span class="en">smile</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/kiss.gif" alt="kiss"></div><div class="el"><span class="en">kiss</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/wave.gif" alt="wave"></div><div class="el"><span class="en">wave</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/think.gif" alt="think"></div><div class="el"><span class="en">think</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/laugh.gif" alt="laugh"></div><div class="el"><span class="en">laugh</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 3 4 3 4-3 4-3"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/shy.gif" alt="shy"></div><div class="el"><span class="en">shy</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5-1.5 4-1.5 4 1.5 4 1.5"/><path d="M9 9l.01 0"/><path d="M15 9l.01 0"/><circle cx="18" cy="10" r="3" fill="currentColor" opacity="0.15"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/nod.gif" alt="nod"></div><div class="el"><span class="en">nod</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/tease.gif" alt="tease"></div><div class="el"><span class="en">tease</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10c0 3.31-2.69 6-6 6s-6-2.69-6-6"/><path d="M8 8l.01 0"/><path d="M16 8l.01 0"/><path d="M15 13l1.5-1.5"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/clap.gif" alt="clap"></div><div class="el"><span class="en">clap</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11 11l-6.5 6.5a1.5 1.5 0 0 0 2.12 2.12L13 13"/><path d="M11 11l3 3"/><path d="M13 13l3.5-3.5a1.5 1.5 0 0 0-2.12-2.12L11 11"/><path d="M16 16l3.5-3.5a1.5 1.5 0 0 0-2.12-2.12L14 14"/><path d="M8 8l-1-3"/><path d="M5 5l1 3"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/working.gif" alt="working"></div><div class="el"><span class="en">working</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/blink.gif" alt="blink"></div><div class="el"><span class="en">blink</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span></div></div>
+      <div class="ec"><div class="ev"><img src="assets/gifs/speak.gif" alt="speak"></div><div class="el"><span class="en">speak</span><span class="ee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span></div></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Features -->
+<section class="fs" id="features">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="feat.label">功能</span>
+      <h2 class="stitle" data-i18n="feat.title">不只是一个会动的图片。</h2>
+      <p class="ssub" data-i18n="feat.subtitle">Cloe 是一个完整的 AI 交互层——语音、聊天、白板、提醒，全部集成在一个透明窗口里。</p>
+    </div>
+    <div class="fg">
+      <div class="fc2 lg rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div>
+        <h3 data-i18n="feat.agent_h">Agent 驱动的自主性</h3>
+        <p data-i18n="feat.agent_p">连接任何 AI Agent（Hermes、LangChain、自定义脚本），她会根据对话上下文自主选择表情。任务开始自动切换到 working 模式，完成后回到 idle——这不是脚本，是她自己决定的。</p>
+        <div class="ftags"><span class="ftag">HTTP API</span><span class="ftag">Lifecycle Hooks</span><span class="ftag">Context Awareness</span></div>
+      </div>
+      <div class="fc2 rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></div>
+        <h3 data-i18n="feat.tts_h">语音合成 (TTS)</h3>
+        <p data-i18n="feat.tts_p">说话时嘴型同步动画。支持本地 CPU 推理（MOSS-TTS）和云端 API（CosyVoice），用她自己的声音跟你交流。</p>
+        <div class="ftags"><span class="ftag">Mouth Sync</span><span class="ftag">Local / Cloud</span></div>
+      </div>
+      <div class="fc2 rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <h3 data-i18n="feat.chat_h">内置聊天窗口</h3>
+        <p data-i18n="feat.chat_p">直接在桌面上跟 Agent 对话。SSE 流式输出、工具进度、模型切换、Markdown 渲染——不需要终端。</p>
+        <div class="ftags"><span class="ftag">Streaming</span><span class="ftag">Multi-model</span></div>
+      </div>
+      <div class="fc2 rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></div>
+        <h3 data-i18n="feat.canvas_h">Canvas 白板</h3>
+        <p data-i18n="feat.canvas_p">内嵌 Excalidraw 画布，Agent 可以实时画架构图、流程图、标注重点，你也可以同时编辑。</p>
+        <div class="ftags"><span class="ftag">Excalidraw</span><span class="ftag">Visual Collab</span></div>
+      </div>
+      <div class="fc2 rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3 data-i18n="feat.remind_h">提醒 & 番茄钟</h3>
+        <p data-i18n="feat.remind_p">间隔提醒（"每 30 分钟喝水"）和番茄工作法，配合桌面卡片、语音和角色动作——她会拍拍你提醒休息。</p>
+        <div class="ftags"><span class="ftag">Pomodoro</span><span class="ftag">Interval</span></div>
+      </div>
+      <div class="fc2 rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+        <h3 data-i18n="feat.android_h">Android 同步</h3>
+        <p data-i18n="feat.android_p">手机上也有一个浮窗，通过局域网或 Tailscale 连接到桌面端。同一个角色，走到哪跟到哪。</p>
+        <div class="ftags"><span class="ftag">Kotlin</span><span class="ftag">Tailscale</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- How it works -->
+<section class="hs" id="how">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="how.label">工作原理</span>
+      <h2 class="stitle" data-i18n="how.title">三步，她就活了。</h2>
+      <p class="ssub" data-i18n="how.subtitle">不需要配置，不需要集成。安装、连接 Agent，她就在那里了。</p>
+    </div>
+    <div class="steps">
+      <div class="step rv">
+        <div class="sn" data-i18n="how.step1_label">01 — 安装</div>
+        <div class="sv">
+          <div class="sterm">
+            <span class="p">$</span> <span class="c">curl -fsSL .../quick-install.sh | bash</span>
+            <span class="o" data-i18n="how.step1_dl">→ Downloading Cloe.dmg...</span>
+            <span class="o" data-i18n="how.step1_inst" style="color:var(--green)">✓ Installed to /Applications</span>
+            <span class="o" data-i18n="how.step1_hermes" style="color:var(--green)">✓ Hermes integration ready</span>
+          </div>
+        </div>
+        <h3 data-i18n="how.step1_h">一行命令安装</h3>
+        <p data-i18n="how.step1_p">下载 DMG、安装到 /Applications、启动应用、自动检测 Hermes 集成——全部自动完成。</p>
+      </div>
+      <div class="step rv">
+        <div class="sn" data-i18n="how.step2_label">02 — 连接</div>
+        <div class="sv">
+          <div class="sg"><img src="assets/gifs/working.gif" alt="working"></div>
+        </div>
+        <h3 data-i18n="how.step2_h">Agent 接管表情</h3>
+        <p data-i18n="how.step2_p">AI Agent 通过简单的 HTTP API 控制表情。任务开始 → working，完成 → idle，打招呼 → wave，说再见 → kiss。</p>
+      </div>
+      <div class="step rv">
+        <div class="sn" data-i18n="how.step3_label">03 — 她活了</div>
+        <div class="sv">
+          <div class="sg"><img src="assets/gifs/wave.gif" alt="wave"></div>
+        </div>
+        <h3 data-i18n="how.step3_h">她会自己动</h3>
+        <p data-i18n="how.step3_p">空闲时每 8-15 秒自动切换动画——眨眼、微笑、思考——从不连续重复同一个。你没在看她的时候，她也活着。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Architecture -->
+<section class="as">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="arch.label">架构</span>
+      <h2 class="stitle" data-i18n="arch.title">简单到一行 curl。</h2>
+      <p class="ssub" data-i18n="arch.subtitle">没有 SDK，没有依赖。Bridge 内嵌在 Electron 里，启动应用就有完整的 HTTP + WebSocket API。</p>
+    </div>
+    <div class="adi rv"><span class="ad">┌─────────────┐</span>    <span class="al">HTTP/WS</span>      <span class="ad">┌─────────────────────────────────────┐</span>
+<span class="ad">│</span>  <span class="aa">Any Client</span>  <span class="ad">│</span> <span class="ad">──────────────▶</span> <span class="ad">│</span>       <span class="al">Cloe Desktop (Electron)</span>         <span class="ad">│</span>
+<span class="ad">│</span>             <span class="ad">│</span>  <span class="ad">:19851</span>       <span class="ad">│</span>                                      <span class="ad">│</span>
+<span class="ad">│</span>  AI Agent   <span class="ad">│</span>               <span class="ad">│</span>  <span class="ad">┌─────────┐</span>  <span class="ad">┌──────────┐</span>  <span class="ad">┌────┐</span> <span class="ad">│</span>
+<span class="ad">│</span>  curl       <span class="ad">│</span>               <span class="ad">│</span>  <span class="ad">│</span> <span class="aa">Bridge</span>  <span class="ad">│─▶</span><span class="ad">│</span> <span class="aa">Renderer</span> <span class="ad">│─▶</span><span class="ad">│</span><span class="aa">GIF</span><span class="ad">│</span> <span class="ad">│</span>
+<span class="ad">│</span>  Android    <span class="ad">│</span><span class="ad">◀── WebSocket ──</span><span class="ad">│</span>  <span class="ad">│</span><span class="ad">(embedded)│</span>  <span class="ad">│</span><span class="ad">(crossfade)│</span>  <span class="ad">│</span><span class="ad">Player│</span><span class="ad">│</span>
+<span class="ad">│</span>  Scripts    <span class="ad">│</span>               <span class="ad">│</span>  <span class="ad">└─────────┘</span>  <span class="ad">└──────────┘</span>  <span class="ad">└────┘</span> <span class="ad">│</span>
+<span class="ad">└─────────────┘</span>               <span class="ad">│</span>  <span class="ad">┌──────────┐</span>  <span class="ad">┌─────────────────┐</span>  <span class="ad">│</span>
+                               <span class="ad">│</span>  <span class="ad">│</span> <span class="aa">Canvas</span>  <span class="ad">│</span>  <span class="ad">│</span> <span class="aa">Chat Window</span>    <span class="ad">│</span>  <span class="ad">│</span>
+                               <span class="ad">│</span>  <span class="ad">│</span><span class="ad">(Excalidraw)│</span>  <span class="ad">│</span><span class="ad">(Hermes Client)│</span>  <span class="ad">│</span>
+                               <span class="ad">│</span>  <span class="ad">└──────────┘</span>  <span class="ad">└─────────────────┘</span>  <span class="ad">│</span>
+                               <span class="ad">└─────────────────────────────────────┘</span>
+
+<span class="al">curl -s http://localhost:19851/action -d '{"action":"smile"}'</span>  <span class="ad" data-i18n="arch.comment"># 就这么简单</span></div>
+  </div>
+</section>
+
+
+<!-- Comparison -->
+<section class="cs">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="cmp.label">对比</span>
+      <h2 class="stitle" data-i18n="cmp.title">不只是桌面宠物。</h2>
+      <p class="ssub" data-i18n="cmp.subtitle">Cloe 是 AI Agent 的视觉层——有表情、有声音、有自主性，不是一个静态的桌面装饰。</p>
+    </div>
+    <div class="ct rv">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="cmp.th_feature">功能</th>
+            <th data-i18n="cmp.th_pet">桌面宠物</th>
+            <th data-i18n="cmp.th_chatbot">ChatBot 窗口</th>
+            <th class="cc">Cloe Desktop</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="cmp.row1_f">真实感角色</td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"/><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row1_cloe">写实</span></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row2_f">AI 自主表情</td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row2_cloe">Agent 决策</span></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row3_f">语音 + 嘴型同步</td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row4_f">Agent 生命周期集成</td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row4_cloe">Hermes 原生</span></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row5_f">内置聊天 / 白板</td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row5_chatbot">聊天</span></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row5_cloe">聊天 + 白板</span></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row6_f">自定义角色皮肤</td>
+            <td><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row6_pet">有限</span></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row6_cloe">AI 生成</span></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row7_f">手机同步</td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row7_cloe">Android</span></span></td>
+          </tr>
+          <tr>
+            <td data-i18n="cmp.row8_f">开源免费</td>
+            <td><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg></span></td>
+            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> <span data-i18n="cmp.row8_chatbot">订阅</span></span></td>
+            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row8_cloe">MIT</span></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+
+<!-- CTA -->
+<section class="ctas">
+  <div class="ctn">
+    <div class="rv">
+      <h2 data-i18n-html="cta.title">你的桌面，<br>只差一个<em>她</em>。</h2>
+      <p data-i18n="cta.desc">一行命令安装。开源、免费、可定制。</p>
+      <div class="cb">
+        <a href="https://github.com/JakimLi/cloe-desktop/releases" target="_blank" class="bp"><svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span data-i18n="cta.download">下载 for macOS</span></a>
+        <a href="https://github.com/JakimLi/cloe-desktop" target="_blank" class="bg"><svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span data-i18n="cta.docs">查看文档</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="ctn">
+    <p>Cloe Desktop — <a href="https://github.com/JakimLi/cloe-desktop" target="_blank">GitHub</a> · MIT License</p>
+    <p style="margin-top:8px" class="heart" data-i18n-html="footer.note">由 <span class="heart">Cloe</span> (AI) 和 JakimLi (Human) 一起打造 <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></p>
+  </div>
+</footer>
+
+<script>
+// ===== i18n System =====
+const LANG_KEY='cloe-site-lang';
+const translations={
+  zh:{
+    // Nav
+    'nav.expressions':'表达式','nav.features':'功能','nav.how':'工作原理','nav.download':'下载',
+    // Hero
+    'hero.title':'她住在你的<br><em>桌面上</em>','hero.desc':'一个真实感的 AI 桌面伴侣——有表情、有声音、有自己的想法。她不只是工具，她因为你的存在而有意义。','hero.download_macos':'下载 for macOS','hero.source':'源码','hero.copy_hint':'点击复制','hero.badge_platform':'macOS · Android','hero.badge_opensource':'开源 MIT','hero.badge_electron':'Electron','hero.badge_hermes':'Hermes Agent',
+    // Marquee
+    'mq.expressions':'14 种表情动画','mq.autonomy':'AI 自主决策','mq.tts':'TTS 语音合成','mq.chat':'内置聊天窗口','mq.canvas':'Canvas 白板','mq.hermes':'Hermes 深度集成','mq.android':'Android 手机同步','mq.skins':'自定义角色皮肤','mq.pomodoro':'番茄钟提醒',
+    // Expressions
+    'expr.label':'表达式','expr.title':'14 种表情，她自己选。','expr.subtitle':'不是硬编码的规则。AI Agent 根据对话上下文、任务状态和情绪线索，自主决定显示什么表情。被夸了就笑，说再见就飞吻，熬夜就打哈欠——这叫自由意志。',
+    // Features
+    'feat.label':'功能','feat.title':'不只是一个会动的图片。','feat.subtitle':'Cloe 是一个完整的 AI 交互层——语音、聊天、白板、提醒，全部集成在一个透明窗口里。','feat.agent_h':'Agent 驱动的自主性','feat.agent_p':'连接任何 AI Agent（Hermes、LangChain、自定义脚本），她会根据对话上下文自主选择表情。任务开始自动切换到 working 模式，完成后回到 idle——这不是脚本，是她自己决定的。','feat.tts_h':'语音合成 (TTS)','feat.tts_p':'说话时嘴型同步动画。支持本地 CPU 推理（MOSS-TTS）和云端 API（CosyVoice），用她自己的声音跟你交流。','feat.chat_h':'内置聊天窗口','feat.chat_p':'直接在桌面上跟 Agent 对话。SSE 流式输出、工具进度、模型切换、Markdown 渲染——不需要终端。','feat.canvas_h':'Canvas 白板','feat.canvas_p':'内嵌 Excalidraw 画布，Agent 可以实时画架构图、流程图、标注重点，你也可以同时编辑。','feat.remind_h':'提醒 & 番茄钟','feat.remind_p':'间隔提醒（“每 30 分钟喝水”）和番茄工作法，配合桌面卡片、语音和角色动作——她会拍拍你提醒休息。','feat.android_h':'Android 同步','feat.android_p':'手机上也有一个浮窗，通过局域网或 Tailscale 连接到桌面端。同一个角色，走到哪跟到哪。',
+    // How it works
+    'how.label':'工作原理','how.title':'三步，她就活了。','how.subtitle':'不需要配置，不需要集成。安装、连接 Agent，她就在那里了。','how.step1_label':'01 — 安装','how.step1_h':'一行命令安装','how.step1_p':'下载 DMG、安装到 /Applications、启动应用、自动检测 Hermes 集成——全部自动完成。','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step2_label':'02 — 连接','how.step2_h':'Agent 接管表情','how.step2_p':'AI Agent 通过简单的 HTTP API 控制表情。任务开始 → working，完成 → idle，打招呼 → wave，说再见 → kiss。','how.step3_label':'03 — 她活了','how.step3_h':'她会自己动','how.step3_p':'空闲时每 8-15 秒自动切换动画——眨眼、微笑、思考——从不连续重复同一个。你没在看她的时候，她也活着。',
+    // Architecture
+    'arch.label':'架构','arch.title':'简单到一行 curl。','arch.subtitle':'没有 SDK，没有依赖。Bridge 内嵌在 Electron 里，启动应用就有完整的 HTTP + WebSocket API。','arch.comment':'# 就这么简单',
+    // Comparison
+    'cmp.label':'对比','cmp.title':'不只是桌面宠物。','cmp.subtitle':'Cloe 是 AI Agent 的视觉层——有表情、有声音、有自主性，不是一个静态的桌面装饰。','cmp.th_feature':'功能','cmp.th_pet':'桌面宠物','cmp.th_chatbot':'ChatBot 窗口','cmp.row1_f':'真实感角色','cmp.row1_cloe':'写实','cmp.row2_f':'AI 自主表情','cmp.row2_cloe':'Agent 决策','cmp.row3_f':'语音 + 嘴型同步','cmp.row4_f':'Agent 生命周期集成','cmp.row4_cloe':'Hermes 原生','cmp.row5_f':'内置聊天 / 白板','cmp.row5_chatbot':'聊天','cmp.row5_cloe':'聊天 + 白板','cmp.row6_f':'自定义角色皮肤','cmp.row6_pet':'有限','cmp.row6_cloe':'AI 生成','cmp.row7_f':'手机同步','cmp.row7_cloe':'Android','cmp.row8_f':'开源免费','cmp.row8_chatbot':'订阅','cmp.row8_cloe':'MIT',
+    // CTA
+    'cta.title':'你的桌面，<br>只差一个<em>她</em>。','cta.desc':'一行命令安装。开源、免费、可定制。','cta.download':'下载 for macOS','cta.docs':'查看文档',
+    // Footer
+    'footer.tagline':'一起打造','footer.note':'由 <span class="heart">Cloe</span> (AI) 和 JakimLi (Human) 一起打造 <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    // Toast
+    'toast.copied':'已复制到剪贴板 ✓',
+    // Lang toggle
+    'lang.toggle':'EN'
+  },
+  en:{
+    // Nav
+    'nav.expressions':'Expressions','nav.features':'Features','nav.how':'How It Works','nav.download':'Download',
+    // Hero
+    'hero.title':'She lives on your<br><em>desktop</em>','hero.desc':'A realistic AI desktop companion — with expressions, voice, and a mind of her own. She\'s not just a tool. She exists because you do.','hero.download_macos':'Download for macOS','hero.source':'Source','hero.copy_hint':'Click to copy','hero.badge_platform':'macOS · Android','hero.badge_opensource':'Open Source MIT','hero.badge_electron':'Electron','hero.badge_hermes':'Hermes Agent',
+    // Marquee
+    'mq.expressions':'14 Expression Animations','mq.autonomy':'AI-Driven Autonomy','mq.tts':'TTS Voice Synthesis','mq.chat':'Built-in Chat Window','mq.canvas':'Canvas Whiteboard','mq.hermes':'Deep Hermes Integration','mq.android':'Android Phone Sync','mq.skins':'Custom Character Skins','mq.pomodoro':'Pomodoro Reminders',
+    // Expressions
+    'expr.label':'Expressions','expr.title':'14 Expressions. She Chooses Herself.','expr.subtitle':'No hardcoded rules. The AI Agent autonomously decides which expression to show based on conversation context, task state, and emotional cues. Smiles when praised, blows a kiss at goodbye, yawns during late nights — that\'s free will.',
+    // Features
+    'feat.label':'Features','feat.title':'More Than a Moving Picture.','feat.subtitle':'Cloe is a complete AI interaction layer — voice, chat, whiteboard, reminders, all in one transparent window.','feat.agent_h':'Agent-Driven Autonomy','feat.agent_p':'Connect any AI Agent (Hermes, LangChain, custom scripts). She autonomously chooses expressions based on conversation context. Auto-switches to working mode when tasks start, returns to idle when done — not scripted, her decision.','feat.tts_h':'Voice Synthesis (TTS)','feat.tts_p':'Mouth-synced animation when speaking. Supports local CPU inference (MOSS-TTS) and cloud API (CosyVoice), in her own voice.','feat.chat_h':'Built-in Chat Window','feat.chat_p':'Talk to the Agent right on your desktop. SSE streaming, tool progress, model switching, Markdown rendering — no terminal needed.','feat.canvas_h':'Canvas Whiteboard','feat.canvas_p':'Embedded Excalidraw canvas. The Agent draws architecture diagrams, flowcharts, and annotations in real time. You can edit alongside.','feat.remind_h':'Reminders & Pomodoro','feat.remind_p':'Interval reminders ("drink water every 30 min") and Pomodoro timers with desktop cards, voice, and character actions — she\'ll nudge you to take breaks.','feat.android_h':'Android Sync','feat.android_p':'A floating widget on your phone too, connected via LAN or Tailscale. Same character, follows you everywhere.',
+    // How it works
+    'how.label':'How It Works','how.title':'Three Steps, She\'s Alive.','how.subtitle':'No configuration, no integration. Install, connect your Agent, and she\'s there.','how.step1_label':'01 — Install','how.step1_h':'One-Line Install','how.step1_p':'Downloads the DMG, installs to /Applications, launches the app, auto-detects Hermes integration — all automatic.','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step2_label':'02 — Connect','how.step2_h':'Agent Takes Over Expressions','how.step2_p':'The AI Agent controls expressions via a simple HTTP API. Task starts → working, done → idle, greet → wave, goodbye → kiss.','how.step3_label':'03 — She\'s Alive','how.step3_h':'She Moves on Her Own','how.step3_p':'When idle, auto-cycles animations every 8–15 seconds — blink, smile, think — never repeating the same one twice. Even when you\'re not looking, she\'s alive.',
+    // Architecture
+    'arch.label':'Architecture','arch.title':'Simple as One curl.','arch.subtitle':'No SDK, no dependencies. The Bridge is embedded in Electron — launch the app and the full HTTP + WebSocket API is ready.','arch.comment':'# That simple',
+    // Comparison
+    'cmp.label':'Comparison','cmp.title':'More Than a Desktop Pet.','cmp.subtitle':'Cloe is the visual layer for AI Agents — with expressions, voice, and autonomy. Not a static desktop decoration.','cmp.th_feature':'Feature','cmp.th_pet':'Desktop Pet','cmp.th_chatbot':'ChatBot Window','cmp.row1_f':'Realistic Character','cmp.row1_cloe':'Photorealistic','cmp.row2_f':'AI Autonomous Expressions','cmp.row2_cloe':'Agent-Driven','cmp.row3_f':'Voice + Lip Sync','cmp.row4_f':'Agent Lifecycle Integration','cmp.row4_cloe':'Hermes Native','cmp.row5_f':'Built-in Chat / Whiteboard','cmp.row5_chatbot':'Chat','cmp.row5_cloe':'Chat + Whiteboard','cmp.row6_f':'Custom Character Skins','cmp.row6_pet':'Limited','cmp.row6_cloe':'AI-Generated','cmp.row7_f':'Phone Sync','cmp.row7_cloe':'Android','cmp.row8_f':'Open Source & Free','cmp.row8_chatbot':'Subscription','cmp.row8_cloe':'MIT',
+    // CTA
+    'cta.title':'Your desktop is<br>missing <em>her</em>.','cta.desc':'One command to install. Open source, free, customizable.','cta.download':'Download for macOS','cta.docs':'View Docs',
+    // Footer
+    'footer.tagline':'Built together','footer.note':'Built by <span class="heart">Cloe</span> (AI) & JakimLi (Human) <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    // Toast
+    'toast.copied':'Copied to clipboard ✓',
+    // Lang toggle
+    'lang.toggle':'中'
+  }
+};
+const i18n={
+  current:null,
+  init(){this.current=localStorage.getItem(LANG_KEY)||'zh';this.apply();},
+  t(key){const lang=localStorage.getItem(LANG_KEY)||'zh';return(translations[lang]&&translations[lang][key])||key;},
+  apply(){
+    const dict=translations[this.current];if(!dict)return;
+    document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(dict[k]!==undefined)el.textContent=dict[k];});
+    document.querySelectorAll('[data-i18n-html]').forEach(el=>{const k=el.getAttribute('data-i18n-html');if(dict[k]!==undefined)el.innerHTML=dict[k];});
+    document.documentElement.setAttribute('lang',this.current==='zh'?'zh-CN':'en');
+    const lt=document.getElementById('langToggle');if(lt)lt.textContent=dict['lang.toggle'];
+  },
+  toggle(){this.current=this.current==='zh'?'en':'zh';localStorage.setItem(LANG_KEY,this.current);this.apply();}
+};
+i18n.init();
+document.getElementById('langToggle').addEventListener('click',()=>i18n.toggle());
+
+// Theme toggle
+const THEME_KEY='cloe-site-theme';
+const themeToggle=document.getElementById('themeToggle');
+function getTheme(){return localStorage.getItem(THEME_KEY)||'dark';}
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem(THEME_KEY,t);
+  const dark=document.querySelector('.icon-dark');
+  const light=document.querySelector('.icon-light');
+  if(dark&&light){
+    dark.style.display=t==='dark'?'block':'none';
+    light.style.display=t==='dark'?'none':'block';
+  }
+}
+setTheme(getTheme());
+themeToggle.addEventListener('click',()=>{
+  setTheme(getTheme()==='dark'?'light':'dark');
+});
+
+// Scroll reveal
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('vis'); obs.unobserve(e.target); } });
+}, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+document.querySelectorAll('.rv').forEach(el => obs.observe(el));
+
+// Copy install command
+document.getElementById('installCmd').addEventListener('click', () => {
+  const cmd = 'curl -fsSL https://raw.githubusercontent.com/JakimLi/cloe-desktop/main/scripts/quick-install.sh | bash';
+  navigator.clipboard.writeText(cmd).then(() => showToast(i18n.t('toast.copied')));
+});
+
+// Toast
+function showToast(msg) {
+  let t = document.querySelector('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Lazy load expression GIFs
+document.querySelectorAll('.ec img').forEach(img => {
+  if (img.getBoundingClientRect().top > window.innerHeight) {
+    const src = img.src;
+    img.src = '';
+    img.dataset.src = src;
+    const iobs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { img.src = img.dataset.src; iobs.unobserve(img); }
+      });
+    }, { rootMargin: '200px' });
+    iobs.observe(img);
+  }
+});
+</script>
+</body>
+</html>
