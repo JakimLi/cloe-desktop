@@ -179,43 +179,41 @@ section{position:relative;z-index:2}
 @media(max-width:600px){.install-pill code{max-width:180px}}
 
 /* character — the signature */
-.hero-char{position:relative;display:flex;justify-content:center;align-items:center;min-height:480px}
-.char-anchor{width:100%;max-width:420px;aspect-ratio:400/764}
-
-/* ===== Unified character — fixed element morphing hero ↔ corner ===== */
-/* The .uc is position:fixed and sized to the DOCKED (corner) dimensions.
-   In the hero we enlarge it via scale() so the gif keeps rendering smoothly
-   without reload. JS drives translate()+scale() from scroll position. */
-.uc{
-  position:fixed;right:0;bottom:0;z-index:90;
-  width:var(--uc-dock,120px);
-  transform-origin:center center;
-  transform:translate(var(--uc-tx,0),var(--uc-ty,0)) scale(var(--uc-scale,1));
-  transition:transform .12s linear;
-  pointer-events:none;will-change:transform;
-  opacity:0; /* shown by JS once first placed, avoids FOUC */
+.hero-char{position:relative;display:flex;justify-content:center;align-items:center}
+.char-stage{
+  position:relative;width:100%;max-width:420px;
+  filter:drop-shadow(0 30px 50px rgba(232,98,74,0.18));
+  transition:opacity .4s var(--ease),transform .4s var(--ease);
 }
-.uc.ready{opacity:1}
-.uc-body{position:relative;cursor:pointer;pointer-events:auto;
-  filter:drop-shadow(0 12px 28px rgba(232,98,74,0.22));transition:transform .3s var(--ease)}
-.uc-body:hover{transform:translateY(-4px)}
-.uc-body img{width:100%;height:auto;display:block;border-radius:var(--r);
-  -webkit-mask-image:linear-gradient(180deg,#000 92%,transparent 100%);
-  mask-image:linear-gradient(180deg,#000 92%,transparent 100%)}
-/* when docked the gif softens at the foot; in hero we square it off */
-.uc.hero .uc-body img{
-  -webkit-mask-image:linear-gradient(180deg,#000 98%,transparent 100%);
-  mask-image:linear-gradient(180deg,#000 98%,transparent 100%);
-  filter:drop-shadow(0 30px 50px rgba(232,98,74,0.18))}
-.uc-pulse{
+.char-stage img{width:100%;height:auto;display:block;border-radius:var(--r)}
+.char-stage::before{
+  content:'';position:absolute;inset:-8% -8% auto -8%;height:75%;
+  background:radial-gradient(ellipse at 50% 40%,var(--accent-bg),transparent 70%);
+  z-index:-1;
+}
+.char-pulse{
   position:absolute;bottom:8%;left:50%;transform:translateX(-50%);
   display:flex;align-items:center;gap:7px;padding:7px 15px;border-radius:30px;
   background:var(--bg-elevated);border:1px solid var(--border);box-shadow:var(--shadow-md);
   font-size:12px;color:var(--ts);font-weight:500;white-space:nowrap;
-  transition:opacity .3s var(--ease);
 }
-.uc-pulse .live{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+.char-pulse .live{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* ===== Docked companion — separate fixed element, shown when hero scrolls away ===== */
+.uc{
+  position:fixed;right:24px;bottom:0;z-index:90;
+  width:120px;opacity:0;transform:translateY(20px);
+  transition:opacity .4s var(--ease),transform .4s var(--ease);
+  pointer-events:none;
+}
+.uc.docked{opacity:1;transform:translateY(0);pointer-events:auto}
+.uc-body{position:relative;cursor:pointer;
+  filter:drop-shadow(0 12px 28px rgba(232,98,74,0.22));transition:transform .3s var(--ease)}
+.uc-body:hover{transform:translateY(-4px)}
+.uc-body img{width:100%;height:auto;display:block;border-radius:var(--r);
+  -webkit-mask-image:linear-gradient(180deg,#000 90%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 90%,transparent 100%)}
 .uc-bubble{
   background:var(--bg-elevated);border:1px solid var(--border);
   border-radius:14px;border-bottom-right-radius:4px;
@@ -233,9 +231,9 @@ section{position:relative;z-index:2}
   .hero-copy{max-width:100%;margin:0 auto}
   .hero-badges,.hero-actions{justify-content:center}
   .hero-sub{margin-left:auto;margin-right:auto}
-  .char-anchor{max-width:300px}
+  .char-stage{max-width:300px;margin:0 auto}
 }
-@media(max-width:600px){.uc{width:92px}.uc-bubble{font-size:12px;margin-bottom:54px;margin-right:8px}}
+@media(max-width:600px){.uc{width:92px;right:10px}.uc-bubble{font-size:12px;margin-bottom:54px;margin-right:8px}}
 
 /* ===== Marquee ===== */
 .marquee{padding:30px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;position:relative;background:var(--bg-soft)}
@@ -482,9 +480,13 @@ footer .heart svg{width:15px;height:15px}
         </div>
       </div>
     </div>
-    <!-- empty anchor: the actual character lives in a fixed element that
-         morphs between this hero slot and the bottom-right corner -->
-    <div class="hero-char rv"><div class="char-anchor" id="charAnchor"></div></div>
+    <!-- hero character — normal in-flow img (the "big" state) -->
+    <div class="hero-char rv" id="heroChar">
+      <div class="char-stage">
+        <img src="assets/gifs/smile.gif" alt="Cloe — 笑着的 AI 桌面伴侣" id="heroFace" loading="eager">
+        <div class="char-pulse"><span class="live"></span><span data-i18n="hero.live">正在看着你</span></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -680,13 +682,10 @@ footer .heart svg{width:15px;height:15px}
   </div>
 </footer>
 
-<!-- ===== Unified character — morphs between hero and bottom-right corner ===== -->
+<!-- ===== Docked companion — appears bottom-right when hero scrolls away ===== -->
 <div class="uc" id="uc" aria-hidden="true">
   <div class="uc-bubble" id="ucBubble">嗨 👋</div>
-  <div class="uc-body">
-    <img src="assets/gifs/smile.gif" alt="" id="ucFace">
-    <div class="uc-pulse"><span class="live"></span><span data-i18n="hero.live">正在看着你</span></div>
-  </div>
+  <div class="uc-body"><img src="assets/gifs/smile.gif" alt="" id="ucFace"></div>
 </div>
 
 <script>
@@ -836,48 +835,69 @@ setInterval(tickClock,1000*30);
   });
 })();
 
-// ===== Expression cards → click to set the unified character gif live =====
+// ===== Expression cards → click to set BOTH character imgs live =====
 (function(){
   const grid=document.getElementById('exprGrid');
-  const face=document.getElementById('ucFace');
-  if(!grid||!face)return;
+  if(!grid)return;
+  const faces=[document.getElementById('heroFace'),document.getElementById('ucFace')].filter(Boolean);
   grid.addEventListener('click',function(e){
     const card=e.target.closest('.expr-card');
     if(!card)return;
     const img=card.querySelector('img');
     if(!img)return;
     const name=img.alt;
-    face.src='assets/gifs/'+name+'.gif';
-    face.alt='Cloe — '+name;
-    // quick joyful bounce on the body
-    const body=face.parentElement;
-    body.animate([{transform:'translateY(0)'},{transform:'translateY(-8px) rotate(-2deg)'},{transform:'translateY(0)'}],{duration:450,easing:'cubic-bezier(0.16,1,0.3,1)'});
+    faces.forEach(function(f){f.src='assets/gifs/'+name+'.gif';});
+    const heroFace=document.getElementById('heroFace');
+    if(heroFace){heroFace.alt='Cloe — '+name;
+      heroFace.parentElement.animate([{transform:'translateY(0)'},{transform:'translateY(-8px) rotate(-2deg)'},{transform:'translateY(0)'}],{duration:450,easing:'cubic-bezier(0.16,1,0.3,1)'});}
     showToast(name+' ✓');
   });
 })();
 
-// ===== Unified character — morphs hero ↔ corner, cycles moods, chatters =====
+// ===== Character — hero (big) ↔ docked (corner), with mood cycling + chatter =====
 (function(){
   const uc=document.getElementById('uc');
-  const face=document.getElementById('ucFace');
-  const pulse=document.querySelector('.uc-pulse');
-  const anchor=document.getElementById('charAnchor');
-  if(!uc||!face)return;
+  const ucFace=document.getElementById('ucFace');
+  const heroChar=document.getElementById('heroChar');
+  if(!uc||!ucFace||!heroChar)return;
   const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-
-  // docked (corner) width — single source of truth, mirrored in CSS.
-  // Recomputed per frame so resize across the mobile breakpoint stays correct.
-  const isMobileFn=()=>window.matchMedia('(max-width:600px)').matches;
-  const dockW=()=>isMobileFn()?92:120;
-
   function lang(){return localStorage.getItem(LANG_KEY)||'zh';}
+
+  // ---- show docked companion once the hero has scrolled away ----
+  // scrollY is the most reliable cross-engine signal; IO backs it up for the
+  // first exit on engines where synthetic scroll doesn't dispatch scroll events.
+  let docked=false;
+  function setDocked(v){
+    if(v===docked)return;
+    docked=v;
+    if(v){uc.classList.add('docked');
+      if(!uc._greeted){uc._greeted=true;setTimeout(function(){say(phrases[lang()][0]);},350);}}
+    else{uc.classList.remove('docked');}
+  }
+  function sync(){
+    const hero=document.querySelector('.hero');
+    // hero considered "gone" once its bottom edge passes mid-viewport
+    const hb=hero?hero.getBoundingClientRect().bottom:0;
+    setDocked(window.scrollY>120 && hb<window.innerHeight*0.5);
+  }
+  window.addEventListener('scroll',sync,{passive:true});
+  window.addEventListener('resize',sync);
+  if('IntersectionObserver' in window){
+    const hero=document.querySelector('.hero');
+    if(hero)new IntersectionObserver(function(){sync();},{threshold:[0,0.1,0.5,1]}).observe(hero);
+  }
+  sync();
 
   // ---- mood cycling (mirrors the product's idle auto-switch) ----
   const moods=['smile','blink','think','wave','nod'];
   let mi=0;
-  if(!reduce){setInterval(function(){face.src='assets/gifs/'+moods[++mi%moods.length]+'.gif';},6000);}
+  if(!reduce){setInterval(function(){
+    const next='assets/gifs/'+moods[++mi%moods.length]+'.gif';
+    document.getElementById('heroFace').src=next;
+    ucFace.src=next;
+  },6000);}
 
-  // ---- bubble chatter ----
+  // ---- bubble chatter (only while docked) ----
   function say(msg){
     const b=document.getElementById('ucBubble');
     b.textContent=msg;uc.classList.add('show-bubble');
@@ -887,91 +907,23 @@ setInterval(tickClock,1000*30);
     zh:['嗨，在看呢 👀','别滑那么快嘛','要不要下载试试？','我在这儿陪你','今天也辛苦啦','点我换表情哦'],
     en:['Hey, watching you 👀','Slow down a bit','Wanna give me a try?','Keeping you company','You worked hard today','Click me to switch moods']
   };
-  // first chatter only after the user has scrolled away from hero
-  let greeted=false;
   if(!reduce){setInterval(function(){
     if(uc.classList.contains('docked'))say(phrases[lang()][Math.floor(Math.random()*phrases[lang()].length)]);
   },14000);}
 
-  // click the body → shuffle expression
-  face.parentElement.addEventListener('click',function(){
+  // click the docked body → shuffle expression
+  ucFace.parentElement.addEventListener('click',function(){
     const next=moods[Math.floor(Math.random()*moods.length)];
-    face.src='assets/gifs/'+next+'.gif';
+    const src='assets/gifs/'+next+'.gif';
+    document.getElementById('heroFace').src=src;ucFace.src=src;
     say(lang()==='zh'?'换了 '+next+' 给你看':'Showing you '+next);
   });
-
-  // ---- scroll-driven morph: hero (big, in slot) ↔ docked (corner) ----
-  // We compute, per frame: target center from the hero anchor's rect, the
-  // hero width, then interpolate to the corner position + dockW as the hero
-  // scrolls out of view. p = 0 → fully hero, p = 1 → fully docked.
-  // portrait aspect of the gif (w/h) — used to get the rendered height right
-  const ASPECT=400/764;
-
-  const heroEl=document.querySelector('.hero');
-  function place(){
-    if(!anchor||!heroEl)return;
-    const a=anchor.getBoundingClientRect();
-    const vh=window.innerHeight;
-    // Drive the morph off the HERO SECTION, not the anchor. The anchor slot is
-    // taller than the hero on small viewports, so anchoring on it fired the
-    // morph prematurely. p=0 while hero is in view; 1 once it has scrolled up.
-    const hb=heroEl.getBoundingClientRect().bottom; // viewport coords
-    let p=(vh-hb)/(vh-vh*0.3); // start when hero bottom reaches vh, end at 0.3*vh
-    p=Math.max(0,Math.min(1,p));
-    const pe=p*p*(3-2*p); // smoothstep — lingers large, snaps small
-
-    // ---- define BOTH end states by their left/bottom edges + width ----
-    const dw=dockW(), mobile=isMobileFn();
-    // hero state = exactly where the anchor slot is
-    const heroL=a.left, heroW=a.width;
-    const heroB=vh-a.bottom; // distance from anchor bottom to viewport bottom
-    // docked state = bottom-right corner
-    const margin=mobile?10:24;
-    const dockL=window.innerWidth-dw-margin;
-    const dockB=0;             // feet touch the viewport bottom (mask fades them)
-
-    // interpolate left / bottom / width
-    const L=heroL+(dockL-heroL)*pe;
-    const B=heroB+(dockB-heroB)*pe;
-    const w=heroW+(dw-heroW)*pe;
-    const h=w/ASPECT;
-
-    // the .uc box renders at dw wide (dw/ASPECT tall) before scaling.
-    // With transform-origin center, to land the box's visual left/bottom on (L,B):
-    const s=w/dw;
-    const cx=L+w/2;
-    const cy=(vh-B)-h/2;
-    const tx=cx-dw/2;
-    const ty=cy-(dw/ASPECT)/2;
-    uc.style.setProperty('--uc-tx',tx+'px');
-    uc.style.setProperty('--uc-ty',ty+'px');
-    uc.style.setProperty('--uc-scale',s);
-    uc.classList.add('ready');
-
-    // state flags for styling + behaviour
-    if(pe<0.5){uc.classList.add('hero');uc.classList.remove('docked');}
-    else{uc.classList.remove('hero');uc.classList.add('docked');
-      if(!greeted){greeted=true;setTimeout(function(){say(phrases[lang()][0]);},400);}
-    }
-    // pulse badge only visible in hero mode
-    if(pulse)pulse.style.opacity=pe<0.5?'1':'0';
-  }
-
-  let ticking=false;
-  function onScroll(){
-    if(!ticking){ticking=true;requestAnimationFrame(function(){place();ticking=false;});}
-  }
-  // reduced-motion: the global media query kills the transition, so this snaps;
-  // otherwise the .12s linear transition smooths it. Either way scroll drives it.
-  window.addEventListener('scroll',onScroll,{passive:true});
-  window.addEventListener('resize',onScroll);
-  place();
 
   // peek line at the CTA
   const cta=document.querySelector('.cta-section');
   if(cta&&'IntersectionObserver' in window){
     new IntersectionObserver(function(en){
-      en.forEach(function(x){if(x.isIntersecting)say(lang()==='zh'?'就差一个我啦':'Almost there, just add me');});
+      en.forEach(function(x){if(x.isIntersecting&&uc.classList.contains('docked'))say(lang()==='zh'?'就差一个我啦':'Almost there, just add me');});
     },{threshold:0.5}).observe(cta);
   }
 })();
