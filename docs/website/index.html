@@ -277,7 +277,9 @@ section{position:relative;z-index:2}
 .weather-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:52px}
 .weather-card{border-radius:var(--rs);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-sm);transition:all .3s var(--ease);background:var(--card-bg)}
 .weather-card:hover{transform:translateY(-4px);border-color:var(--border-hover);box-shadow:var(--shadow-md)}
-.wc-visual{height:96px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative}
+.wc-visual{height:96px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;overflow:hidden}
+.wc-visual canvas{position:absolute;inset:0;width:100%;height:100%}
+.wc-visual .wc-emoji{position:relative;z-index:1}
 .wc-visual::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,0.18))}
 .wc-info{padding:13px 15px}
 .wc-info h4{font-size:14.5px;font-weight:600;margin-bottom:2px;letter-spacing:-0.01em}
@@ -538,13 +540,13 @@ footer .heart svg{width:15px;height:15px}
     <p class="ssub rv" data-i18n="weather.subtitle">Canvas 粒子引擎实时渲染 7 种天气 + 昼夜循环 + 5 种罕见天象。不只是图标，是真的有雨滴落下来、雪花飘起来、流星划过夜空。</p>
     <div class="weather-clock rv"><span id="liveClock">--:--</span> <span class="weather-clock-ampm" id="livePeriod">现在</span></div>
     <div class="weather-grid">
-      <div class="weather-card wc-clear rv"><div class="wc-visual">☀️</div><div class="wc-info"><h4 data-i18n="weather.clear_h">晴天</h4><p data-i18n="weather.clear_p">太阳划过天空，暖色光晕</p></div></div>
-      <div class="weather-card wc-cloudy rv"><div class="wc-visual">☁️</div><div class="wc-info"><h4 data-i18n="weather.cloudy_h">多云</h4><p data-i18n="weather.cloudy_p">视差云层缓缓飘过</p></div></div>
-      <div class="weather-card wc-rain rv"><div class="wc-visual">🌧️</div><div class="wc-info"><h4 data-i18n="weather.rain_h">下雨</h4><p data-i18n="weather.rain_p">200 粒雨滴，风影响角度</p></div></div>
-      <div class="weather-card wc-thunder rv"><div class="wc-visual">⛈️</div><div class="wc-info"><h4 data-i18n="weather.thunder_h">雷暴</h4><p data-i18n="weather.thunder_p">闪电照亮整个画面</p></div></div>
-      <div class="weather-card wc-snow rv"><div class="wc-visual">❄️</div><div class="wc-info"><h4 data-i18n="weather.snow_h">下雪</h4><p data-i18n="weather.snow_p">雪花旋转飘落，地面堆积</p></div></div>
-      <div class="weather-card wc-fog rv"><div class="wc-visual">🌫️</div><div class="wc-info"><h4 data-i18n="weather.fog_h">雾天</h4><p data-i18n="weather.fog_p">柔和雾气，若隐若现</p></div></div>
-      <div class="weather-card wc-icy rv"><div class="wc-visual">🧊</div><div class="wc-info"><h4 data-i18n="weather.icy_h">冰冻</h4><p data-i18n="weather.icy_p">冰晶悬浮，赛博寒潮</p></div></div>
+      <div class="weather-card wc-clear rv"><div class="wc-visual"><span class="wc-emoji">☀️</span><canvas data-wc="clear"></canvas></div><div class="wc-info"><h4 data-i18n="weather.clear_h">晴天</h4><p data-i18n="weather.clear_p">太阳划过天空，暖色光晕</p></div></div>
+      <div class="weather-card wc-cloudy rv"><div class="wc-visual"><span class="wc-emoji">☁️</span><canvas data-wc="cloudy"></canvas></div><div class="wc-info"><h4 data-i18n="weather.cloudy_h">多云</h4><p data-i18n="weather.cloudy_p">视差云层缓缓飘过</p></div></div>
+      <div class="weather-card wc-rain rv"><div class="wc-visual"><span class="wc-emoji">🌧️</span><canvas data-wc="rain"></canvas></div><div class="wc-info"><h4 data-i18n="weather.rain_h">下雨</h4><p data-i18n="weather.rain_p">200 粒雨滴，风影响角度</p></div></div>
+      <div class="weather-card wc-thunder rv"><div class="wc-visual"><span class="wc-emoji">⛈️</span><canvas data-wc="thunder"></canvas></div><div class="wc-info"><h4 data-i18n="weather.thunder_h">雷暴</h4><p data-i18n="weather.thunder_p">闪电照亮整个画面</p></div></div>
+      <div class="weather-card wc-snow rv"><div class="wc-visual"><span class="wc-emoji">❄️</span><canvas data-wc="snow"></canvas></div><div class="wc-info"><h4 data-i18n="weather.snow_h">下雪</h4><p data-i18n="weather.snow_p">雪花旋转飘落，地面堆积</p></div></div>
+      <div class="weather-card wc-fog rv"><div class="wc-visual"><span class="wc-emoji">🌫️</span><canvas data-wc="fog"></canvas></div><div class="wc-info"><h4 data-i18n="weather.fog_h">雾天</h4><p data-i18n="weather.fog_p">柔和雾气，若隐若现</p></div></div>
+      <div class="weather-card wc-icy rv"><div class="wc-visual"><span class="wc-emoji">🧊</span><canvas data-wc="icy"></canvas></div><div class="wc-info"><h4 data-i18n="weather.icy_h">冰冻</h4><p data-i18n="weather.icy_p">冰晶悬浮，赛博寒潮</p></div></div>
     </div>
     <div class="weather-dn rv">
       <div class="dn-pill"><span class="emoji">🌅</span><span data-i18n="weather.sun">太阳轨迹东升西落</span></div>
@@ -934,6 +936,96 @@ setInterval(tickClock,1000*30);
     new IntersectionObserver(function(en){
       en.forEach(function(x){if(x.isIntersecting&&uc.classList.contains('docked'))say(lang()==='zh'?'就差一个我啦':'Almost there, just add me');});
     },{threshold:0.5}).observe(cta);
+  }
+})();
+
+// ===== Weather card particle demo — mini Canvas engine per weather type =====
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const canvases=Array.from(document.querySelectorAll('canvas[data-wc]'));
+  if(!canvases.length)return;
+
+  function setup(c){
+    const ctx=c.getContext('2d');
+    const type=c.dataset.wc;
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    let W=0,H=0,parts=[],flash=0,t=0,raf=null,running=false;
+    function resize(){
+      const r=c.getBoundingClientRect();
+      W=Math.max(1,r.width);H=Math.max(1,r.height);
+      c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+      init();
+    }
+    function rnd(a,b){return a+Math.random()*(b-a);}
+    function init(){
+      parts=[];
+      if(type==='rain'||type==='thunder'){
+        const n=type==='thunder'?80:120;
+        for(let i=0;i<n;i++)parts.push({x:rnd(0,W),y:rnd(-H,H),len:rnd(8,16),sp:rnd(3,6)});
+      }else if(type==='snow'){
+        for(let i=0;i<50;i++)parts.push({x:rnd(0,W),y:rnd(-H,H),r:rnd(1,2.6),sp:rnd(.4,1.1),dr:rnd(-.4,.4),a:rnd(0,Math.PI*2)});
+      }else if(type==='clear'){
+        for(let i=0;i<14;i++)parts.push({x:rnd(0,W),y:rnd(0,H*.7),r:rnd(1,2.2),sp:rnd(.2,.5),o:rnd(.2,.6)});
+      }else if(type==='cloudy'){
+        for(let i=0;i<5;i++)parts.push({x:rnd(-W,2*W),y:rnd(H*.1,H*.6),r:rnd(14,26),sp:rnd(.15,.4),o:rnd(.15,.4)});
+      }else if(type==='fog'){
+        for(let i=0;i<6;i++)parts.push({x:rnd(-W,2*W),y:rnd(0,H),r:rnd(18,32),sp:rnd(.1,.3),o:rnd(.08,.2)});
+      }else if(type==='icy'){
+        for(let i=0;i<26;i++)parts.push({x:rnd(0,W),y:rnd(0,H),r:rnd(1,2.2),sp:rnd(-.2,.2),a:rnd(0,Math.PI*2),tw:rnd(.005,.02)});
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      t+=1;
+      if(type==='rain'){
+        ctx.strokeStyle='rgba(200,220,255,0.6)';ctx.lineWidth=1;
+        parts.forEach(p=>{ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-1,p.y+p.len);ctx.stroke();p.y+=p.sp;p.x-=0.3;if(p.y>H){p.y=-p.len;p.x=rnd(0,W);}});
+      }else if(type==='thunder'){
+        ctx.strokeStyle='rgba(210,225,255,0.7)';ctx.lineWidth=1.2;
+        parts.forEach(p=>{ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-1.5,p.y+p.len);ctx.stroke();p.y+=p.sp*1.3;if(p.y>H){p.y=-p.len;p.x=rnd(0,W);}});
+        flash-=1;
+        if(flash<=0&&Math.random()<0.012){flash=8;}
+        if(flash>0){ctx.fillStyle='rgba(255,255,255,'+(flash/8*0.5)+')';ctx.fillRect(0,0,W,H);
+          // bolt
+          ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=1.5;ctx.beginPath();
+          let bx=rnd(W*0.2,W*0.8),by=0;ctx.moveTo(bx,by);
+          while(by<H){bx+=rnd(-6,6);by+=rnd(8,14);ctx.lineTo(bx,by);}
+          ctx.stroke();
+        }
+      }else if(type==='snow'){
+        ctx.fillStyle='rgba(255,255,255,0.85)';
+        parts.forEach(p=>{p.a+=0.03;p.x+=Math.sin(p.a)*p.dr;p.y+=p.sp;if(p.y>H){p.y=-p.r;p.x=rnd(0,W);}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.28);ctx.fill();});
+      }else if(type==='clear'){
+        // warm sun rays + dust motes
+        parts.forEach(p=>{p.y-=p.sp;p.x+=Math.sin(t*0.02+p.r)*0.3;if(p.y<0){p.y=H*.7;p.x=rnd(0,W);}ctx.fillStyle='rgba(255,240,200,'+p.o+')';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.28);ctx.fill();});
+      }else if(type==='cloudy'){
+        parts.forEach(p=>{p.x+=p.sp;if(p.x>W+40)p.x=-40;const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,'rgba(255,255,255,'+p.o+')');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.28);ctx.fill();});
+      }else if(type==='fog'){
+        parts.forEach(p=>{p.x+=p.sp;if(p.x>W+50)p.x=-50;const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,'rgba(255,255,255,'+p.o+')');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.28);ctx.fill();});
+      }else if(type==='icy'){
+        parts.forEach(p=>{p.a+=p.tw;p.x+=Math.cos(p.a)*0.4;p.y+=Math.sin(p.a)*0.4;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.fillStyle='rgba(200,245,255,0.8)';ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillRect(-p.r*1.6,-0.5,p.r*3.2,1);ctx.fillRect(-0.5,-p.r*1.6,1,p.r*3.2);ctx.restore();});
+      }
+      if(running)raf=requestAnimationFrame(draw);
+    }
+    function start(){if(running||reduce)return;running=true;raf=requestAnimationFrame(draw);}
+    function stop(){running=false;if(raf)cancelAnimationFrame(raf);raf=null;}
+    resize();
+    window.addEventListener('resize',resize,{passive:true});
+    // run only while the weather grid is on screen
+    return {start,stop};
+  }
+
+  const controllers=canvases.map(setup);
+  const grid=document.querySelector('.weather-grid');
+  if(grid&&'IntersectionObserver' in window){
+    new IntersectionObserver(function(en){
+      en.forEach(function(e){
+        if(e.isIntersecting)controllers.forEach(c=>c.start());
+        else controllers.forEach(c=>c.stop());
+      });
+    },{threshold:0}).observe(grid);
+  }else{
+    controllers.forEach(c=>c.start());
   }
 })();
 </script>
