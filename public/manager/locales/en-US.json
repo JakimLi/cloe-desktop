@@ -12,7 +12,7 @@
     "shortcuts": "Shortcuts",
     "reminders": "Reminders",
     "weather": "Weather",
-    "nativeAgent": "Native Agent"
+    "nativeAgent": "Cloe Agent"
   },
   "setCount": "{{count}} set(s)",
   "actionCount": "{{count}} actions",
@@ -408,7 +408,7 @@
     "statusCompleted": "Ready"
   },
   "nativeAgent": {
-    "title": "Native Agent",
+    "title": "Cloe Agent",
     "loading": "Loading...",
     "loadFailed": "Failed to load config",
     "provider": "Provider",

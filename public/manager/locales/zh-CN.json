@@ -12,7 +12,7 @@
     "shortcuts": "快捷键",
     "reminders": "提醒",
     "weather": "天气",
-    "nativeAgent": "本地 Agent"
+    "nativeAgent": "Cloe Agent"
   },
   "setCount": "{{count}} 套形象",
   "actionCount": "{{count}} 个动作",
@@ -408,7 +408,7 @@
     "statusCompleted": "已就绪"
   },
   "nativeAgent": {
-    "title": "本地 Agent",
+    "title": "Cloe Agent",
     "loading": "加载中...",
     "loadFailed": "加载配置失败",
     "provider": "服务商",
