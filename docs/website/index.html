@@ -536,106 +536,6 @@ footer .heart{color:var(--accent)}
 </section>
 
 
-<!-- Architecture -->
-<section class="as">
-  <div class="ctn">
-    <div class="rv">
-      <span class="slabel" data-i18n="arch.label">架构</span>
-      <h2 class="stitle" data-i18n="arch.title">简单到一行 curl。</h2>
-      <p class="ssub" data-i18n="arch.subtitle">没有 SDK，没有依赖。Bridge 内嵌在 Electron 里，启动应用就有完整的 HTTP + WebSocket API。</p>
-    </div>
-    <div class="adi rv"><span class="ad">┌─────────────┐</span>    <span class="al">HTTP/WS</span>      <span class="ad">┌─────────────────────────────────────┐</span>
-<span class="ad">│</span>  <span class="aa">Any Client</span>  <span class="ad">│</span> <span class="ad">──────────────▶</span> <span class="ad">│</span>       <span class="al">Cloe Desktop (Electron)</span>         <span class="ad">│</span>
-<span class="ad">│</span>             <span class="ad">│</span>  <span class="ad">:19851</span>       <span class="ad">│</span>                                      <span class="ad">│</span>
-<span class="ad">│</span>  AI Agent   <span class="ad">│</span>               <span class="ad">│</span>  <span class="ad">┌─────────┐</span>  <span class="ad">┌──────────┐</span>  <span class="ad">┌────┐</span> <span class="ad">│</span>
-<span class="ad">│</span>  curl       <span class="ad">│</span>               <span class="ad">│</span>  <span class="ad">│</span> <span class="aa">Bridge</span>  <span class="ad">│─▶</span><span class="ad">│</span> <span class="aa">Renderer</span> <span class="ad">│─▶</span><span class="ad">│</span><span class="aa">GIF</span><span class="ad">│</span> <span class="ad">│</span>
-<span class="ad">│</span>  Android    <span class="ad">│</span><span class="ad">◀── WebSocket ──</span><span class="ad">│</span>  <span class="ad">│</span><span class="ad">(embedded)│</span>  <span class="ad">│</span><span class="ad">(crossfade)│</span>  <span class="ad">│</span><span class="ad">Player│</span><span class="ad">│</span>
-<span class="ad">│</span>  Scripts    <span class="ad">│</span>               <span class="ad">│</span>  <span class="ad">└─────────┘</span>  <span class="ad">└──────────┘</span>  <span class="ad">└────┘</span> <span class="ad">│</span>
-<span class="ad">└─────────────┘</span>               <span class="ad">│</span>  <span class="ad">┌──────────┐</span>  <span class="ad">┌─────────────────┐</span>  <span class="ad">│</span>
-                               <span class="ad">│</span>  <span class="ad">│</span> <span class="aa">Canvas</span>  <span class="ad">│</span>  <span class="ad">│</span> <span class="aa">Chat Window</span>    <span class="ad">│</span>  <span class="ad">│</span>
-                               <span class="ad">│</span>  <span class="ad">│</span><span class="ad">(Excalidraw)│</span>  <span class="ad">│</span><span class="ad">(Hermes Client)│</span>  <span class="ad">│</span>
-                               <span class="ad">│</span>  <span class="ad">└──────────┘</span>  <span class="ad">└─────────────────┘</span>  <span class="ad">│</span>
-                               <span class="ad">└─────────────────────────────────────┘</span>
-
-<span class="al">curl -s http://localhost:19851/action -d '{"action":"smile"}'</span>  <span class="ad" data-i18n="arch.comment"># 就这么简单</span></div>
-  </div>
-</section>
-
-
-<!-- Comparison -->
-<section class="cs">
-  <div class="ctn">
-    <div class="rv">
-      <span class="slabel" data-i18n="cmp.label">对比</span>
-      <h2 class="stitle" data-i18n="cmp.title">不只是桌面宠物。</h2>
-      <p class="ssub" data-i18n="cmp.subtitle">Cloe 是 AI Agent 的视觉层——有表情、有声音、有自主性，不是一个静态的桌面装饰。</p>
-    </div>
-    <div class="ct rv">
-      <table>
-        <thead>
-          <tr>
-            <th data-i18n="cmp.th_feature">功能</th>
-            <th data-i18n="cmp.th_pet">桌面宠物</th>
-            <th data-i18n="cmp.th_chatbot">ChatBot 窗口</th>
-            <th class="cc">Cloe Desktop</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td data-i18n="cmp.row1_f">真实感角色</td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"/><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row1_cloe">写实</span></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row2_f">AI 自主表情</td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row2_cloe">Agent 决策</span></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row3_f">语音 + 嘴型同步</td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row4_f">Agent 生命周期集成</td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row4_cloe">Hermes 原生</span></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row5_f">内置聊天 / 白板</td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row5_chatbot">聊天</span></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row5_cloe">聊天 + 白板</span></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row6_f">自定义角色皮肤</td>
-            <td><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row6_pet">有限</span></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row6_cloe">AI 生成</span></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row7_f">手机同步</td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row7_cloe">Android</span></span></td>
-          </tr>
-          <tr>
-            <td data-i18n="cmp.row8_f">开源免费</td>
-            <td><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg></span></td>
-            <td><span class="no"><svg class="no-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> <span data-i18n="cmp.row8_chatbot">订阅</span></span></td>
-            <td class="clc"><span class="yes"><svg class="yes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="cmp.row8_cloe">MIT</span></span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-
 <!-- CTA -->
 <section class="ctas">
   <div class="ctn">
@@ -670,7 +570,7 @@ const translations={
     // Marquee
     'mq.expressions':'14 种表情动画','mq.autonomy':'AI 自主决策','mq.tts':'TTS 语音合成','mq.chat':'内置聊天窗口','mq.canvas':'Canvas 白板','mq.hermes':'Hermes 深度集成','mq.android':'Android 手机同步','mq.skins':'自定义角色皮肤','mq.pomodoro':'番茄钟提醒','mq.terminal':'嵌入式终端','mq.weather':'实时天气',
     // Terminal
-    'term.label':'终端','term.title':'终端就在她身后。','term.subtitle':'嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。','term.screenshot_placeholder':'截图占位 — 天气 + 终端','term.weather_h':'实时天气','term.weather_p':'桌面上随时显示当前天气和温度。她知道外面在下雨，会提醒你带伞——比手机通知更自然。','term.embedded_h':'嵌入式终端','term.embedded_p':'完整终端直接嵌入桌面角色窗口。AI Agent 可以自主执行命令、查看输出、调试代码——你在旁边看着就好。','term.exec_h':'AI 自主执行','term.exec_p':'不只是建议，她直接上手。跑测试、Git 提交、部署服务——每一步的终端输出都实时可见，随时可以接管。',,
+    'term.label':'终端','term.title':'终端就在她身后。','term.subtitle':'嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。','term.screenshot_placeholder':'截图占位 — 天气 + 终端','term.weather_h':'实时天气','term.weather_p':'桌面上随时显示当前天气和温度。她知道外面在下雨，会提醒你带伞——比手机通知更自然。','term.embedded_h':'嵌入式终端','term.embedded_p':'完整终端直接嵌入桌面角色窗口。AI Agent 可以自主执行命令、查看输出、调试代码——你在旁边看着就好。','term.exec_h':'AI 自主执行','term.exec_p':'不只是建议，她直接上手。跑测试、Git 提交、部署服务——每一步的终端输出都实时可见，随时可以接管。',
     // Weather
     'weather.label':'天气','weather.title':'窗外的天气，落在你的桌面上。','weather.subtitle':'Canvas 粒子引擎实时渲染 7 种天气 + 昼夜循环 + 5 种罕见天象。不只是图标，是真的有雨滴落下来、雪花飘起来、流星划过夜空。','weather.clear_h':'晴天','weather.clear_p':'太阳划过天空，暖色光晕','weather.cloudy_h':'多云','weather.cloudy_p':'视差云层缓缓飘过','weather.rain_h':'下雨','weather.rain_p':'200 粒雨滴，风影响角度','weather.thunder_h':'雷暴','weather.thunder_p':'闪电照亮整个画面','weather.snow_h':'下雪','weather.snow_p':'雪花旋转飘落，地面堆积','weather.fog_h':'雾天','weather.fog_p':'柔和雾气，若隐若现','weather.icy_h':'冰冻','weather.icy_p':'冰晶悬浮，赛博寒潮','weather.sun':'太阳轨迹东升西落','weather.moon':'月相随日期变化','weather.stars':'夜空 80 颗星星闪烁','weather.special_h':'✦ 随机天象 — 低概率触发','weather.special_p':'每 2-5 分钟检测一次，约 15% 概率出现。你永远不会知道下一秒会看到什么。','weather.meteor_h':'流星雨','weather.meteor_p':'深夜，一道道光痕划过','weather.aurora_h':'极光','weather.aurora_p':'绿蓝光带在夜空流动','weather.rainbow_h':'彩虹','weather.rainbow_p':'雨后双彩虹横跨天际','weather.sundog_h':'日晕','weather.sundog_p':'太阳光环 + 两侧假日','weather.fireball_h':'火流星','weather.fireball_p':'一颗火球拖着尾迹掠过',
     // Expressions
@@ -679,10 +579,7 @@ const translations={
     'feat.label':'功能','feat.title':'不只是一个会动的图片。','feat.subtitle':'Cloe 是一个完整的 AI 交互层——语音、聊天、白板、提醒，全部集成在一个透明窗口里。','feat.agent_h':'Agent 驱动的自主性','feat.agent_p':'连接任何 AI Agent（Hermes、LangChain、自定义脚本），她会根据对话上下文自主选择表情。任务开始自动切换到 working 模式，完成后回到 idle——这不是脚本，是她自己决定的。','feat.tts_h':'语音合成 (TTS)','feat.tts_p':'说话时嘴型同步动画。支持本地 CPU 推理（MOSS-TTS）和云端 API（CosyVoice），用她自己的声音跟你交流。','feat.chat_h':'内置聊天窗口','feat.chat_p':'直接在桌面上跟 Agent 对话。SSE 流式输出、工具进度、模型切换、Markdown 渲染——不需要终端。','feat.canvas_h':'Canvas 白板','feat.canvas_p':'内嵌 Excalidraw 画布，Agent 可以实时画架构图、流程图、标注重点，你也可以同时编辑。','feat.remind_h':'提醒 & 番茄钟','feat.remind_p':'间隔提醒（“每 30 分钟喝水”）和番茄工作法，配合桌面卡片、语音和角色动作——她会拍拍你提醒休息。','feat.android_h':'Android 同步','feat.android_p':'手机上也有一个浮窗，通过局域网或 Tailscale 连接到桌面端。同一个角色，走到哪跟到哪。',
     // How it works
     'how.label':'工作原理','how.title':'三步，她就活了。','how.subtitle':'不需要配置，不需要集成。安装、连接 Agent，她就在那里了。','how.step1_label':'01 — 安装','how.step1_h':'一行命令安装','how.step1_p':'下载 DMG、安装到 /Applications、启动应用、自动检测 Hermes 集成——全部自动完成。','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step2_label':'02 — 连接','how.step2_h':'Agent 接管表情','how.step2_p':'AI Agent 通过简单的 HTTP API 控制表情。任务开始 → working，完成 → idle，打招呼 → wave，说再见 → kiss。','how.step3_label':'03 — 她活了','how.step3_h':'她会自己动','how.step3_p':'空闲时每 8-15 秒自动切换动画——眨眼、微笑、思考——从不连续重复同一个。你没在看她的时候，她也活着。',
-    // Architecture
-    'arch.label':'架构','arch.title':'简单到一行 curl。','arch.subtitle':'没有 SDK，没有依赖。Bridge 内嵌在 Electron 里，启动应用就有完整的 HTTP + WebSocket API。','arch.comment':'# 就这么简单',
-    // Comparison
-    'cmp.label':'对比','cmp.title':'不只是桌面宠物。','cmp.subtitle':'Cloe 是 AI Agent 的视觉层——有表情、有声音、有自主性，不是一个静态的桌面装饰。','cmp.th_feature':'功能','cmp.th_pet':'桌面宠物','cmp.th_chatbot':'ChatBot 窗口','cmp.row1_f':'真实感角色','cmp.row1_cloe':'写实','cmp.row2_f':'AI 自主表情','cmp.row2_cloe':'Agent 决策','cmp.row3_f':'语音 + 嘴型同步','cmp.row4_f':'Agent 生命周期集成','cmp.row4_cloe':'Hermes 原生','cmp.row5_f':'内置聊天 / 白板','cmp.row5_chatbot':'聊天','cmp.row5_cloe':'聊天 + 白板','cmp.row6_f':'自定义角色皮肤','cmp.row6_pet':'有限','cmp.row6_cloe':'AI 生成','cmp.row7_f':'手机同步','cmp.row7_cloe':'Android','cmp.row8_f':'开源免费','cmp.row8_chatbot':'订阅','cmp.row8_cloe':'MIT',
+
     // CTA
     'cta.title':'你的桌面，<br>只差一个<em>她</em>。','cta.desc':'一行命令安装。开源、免费、可定制。','cta.download':'下载 for macOS','cta.docs':'查看文档',
     // Footer
@@ -700,7 +597,7 @@ const translations={
     // Marquee
     'mq.expressions':'14 Expression Animations','mq.autonomy':'AI-Driven Autonomy','mq.tts':'TTS Voice Synthesis','mq.chat':'Built-in Chat Window','mq.canvas':'Canvas Whiteboard','mq.hermes':'Deep Hermes Integration','mq.android':'Android Phone Sync','mq.skins':'Custom Character Skins','mq.pomodoro':'Pomodoro Reminders','mq.terminal':'Embedded Terminal','mq.weather':'Live Weather',
     // Terminal
-    'term.label':'Terminal','term.title':'The Terminal Is Right Behind Her.','term.subtitle':'Embedded terminal + live weather. She\'s your desktop co-pilot — check weather, run scripts, read logs, write code. You say it, she does it. Even what you don\'t say, she\'s already thinking about.','term.screenshot_placeholder':'Screenshot placeholder — Weather + Terminal','term.weather_h':'Live Weather','term.weather_p':'Current weather and temperature right on your desktop. She knows it\'s raining outside and reminds you to grab an umbrella — more natural than a phone notification.','term.embedded_h':'Embedded Terminal','term.embedded_p':'A full terminal embedded directly in the desktop widget. The AI Agent can execute commands, inspect output, and debug code autonomously — you just watch.','term.exec_h':'AI Autonomous Execution','term.exec_p':'Not just suggestions — she takes action. Run tests, Git commits, deploy services — every step\'s terminal output is visible in real time, ready for you to take over.',,
+    'term.label':'Terminal','term.title':'The Terminal Is Right Behind Her.','term.subtitle':'Embedded terminal + live weather. She\'s your desktop co-pilot — check weather, run scripts, read logs, write code. You say it, she does it. Even what you don\'t say, she\'s already thinking about.','term.screenshot_placeholder':'Screenshot placeholder — Weather + Terminal','term.weather_h':'Live Weather','term.weather_p':'Current weather and temperature right on your desktop. She knows it\'s raining outside and reminds you to grab an umbrella — more natural than a phone notification.','term.embedded_h':'Embedded Terminal','term.embedded_p':'A full terminal embedded directly in the desktop widget. The AI Agent can execute commands, inspect output, and debug code autonomously — you just watch.','term.exec_h':'AI Autonomous Execution','term.exec_p':'Not just suggestions — she takes action. Run tests, Git commits, deploy services — every step\'s terminal output is visible in real time, ready for you to take over.',
     // Weather
     'weather.label':'Weather','weather.title':'The sky outside, right on your desktop.','weather.subtitle':'A Canvas particle engine renders 7 weather types + day/night cycle + 5 rare celestial phenomena in real time. Not just icons — actual rain falling, snow drifting, meteors streaking across the night sky.','weather.clear_h':'Clear','weather.clear_p':'Sun arcs across the sky with warm glow','weather.cloudy_h':'Cloudy','weather.cloudy_p':'Parallax cloud layers drifting slowly','weather.rain_h':'Rain','weather.rain_p':'200 raindrops, wind affects angle','weather.thunder_h':'Thunderstorm','weather.thunder_p':'Lightning illuminates the entire scene','weather.snow_h':'Snow','weather.snow_p':'Snowflakes spin and drift, accumulate','weather.fog_h':'Fog','weather.fog_p':'Soft mist, everything fades in and out','weather.icy_h':'Icy','weather.icy_p':'Ice crystals suspended, cyber chill','weather.sun':'Sun arcs east to west','weather.moon':'Moon phases change by date','weather.stars':'80 stars twinkling in the night sky','weather.special_h':'✦ Random Phenomena — Low Probability','weather.special_p':'Checked every 2-5 min, ~15% chance to appear. You never know what you\'ll see next.','weather.meteor_h':'Meteor Shower','weather.meteor_p':'Late night, streaks of light across the sky','weather.aurora_h':'Aurora','weather.aurora_p':'Green-blue ribbons flowing in the night','weather.rainbow_h':'Rainbow','weather.rainbow_p':'Double rainbow arching across after rain','weather.sundog_h':'Sun Dog','weather.sundog_p':'Sun halo with parhelia on both sides','weather.fireball_h':'Fireball','weather.fireball_p':'A blazing orb streaking across with a trail',
     // Expressions
@@ -709,10 +606,7 @@ const translations={
     'feat.label':'Features','feat.title':'More Than a Moving Picture.','feat.subtitle':'Cloe is a complete AI interaction layer — voice, chat, whiteboard, reminders, all in one transparent window.','feat.agent_h':'Agent-Driven Autonomy','feat.agent_p':'Connect any AI Agent (Hermes, LangChain, custom scripts). She autonomously chooses expressions based on conversation context. Auto-switches to working mode when tasks start, returns to idle when done — not scripted, her decision.','feat.tts_h':'Voice Synthesis (TTS)','feat.tts_p':'Mouth-synced animation when speaking. Supports local CPU inference (MOSS-TTS) and cloud API (CosyVoice), in her own voice.','feat.chat_h':'Built-in Chat Window','feat.chat_p':'Talk to the Agent right on your desktop. SSE streaming, tool progress, model switching, Markdown rendering — no terminal needed.','feat.canvas_h':'Canvas Whiteboard','feat.canvas_p':'Embedded Excalidraw canvas. The Agent draws architecture diagrams, flowcharts, and annotations in real time. You can edit alongside.','feat.remind_h':'Reminders & Pomodoro','feat.remind_p':'Interval reminders ("drink water every 30 min") and Pomodoro timers with desktop cards, voice, and character actions — she\'ll nudge you to take breaks.','feat.android_h':'Android Sync','feat.android_p':'A floating widget on your phone too, connected via LAN or Tailscale. Same character, follows you everywhere.',
     // How it works
     'how.label':'How It Works','how.title':'Three Steps, She\'s Alive.','how.subtitle':'No configuration, no integration. Install, connect your Agent, and she\'s there.','how.step1_label':'01 — Install','how.step1_h':'One-Line Install','how.step1_p':'Downloads the DMG, installs to /Applications, launches the app, auto-detects Hermes integration — all automatic.','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step2_label':'02 — Connect','how.step2_h':'Agent Takes Over Expressions','how.step2_p':'The AI Agent controls expressions via a simple HTTP API. Task starts → working, done → idle, greet → wave, goodbye → kiss.','how.step3_label':'03 — She\'s Alive','how.step3_h':'She Moves on Her Own','how.step3_p':'When idle, auto-cycles animations every 8–15 seconds — blink, smile, think — never repeating the same one twice. Even when you\'re not looking, she\'s alive.',
-    // Architecture
-    'arch.label':'Architecture','arch.title':'Simple as One curl.','arch.subtitle':'No SDK, no dependencies. The Bridge is embedded in Electron — launch the app and the full HTTP + WebSocket API is ready.','arch.comment':'# That simple',
-    // Comparison
-    'cmp.label':'Comparison','cmp.title':'More Than a Desktop Pet.','cmp.subtitle':'Cloe is the visual layer for AI Agents — with expressions, voice, and autonomy. Not a static desktop decoration.','cmp.th_feature':'Feature','cmp.th_pet':'Desktop Pet','cmp.th_chatbot':'ChatBot Window','cmp.row1_f':'Realistic Character','cmp.row1_cloe':'Photorealistic','cmp.row2_f':'AI Autonomous Expressions','cmp.row2_cloe':'Agent-Driven','cmp.row3_f':'Voice + Lip Sync','cmp.row4_f':'Agent Lifecycle Integration','cmp.row4_cloe':'Hermes Native','cmp.row5_f':'Built-in Chat / Whiteboard','cmp.row5_chatbot':'Chat','cmp.row5_cloe':'Chat + Whiteboard','cmp.row6_f':'Custom Character Skins','cmp.row6_pet':'Limited','cmp.row6_cloe':'AI-Generated','cmp.row7_f':'Phone Sync','cmp.row7_cloe':'Android','cmp.row8_f':'Open Source & Free','cmp.row8_chatbot':'Subscription','cmp.row8_cloe':'MIT',
+
     // CTA
     'cta.title':'Your desktop is<br>missing <em>her</em>.','cta.desc':'One command to install. Open source, free, customizable.','cta.download':'Download for macOS','cta.docs':'View Docs',
     // Footer
