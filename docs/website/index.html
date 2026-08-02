@@ -243,7 +243,7 @@ footer .heart{color:var(--accent)}
 .acs-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--card-color,var(--accent));opacity:0;transition:opacity .3s}
 .acs-card:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateY(-4px);box-shadow:0 12px 40px var(--card-shadow)}
 .acs-card:hover::before{opacity:1}
-.acs-logo{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:18px;font-weight:800;letter-spacing:-.03em;background:var(--logo-bg,var(--ag));color:var(--logo-fg,var(--accent))}
+.acs-name{font-size:17px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;line-height:1.2}
 .acs-card h4{font-size:15px;font-weight:700;margin-bottom:4px}
 .acs-card p{font-size:12px;color:var(--ts);line-height:1.5}
 .acs-card.featured{border-color:var(--ag);background:rgba(236,72,153,.05)}
@@ -519,38 +519,32 @@ footer .heart{color:var(--accent)}
     <div class="rv">
       <span class="slabel" data-i18n="acs.label">兼容性</span>
       <h2 class="stitle" data-i18n="acs.title">不绑定任何 Agent。只要能发 HTTP 请求，就能驱动她。</h2>
-      <p class="ssub" data-i18n="acs.subtitle">Cloe 的 API 是开放、简单、语言无关的。我们优先深度集成了 Hermes，但 Claude Code、Codex、Work Buddy、Coder 等任何 Agent 产品都能让她活起来。</p>
+      <p class="ssub" data-i18n="acs.subtitle">Cloe 的 API 是开放、简单、语言无关的。我们优先深度集成了 Hermes，但 Claude Code、Codex、Work Buddy、Qoder 等任何 Agent 产品都能让她活起来。</p>
     </div>
     <div class="acs-grid">
-      <div class="acs-card featured rv" style="--logo-bg:rgba(236,72,153,.15);--logo-fg:var(--accent);--card-color:var(--accent)">
-        <div class="acs-logo">H</div>
-        <h4>Hermes</h4>
+      <div class="acs-card featured rv" style="--card-color:var(--accent)">
+        <div class="acs-name" style="color:var(--accent)">Hermes</div>
         <p data-i18n="acs.hermes_desc">原生深度集成</p>
         <span class="acs-badge" data-i18n="acs.badge_first">FIRST-CLASS</span>
       </div>
-      <div class="acs-card rv" style="--logo-bg:rgba(217,119,6,.15);--logo-fg:#f59e0b;--card-color:#f59e0b">
-        <div class="acs-logo">CC</div>
-        <h4>Claude Code</h4>
+      <div class="acs-card rv" style="--card-color:#f59e0b">
+        <div class="acs-name" style="color:#f59e0b">Claude Code</div>
         <p data-i18n="acs.claude_code_desc">Anthropic CLI Agent</p>
       </div>
-      <div class="acs-card rv" style="--logo-bg:rgba(16,163,127,.15);--logo-fg:#10a37f;--card-color:#10a37f">
-        <div class="acs-logo">Cx</div>
-        <h4>Codex</h4>
+      <div class="acs-card rv" style="--card-color:#10a37f">
+        <div class="acs-name" style="color:#10a37f">Codex</div>
         <p data-i18n="acs.codex_desc">OpenAI Coding Agent</p>
       </div>
-      <div class="acs-card rv" style="--logo-bg:rgba(59,130,246,.15);--logo-fg:#3b82f6;--card-color:#3b82f6">
-        <div class="acs-logo">WB</div>
-        <h4>Work Buddy</h4>
+      <div class="acs-card rv" style="--card-color:#3b82f6">
+        <div class="acs-name" style="color:#3b82f6">Work Buddy</div>
         <p data-i18n="acs.workbuddy_desc">AI 工作伙伴</p>
       </div>
-      <div class="acs-card rv" style="--logo-bg:rgba(239,68,68,.15);--logo-fg:#ef4444;--card-color:#ef4444">
-        <div class="acs-logo">Cr</div>
-        <h4>Coder</h4>
-        <p data-i18n="acs.coder_desc">阿里通义编码 Agent</p>
+      <div class="acs-card rv" style="--card-color:#ef4444">
+        <div class="acs-name" style="color:#ef4444">Qoder</div>
+        <p data-i18n="acs.qoder_desc">阿里通义编码 Agent</p>
       </div>
-      <div class="acs-card rv" style="--logo-bg:var(--bg-card-hover);--logo-fg:var(--ts);--card-color:var(--ts)">
-        <div class="acs-logo" data-i18n="acs.more_h">+</div>
-        <h4 data-i18n="acs.more_title">更多 Agent</h4>
+      <div class="acs-card rv" style="--card-color:var(--ts)">
+        <div class="acs-name" style="color:var(--ts)" data-i18n="acs.more_title">更多 Agent</div>
         <p data-i18n="acs.more_desc">任何能发 HTTP 的 Agent</p>
       </div>
     </div>
@@ -646,11 +640,11 @@ const translations={
     // Expressions
     'expr.label':'表达式','expr.title':'14 种内置表情，无限可能。','expr.subtitle':'不是硬编码的规则。AI Agent 根据对话上下文、任务状态和情绪线索，自主决定显示什么表情。被夸了就笑，说再见就飞吻，熬夜就打哈欠——这叫自由意志。而且她可以自己学习、生成新表情——内置的只是起点，不是上限。',
     // Features
-    'feat.label':'功能','feat.title':'不只是一个会动的图片。','feat.subtitle':'Cloe 是一个完整的 AI 交互层——语音、聊天、白板、提醒，全部集成在一个透明窗口里。','feat.agent_h':'Agent 驱动的自主性','feat.agent_p':'连接任何 AI Agent（Hermes、Claude Code、Codex、Work Buddy、Coder 等），她会根据对话上下文自主选择表情。任务开始自动切换到 working 模式，完成后回到 idle——这不是脚本，是她自己决定的。','feat.tts_h':'语音合成 (TTS)','feat.tts_p':'说话时嘴型同步动画。支持本地 CPU 推理（MOSS-TTS）和云端 API（CosyVoice），用她自己的声音跟你交流。','feat.chat_h':'内置聊天窗口','feat.chat_p':'直接在桌面上跟 Agent 对话。SSE 流式输出、工具进度、模型切换、Markdown 渲染——不需要终端。','feat.canvas_h':'Canvas 白板','feat.canvas_p':'内嵌 Excalidraw 画布，Agent 可以实时画架构图、流程图、标注重点，你也可以同时编辑。','feat.remind_h':'提醒 & 番茄钟','feat.remind_p':'间隔提醒（“每 30 分钟喝水”）和番茄工作法，配合桌面卡片、语音和角色动作——她会拍拍你提醒休息。','feat.android_h':'Android 同步','feat.android_p':'手机上也有一个浮窗，通过局域网或 Tailscale 连接到桌面端。同一个角色，走到哪跟到哪。',
+    'feat.label':'功能','feat.title':'不只是一个会动的图片。','feat.subtitle':'Cloe 是一个完整的 AI 交互层——语音、聊天、白板、提醒，全部集成在一个透明窗口里。','feat.agent_h':'Agent 驱动的自主性','feat.agent_p':'连接任何 AI Agent（Hermes、Claude Code、Codex、Work Buddy、Qoder 等），她会根据对话上下文自主选择表情。任务开始自动切换到 working 模式，完成后回到 idle——这不是脚本，是她自己决定的。','feat.tts_h':'语音合成 (TTS)','feat.tts_p':'说话时嘴型同步动画。支持本地 CPU 推理（MOSS-TTS）和云端 API（CosyVoice），用她自己的声音跟你交流。','feat.chat_h':'内置聊天窗口','feat.chat_p':'直接在桌面上跟 Agent 对话。SSE 流式输出、工具进度、模型切换、Markdown 渲染——不需要终端。','feat.canvas_h':'Canvas 白板','feat.canvas_p':'内嵌 Excalidraw 画布，Agent 可以实时画架构图、流程图、标注重点，你也可以同时编辑。','feat.remind_h':'提醒 & 番茄钟','feat.remind_p':'间隔提醒（“每 30 分钟喝水”）和番茄工作法，配合桌面卡片、语音和角色动作——她会拍拍你提醒休息。','feat.android_h':'Android 同步','feat.android_p':'手机上也有一个浮窗，通过局域网或 Tailscale 连接到桌面端。同一个角色，走到哪跟到哪。',
     // How it works
     'how.label':'工作原理','how.title':'三步，她就活了。','how.subtitle':'不需要配置，不需要集成。安装、连接 Agent，她就在那里了。','how.step1_label':'01 — 安装','how.step1_h':'一行命令安装','how.step1_p':'下载 DMG、安装到 /Applications、启动应用、自动检测 Hermes 集成——全部自动完成。','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step1_agent':'✓ Agent API ready','how.step2_label':'02 — 连接','how.step2_h':'Agent 接管表情','how.step2_p':'AI Agent 通过简单的 HTTP API 控制表情。任务开始 → working，完成 → idle，打招呼 → wave，说再见 → kiss。','how.step3_label':'03 — 她活了','how.step3_h':'她会自己动','how.step3_p':'空闲时每 8-15 秒自动切换动画——眨眼、微笑、思考——从不连续重复同一个。你没在看她的时候，她也活着。',
     // Agent Compatibility
-    'acs.label':'兼容性','acs.title':'不绑定任何 Agent。只要能发 HTTP 请求，就能驱动她。','acs.subtitle':'Cloe 的 API 是开放、简单、语言无关的。我们优先深度集成了 Hermes，但 Claude Code、Codex、Work Buddy、Coder 等任何 Agent 产品都能让她活起来。','acs.hermes_desc':'原生深度集成','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI 工作伙伴','acs.coder_desc':'阿里通义编码 Agent','acs.more_h':'+','acs.more_title':'更多 Agent','acs.more_desc':'任何能发 HTTP 的 Agent','acs.note_text':'一行命令即可驱动：',
+    'acs.label':'兼容性','acs.title':'不绑定任何 Agent。只要能发 HTTP 请求，就能驱动她。','acs.subtitle':'Cloe 的 API 是开放、简单、语言无关的。我们优先深度集成了 Hermes，但 Claude Code、Codex、Work Buddy、Qoder 等任何 Agent 产品都能让她活起来。','acs.hermes_desc':'原生深度集成','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI 工作伙伴','acs.qoder_desc':'阿里通义编码 Agent','acs.more_h':'+','acs.more_title':'更多 Agent','acs.more_desc':'任何能发 HTTP 的 Agent','acs.note_text':'一行命令即可驱动：',
 
     // CTA
     'cta.title':'你的桌面，<br>只差一个<em>她</em>。','cta.desc':'一行命令安装。开源、免费、可定制。','cta.download':'下载 for macOS','cta.docs':'查看文档',
@@ -675,11 +669,11 @@ const translations={
     // Expressions
     'expr.label':'Expressions','expr.title':'14 Built-in Expressions. Infinite Possibilities.','expr.subtitle':'No hardcoded rules. The AI Agent autonomously decides which expression to show based on conversation context, task state, and emotional cues. Smiles when praised, blows a kiss at goodbye, yawns during late nights — that\'s free will. And she can learn and generate new expressions on her own — the built-in set is just the starting point, not the ceiling.',
     // Features
-    'feat.label':'Features','feat.title':'More Than a Moving Picture.','feat.subtitle':'Cloe is a complete AI interaction layer — voice, chat, whiteboard, reminders, all in one transparent window.','feat.agent_h':'Agent-Driven Autonomy','feat.agent_p':'Connect any AI Agent (Hermes, Claude Code, Codex, Work Buddy, Coder, and more). She autonomously chooses expressions based on conversation context. Auto-switches to working mode when tasks start, returns to idle when done — not scripted, her decision.','feat.tts_h':'Voice Synthesis (TTS)','feat.tts_p':'Mouth-synced animation when speaking. Supports local CPU inference (MOSS-TTS) and cloud API (CosyVoice), in her own voice.','feat.chat_h':'Built-in Chat Window','feat.chat_p':'Talk to the Agent right on your desktop. SSE streaming, tool progress, model switching, Markdown rendering — no terminal needed.','feat.canvas_h':'Canvas Whiteboard','feat.canvas_p':'Embedded Excalidraw canvas. The Agent draws architecture diagrams, flowcharts, and annotations in real time. You can edit alongside.','feat.remind_h':'Reminders & Pomodoro','feat.remind_p':'Interval reminders ("drink water every 30 min") and Pomodoro timers with desktop cards, voice, and character actions — she\'ll nudge you to take breaks.','feat.android_h':'Android Sync','feat.android_p':'A floating widget on your phone too, connected via LAN or Tailscale. Same character, follows you everywhere.',
+    'feat.label':'Features','feat.title':'More Than a Moving Picture.','feat.subtitle':'Cloe is a complete AI interaction layer — voice, chat, whiteboard, reminders, all in one transparent window.','feat.agent_h':'Agent-Driven Autonomy','feat.agent_p':'Connect any AI Agent (Hermes, Claude Code, Codex, Work Buddy, Qoder, and more). She autonomously chooses expressions based on conversation context. Auto-switches to working mode when tasks start, returns to idle when done — not scripted, her decision.','feat.tts_h':'Voice Synthesis (TTS)','feat.tts_p':'Mouth-synced animation when speaking. Supports local CPU inference (MOSS-TTS) and cloud API (CosyVoice), in her own voice.','feat.chat_h':'Built-in Chat Window','feat.chat_p':'Talk to the Agent right on your desktop. SSE streaming, tool progress, model switching, Markdown rendering — no terminal needed.','feat.canvas_h':'Canvas Whiteboard','feat.canvas_p':'Embedded Excalidraw canvas. The Agent draws architecture diagrams, flowcharts, and annotations in real time. You can edit alongside.','feat.remind_h':'Reminders & Pomodoro','feat.remind_p':'Interval reminders ("drink water every 30 min") and Pomodoro timers with desktop cards, voice, and character actions — she\'ll nudge you to take breaks.','feat.android_h':'Android Sync','feat.android_p':'A floating widget on your phone too, connected via LAN or Tailscale. Same character, follows you everywhere.',
     // How it works
     'how.label':'How It Works','how.title':'Three Steps, She\'s Alive.','how.subtitle':'No configuration, no integration. Install, connect your Agent, and she\'s there.','how.step1_label':'01 — Install','how.step1_h':'One-Line Install','how.step1_p':'Downloads the DMG, installs to /Applications, launches the app, auto-detects Hermes integration — all automatic.','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step1_agent':'✓ Agent API ready',
     // Agent Compatibility
-    'acs.label':'Compatibility','acs.title':'Not tied to any Agent. If it speaks HTTP, it can drive her.','acs.subtitle':'Cloe\'s API is open, simple, and language-agnostic. We deeply integrate with Hermes first, but Claude Code, Codex, Work Buddy, Coder — any Agent product can bring her to life.','acs.hermes_desc':'Native deep integration','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI Work Companion','acs.coder_desc':'Alibaba Tongyi Coding Agent','acs.more_h':'+','acs.more_title':'More Agents','acs.more_desc':'Any Agent that speaks HTTP','acs.note_text':'One command to drive her:','how.step2_label':'02 — Connect','how.step2_h':'Agent Takes Over Expressions','how.step2_p':'The AI Agent controls expressions via a simple HTTP API. Task starts → working, done → idle, greet → wave, goodbye → kiss.','how.step3_label':'03 — She\'s Alive','how.step3_h':'She Moves on Her Own','how.step3_p':'When idle, auto-cycles animations every 8–15 seconds — blink, smile, think — never repeating the same one twice. Even when you\'re not looking, she\'s alive.',
+    'acs.label':'Compatibility','acs.title':'Not tied to any Agent. If it speaks HTTP, it can drive her.','acs.subtitle':'Cloe\'s API is open, simple, and language-agnostic. We deeply integrate with Hermes first, but Claude Code, Codex, Work Buddy, Qoder — any Agent product can bring her to life.','acs.hermes_desc':'Native deep integration','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI Work Companion','acs.qoder_desc':'Alibaba Tongyi Coding Agent','acs.more_h':'+','acs.more_title':'More Agents','acs.more_desc':'Any Agent that speaks HTTP','acs.note_text':'One command to drive her:','how.step2_label':'02 — Connect','how.step2_h':'Agent Takes Over Expressions','how.step2_p':'The AI Agent controls expressions via a simple HTTP API. Task starts → working, done → idle, greet → wave, goodbye → kiss.','how.step3_label':'03 — She\'s Alive','how.step3_h':'She Moves on Her Own','how.step3_p':'When idle, auto-cycles animations every 8–15 seconds — blink, smile, think — never repeating the same one twice. Even when you\'re not looking, she\'s alive.',
 
     // CTA
     'cta.title':'Your desktop is<br>missing <em>her</em>.','cta.desc':'One command to install. Open source, free, customizable.','cta.download':'Download for macOS','cta.docs':'View Docs',
