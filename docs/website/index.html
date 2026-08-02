@@ -277,6 +277,7 @@ section{position:relative;z-index:2}
 .weather-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:52px}
 .weather-card{border-radius:var(--rs);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-sm);transition:all .3s var(--ease);background:var(--card-bg)}
 .weather-card:hover{transform:translateY(-4px);border-color:var(--border-hover);box-shadow:var(--shadow-md)}
+.weather-card.wc-active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-border),var(--shadow-md)}
 .wc-visual{height:96px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;overflow:hidden}
 .wc-visual canvas{position:absolute;inset:0;width:100%;height:100%}
 .wc-visual .wc-emoji{position:relative;z-index:1}
@@ -1056,9 +1057,24 @@ setInterval(tickClock,1000*30);
       if(cv)showWeather(cv.dataset.wc);
     });
   });
-  // ESC closes; clicking a weather-special card also soaks the page
+  // ESC closes
   document.addEventListener('keydown',function(e){if(e.key==='Escape')hideWeather();});
   window.__weatherOverlay={show:showWeather,hide:hideWeather};
+
+  // highlight the active weather card
+  function markActive(type){
+    document.querySelectorAll('.weather-card').forEach(function(card){
+      const cv=card.querySelector('canvas[data-wc]');
+      if(cv)card.classList.toggle('wc-active',cv.dataset.wc===type);
+    });
+  }
+  // hook active-state into show/hide
+  const _show=showWeather,_hide=hideWeather;
+  showWeather=function(type){_show(type);markActive(type);};
+  hideWeather=function(){_hide();markActive(null);};
+
+  // default weather on load — gentle clear-sky dust so the page is never bare
+  showWeather('clear');
 })();
 </script>
 </body>
