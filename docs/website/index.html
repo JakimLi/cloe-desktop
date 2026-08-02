@@ -185,14 +185,17 @@ section{position:relative;z-index:2}
   filter:drop-shadow(0 30px 50px rgba(232,98,74,0.18));
   transition:opacity .4s var(--ease),transform .4s var(--ease);
 }
-.char-stage img{width:100%;aspect-ratio:400/764;object-fit:contain;object-position:bottom;display:block;border-radius:var(--r)}
+/* Fixed WIDTH, natural height. All gifs are 400px wide, so at the same CSS
+   width every expression renders at the same physical size — only the frame
+   height differs, anchored to the bottom so characters align consistently. */
+.char-stage img{width:100%;height:auto;display:block;border-radius:var(--r)}
 .char-stage::before{
   content:'';position:absolute;inset:-8% -8% auto -8%;height:75%;
   background:radial-gradient(ellipse at 50% 40%,var(--accent-bg),transparent 70%);
   z-index:-1;
 }
 .char-pulse{
-  position:absolute;bottom:8%;left:50%;transform:translateX(-50%);
+  position:absolute;bottom:60px;left:50%;transform:translateX(-50%);
   display:flex;align-items:center;gap:7px;padding:7px 15px;border-radius:30px;
   background:var(--bg-elevated);border:1px solid var(--border);box-shadow:var(--shadow-md);
   font-size:12px;color:var(--ts);font-weight:500;white-space:nowrap;
@@ -208,10 +211,10 @@ section{position:relative;z-index:2}
   pointer-events:none;
 }
 .uc.docked{opacity:1;transform:translateY(0);pointer-events:auto}
-.uc-body{position:relative;cursor:pointer;width:120px;height:229px;
+.uc-body{position:relative;cursor:pointer;width:120px;
   filter:drop-shadow(0 12px 28px rgba(232,98,74,0.22));transition:transform .3s var(--ease)}
 .uc-body:hover{transform:translateY(-4px)}
-.uc-body img{width:120px;height:229px;object-fit:contain;object-position:bottom;display:block;border-radius:var(--r);
+.uc-body img{width:120px;height:auto;display:block;border-radius:var(--r);
   -webkit-mask-image:linear-gradient(180deg,#000 90%,transparent 100%);
   mask-image:linear-gradient(180deg,#000 90%,transparent 100%)}
 .uc-bubble{
@@ -233,7 +236,7 @@ section{position:relative;z-index:2}
   .hero-sub{margin-left:auto;margin-right:auto}
   .char-stage{max-width:300px;margin:0 auto}
 }
-@media(max-width:600px){.uc{width:92px;right:10px}.uc-body,.uc-body img{width:92px;height:176px}.uc-bubble{font-size:12px;margin-bottom:54px;margin-right:8px}}
+@media(max-width:600px){.uc{width:92px;right:10px}.uc-body,.uc-body img{width:92px}.uc-bubble{font-size:12px;margin-bottom:54px;margin-right:8px}}
 
 /* ===== Marquee ===== */
 .marquee{padding:30px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;position:relative;background:var(--bg-soft)}
