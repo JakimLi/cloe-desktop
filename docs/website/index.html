@@ -180,15 +180,17 @@ section{position:relative;z-index:2}
 
 /* character — the signature */
 .hero-char{position:relative;display:flex;justify-content:center;align-items:center}
+/* Mirrors the desktop app: a fixed ~square frame with object-fit:contain,
+   anchored to the bottom. The gif scales to fit; aspect-ratio/padding
+   differences are inherent to the source gifs (same as in the app). */
 .char-stage{
-  position:relative;width:100%;max-width:420px;height:520px;
+  position:relative;width:100%;max-width:460px;height:520px;
   display:flex;align-items:flex-end;justify-content:center;
   filter:drop-shadow(0 30px 50px rgba(232,98,74,0.18));
   transition:opacity .4s var(--ease),transform .4s var(--ease);
 }
-/* Every gif is scaled to the SAME height (JS-driven), so the character renders
-   at a consistent physical size regardless of the source frame's aspect ratio. */
-.char-stage img{height:100%;width:auto;max-width:100%;display:block;border-radius:var(--r)}
+.char-stage img{position:absolute;bottom:0;left:0;right:0;height:100%;max-width:100%;margin:0 auto;
+  object-fit:contain;object-position:center bottom;display:block;border-radius:var(--r)}
 .char-stage::before{
   content:'';position:absolute;inset:-8% -8% auto -8%;height:75%;
   background:radial-gradient(ellipse at 50% 40%,var(--accent-bg),transparent 70%);
@@ -211,11 +213,11 @@ section{position:relative;z-index:2}
   pointer-events:none;
 }
 .uc.docked{opacity:1;transform:translateY(0);pointer-events:auto}
-.uc-body{position:relative;cursor:pointer;width:120px;height:229px;
-  display:flex;align-items:flex-end;justify-content:center;
+.uc-body{position:relative;cursor:pointer;width:120px;height:156px;
   filter:drop-shadow(0 12px 28px rgba(232,98,74,0.22));transition:transform .3s var(--ease)}
 .uc-body:hover{transform:translateY(-4px)}
-.uc-body img{height:100%;width:auto;max-width:100%;display:block;border-radius:var(--r);
+.uc-body img{position:absolute;bottom:0;left:0;right:0;height:100%;max-width:100%;margin:0 auto;
+  object-fit:contain;object-position:center bottom;display:block;border-radius:var(--r);
   -webkit-mask-image:linear-gradient(180deg,#000 90%,transparent 100%);
   mask-image:linear-gradient(180deg,#000 90%,transparent 100%)}
 .uc-bubble{
@@ -235,9 +237,9 @@ section{position:relative;z-index:2}
   .hero-copy{max-width:100%;margin:0 auto}
   .hero-badges,.hero-actions{justify-content:center}
   .hero-sub{margin-left:auto;margin-right:auto}
-  .char-stage{max-width:300px;height:380px;margin:0 auto}
+  .char-stage{max-width:340px;height:400px;margin:0 auto}
 }
-@media(max-width:600px){.uc{width:92px;right:10px}.uc-body{width:92px;height:176px}.uc-bubble{font-size:12px;margin-bottom:54px;margin-right:8px}}
+@media(max-width:600px){.uc{width:92px;right:10px}.uc-body{width:92px;height:120px}.uc-bubble{font-size:12px;margin-bottom:54px;margin-right:8px}}
 
 /* ===== Marquee ===== */
 .marquee{padding:30px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;position:relative;background:var(--bg-soft)}
