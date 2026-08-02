@@ -845,21 +845,20 @@ setInterval(tickClock,1000*30);
   });
 })();
 
-// ===== Expression cards → click to set BOTH character imgs live =====
+// ===== Expression cards → click sets the DOCKED companion only (hero stays smile) =====
 (function(){
   const grid=document.getElementById('exprGrid');
   if(!grid)return;
-  const faces=[document.getElementById('heroFace'),document.getElementById('ucFace')].filter(Boolean);
+  const ucFace=document.getElementById('ucFace');
   grid.addEventListener('click',function(e){
     const card=e.target.closest('.expr-card');
     if(!card)return;
     const img=card.querySelector('img');
-    if(!img)return;
+    if(!img||!ucFace)return;
     const name=img.alt;
-    faces.forEach(function(f){f.src='assets/gifs/'+name+'.gif';});
-    const heroFace=document.getElementById('heroFace');
-    if(heroFace){heroFace.alt='Cloe — '+name;
-      heroFace.parentElement.animate([{transform:'translateY(0)'},{transform:'translateY(-8px) rotate(-2deg)'},{transform:'translateY(0)'}],{duration:450,easing:'cubic-bezier(0.16,1,0.3,1)'});}
+    ucFace.src='assets/gifs/'+name+'.gif';
+    const body=ucFace.parentElement;
+    if(body)body.animate([{transform:'translateY(0)'},{transform:'translateY(-8px) rotate(-2deg)'},{transform:'translateY(0)'}],{duration:450,easing:'cubic-bezier(0.16,1,0.3,1)'});
     showToast(name+' ✓');
   });
 })();
@@ -898,13 +897,8 @@ setInterval(tickClock,1000*30);
   }
   sync();
 
-  // ---- set both faces consistently (src + alt) ----
-  const heroFace=document.getElementById('heroFace');
-  function setFace(name){
-    const src='assets/gifs/'+name+'.gif';
-    heroFace.src=src;heroFace.alt='Cloe — '+name;
-    ucFace.src=src;
-  }
+  // ---- the hero face stays a fixed smile; only the docked companion cycles ----
+  function setFace(name){ ucFace.src='assets/gifs/'+name+'.gif'; }
 
   // ---- mood cycling (mirrors the product's idle auto-switch) ----
   const moods=['smile','blink','think','wave','nod'];
