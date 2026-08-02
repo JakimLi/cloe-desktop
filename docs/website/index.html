@@ -432,13 +432,56 @@ footer .heart svg{width:15px;height:15px}
 ::-webkit-scrollbar-thumb:hover{background:var(--ts)}
 ::selection{background:var(--accent-bg);color:var(--tp)}
 </style>
+<script>
+// ===== CDN 竞速探测（中国区加速）=====
+// 资源走 jsDelivr 系多节点回退；全失败则用 GitHub Pages 相对路径。
+// 结果缓存 24h，避免每次首屏都探测。
+(function(){
+  var CANDIDATES=[
+    'https://testingcf.jsdelivr.net/gh/JakimLi/cloe-desktop@main/docs/website/',
+    'https://gcore.jsdelivr.net/gh/JakimLi/cloe-desktop@main/docs/website/',
+    'https://cdn.jsdelivr.net/gh/JakimLi/cloe-desktop@main/docs/website/'
+  ];
+  var PROBE='assets/logo.png';      // 36K 探测文件
+  var TTL=24*60*60*1000, base='./'; // 默认相对路径(GitHub Pages 源)
+
+  function pick(cb){
+    var done=false, left=CANDIDATES.length, to=null;
+    // 任一 CDN 在限定时间内成功即胜出；否则 left 归零时回退。
+    CANDIDATES.forEach(function(u){
+      var img=new Image();
+      img.onload=function(){ if(!done){ done=true; clearTimeout(to); cb(u); } };
+      img.onerror=finish;
+      img.src=u+PROBE+'?_t='+Date.now();
+    });
+    function finish(){ if(--left<=0 && !done){ done=true; clearTimeout(to); cb('./'); } }
+    // 超时兜底：1.5s 内没 CDN 成功就用相对路径
+    to=setTimeout(function(){ if(!done){ done=true; cb('./'); } },1500);
+  }
+
+  window.assetUrl=function(p){ return base+p; };
+  window.__ASSET_READY__=new Promise(function(resolve){
+    try{
+      var cache=JSON.parse(localStorage.getItem('cloe_cdn')||'null');
+      if(cache && cache.base && (Date.now()-cache.t)<TTL){
+        // 异步校验缓存是否仍可达,失败则下次重探
+        base=cache.base; resolve(base);
+        var t=new Image(); t.onerror=function(){ localStorage.removeItem('cloe_cdn'); };
+        t.src=base+PROBE+'?_v='+Date.now();
+        return;
+      }
+    }catch(e){}
+    pick(function(u){ base=u; if(u!=='./'){ try{ localStorage.setItem('cloe_cdn',JSON.stringify({base:u,t:Date.now()})); }catch(e){} } resolve(u); });
+  });
+})();
+</script>
 </head>
 <body>
 
 <!-- ===== Nav ===== -->
 <nav id="nav">
   <div class="nav-inner">
-    <a href="#" class="nbrand"><img src="assets/logo.png" alt="Cloe"> Cloe</a>
+    <a href="#" class="nbrand"><img data-src="assets/logo.png" alt="Cloe"> Cloe</a>
     <div class="nlinks">
       <a href="#terminal" data-i18n="nav.terminal">终端</a>
       <a href="#weather" data-i18n="nav.weather">天气</a>
@@ -492,7 +535,7 @@ footer .heart svg{width:15px;height:15px}
     <!-- hero character — normal in-flow img (the "big" state) -->
     <div class="hero-char rv" id="heroChar">
       <div class="char-stage">
-        <img src="assets/gifs/smile.gif" alt="Cloe — 笑着的 AI 桌面伴侣" id="heroFace" loading="eager">
+        <img data-src="assets/gifs/smile.gif" alt="Cloe — 笑着的 AI 桌面伴侣" id="heroFace" loading="eager">
         <div class="char-pulse"><span class="live"></span><span data-i18n="hero.live">正在看着你</span></div>
       </div>
     </div>
@@ -512,7 +555,7 @@ footer .heart svg{width:15px;height:15px}
     <div class="rv"><span class="slabel" data-i18n="term.label">终端</span></div>
     <h2 class="stitle rv" data-i18n="term.title">终端就在她身后。</h2>
     <p class="ssub rv" data-i18n="term.subtitle">嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。</p>
-    <div class="term-screenshot rv"><video src="assets/terminal-screenshot.webm" alt="Cloe Desktop Terminal" autoplay loop muted playsinline></video></div>
+    <div class="term-screenshot rv"><video data-src="assets/terminal-screenshot.webm" alt="Cloe Desktop Terminal" autoplay loop muted playsinline></video></div>
     <div class="term-grid">
       <div class="term-card card rv">
         <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9h-1.8A7 7 0 1 0 4 15.3"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="12" y1="21" x2="12" y2="23"/></svg></div>
@@ -655,13 +698,13 @@ footer .heart svg{width:15px;height:15px}
       </div>
       <div class="step rv">
         <div class="step-num" data-i18n="how.step2_label">02 — 连接</div>
-        <div class="step-visual"><div class="step-gif"><img src="assets/gifs/working.gif" alt="working"></div></div>
+        <div class="step-visual"><div class="step-gif"><img data-src="assets/gifs/working.gif" alt="working"></div></div>
         <h3 data-i18n="how.step2_h">Agent 接管表情</h3>
         <p data-i18n="how.step2_p">AI Agent 通过简单的 HTTP API 控制表情。任务开始 → working，完成 → idle，打招呼 → wave，说再见 → kiss。</p>
       </div>
       <div class="step rv">
         <div class="step-num" data-i18n="how.step3_label">03 — 她活了</div>
-        <div class="step-visual"><div class="step-gif"><img src="assets/gifs/wave.gif" alt="wave"></div></div>
+        <div class="step-visual"><div class="step-gif"><img data-src="assets/gifs/wave.gif" alt="wave"></div></div>
         <h3 data-i18n="how.step3_h">她会自己动</h3>
         <p data-i18n="how.step3_p">空闲时每 8-15 秒自动切换动画——眨眼、微笑、思考——从不连续重复同一个。你没在看她的时候，她也活着。</p>
       </div>
@@ -693,7 +736,7 @@ footer .heart svg{width:15px;height:15px}
 <!-- ===== Docked companion — appears bottom-right when hero scrolls away ===== -->
 <div class="uc" id="uc" aria-hidden="true">
   <div class="uc-bubble" id="ucBubble">嗨 👋</div>
-  <div class="uc-body"><img src="assets/gifs/smile.gif" alt="" id="ucFace"></div>
+  <div class="uc-body"><img data-src="assets/gifs/smile.gif" alt="" id="ucFace"></div>
 </div>
 
 <script>
@@ -706,7 +749,7 @@ const exprGrid=document.getElementById('exprGrid');
 expressions.forEach(function(name){
   const el=document.createElement('div');
   el.className='expr-card rv';
-  el.innerHTML='<div class="expr-visual"><img src="assets/gifs/'+name+'.gif" alt="'+name+'" loading="lazy"></div><div class="expr-label"><span class="expr-name">'+name+'</span></div>';
+  el.innerHTML='<div class="expr-visual"><img data-src="assets/gifs/'+name+'.gif" alt="'+name+'" loading="lazy"></div><div class="expr-label"><span class="expr-name">'+name+'</span></div>';
   exprGrid.appendChild(el);
 });
 
@@ -854,7 +897,7 @@ setInterval(tickClock,1000*30);
     const img=card.querySelector('img');
     if(!img||!ucFace)return;
     const name=img.alt;
-    ucFace.src='assets/gifs/'+name+'.gif';
+    ucFace.src=assetUrl('assets/gifs/'+name+'.gif');
     const body=ucFace.parentElement;
     if(body)body.animate([{transform:'translateY(0)'},{transform:'translateY(-8px) rotate(-2deg)'},{transform:'translateY(0)'}],{duration:450,easing:'cubic-bezier(0.16,1,0.3,1)'});
     showToast(name+' ✓');
@@ -896,7 +939,7 @@ setInterval(tickClock,1000*30);
   sync();
 
   // ---- the hero face stays a fixed smile; only the docked companion cycles ----
-  function setFace(name){ ucFace.src='assets/gifs/'+name+'.gif'; }
+  function setFace(name){ ucFace.src=assetUrl('assets/gifs/'+name+'.gif'); }
 
   // ---- mood cycling (mirrors the product's idle auto-switch) ----
   const moods=['smile','blink','think','wave','nod'];
@@ -1160,6 +1203,25 @@ setInterval(tickClock,1000*30);
 
   // default weather on load — gentle clear-sky dust so the page is never bare
   showWeather('clear');
+})();
+
+// ===== CDN 改写：探测完成后把所有 data-src 落到真实 src =====
+(function(){
+  function applyAssetBase(){
+    document.querySelectorAll('[data-src]').forEach(function(el){
+      var p=el.getAttribute('data-src');
+      if(!p) return;
+      if(el.tagName==='VIDEO'){
+        el.src=assetUrl(p); el.load();
+      }else{
+        el.src=assetUrl(p);
+      }
+      el.removeAttribute('data-src');
+    });
+  }
+  // __ASSET_READY__ 在 head 探测脚本中定义；同步缓存命中时已 resolve。
+  if(window.__ASSET_READY__){ window.__ASSET_READY__.then(applyAssetBase); }
+  else { applyAssetBase(); } // 兜底：探测脚本异常时直接用相对路径
 })();
 </script>
 </body>
