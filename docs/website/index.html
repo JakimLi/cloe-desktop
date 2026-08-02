@@ -261,7 +261,7 @@ section{position:relative;z-index:2}
 
 /* ===== Terminal section ===== */
 .term-screenshot{margin-top:52px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);background:var(--bg-soft);box-shadow:var(--shadow-md)}
-.term-screenshot img{width:100%}
+.term-screenshot img,.term-screenshot video{width:100%;display:block}
 .term-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:24px}
 .term-card{padding:30px 26px}
 .term-card .icon-wrap{
@@ -514,7 +514,7 @@ footer .heart svg{width:15px;height:15px}
     <div class="rv"><span class="slabel" data-i18n="term.label">终端</span></div>
     <h2 class="stitle rv" data-i18n="term.title">终端就在她身后。</h2>
     <p class="ssub rv" data-i18n="term.subtitle">嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。</p>
-    <div class="term-screenshot rv"><img src="assets/terminal-screenshot.gif" alt="Cloe Desktop Terminal" loading="lazy"></div>
+    <div class="term-screenshot rv"><video src="assets/terminal-screenshot.webm" alt="Cloe Desktop Terminal" autoplay loop muted playsinline></video></div>
     <div class="term-grid">
       <div class="term-card card rv">
         <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9h-1.8A7 7 0 1 0 4 15.3"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="12" y1="21" x2="12" y2="23"/></svg></div>
