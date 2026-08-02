@@ -907,14 +907,16 @@ setInterval(tickClock,1000*30);
   // portrait aspect of the gif (w/h) — used to get the rendered height right
   const ASPECT=400/764;
 
+  const heroEl=document.querySelector('.hero');
   function place(){
-    if(!anchor)return;
+    if(!anchor||!heroEl)return;
     const a=anchor.getBoundingClientRect();
     const vh=window.innerHeight;
-    // progress: start morphing once the anchor's top crosses 60% of viewport,
-    // finish once it's well above the top.
-    const start=vh*0.6, end=-a.height*0.4;
-    let p=(start-a.top)/(start-end);
+    // Drive the morph off the HERO SECTION, not the anchor. The anchor slot is
+    // taller than the hero on small viewports, so anchoring on it fired the
+    // morph prematurely. p=0 while hero is in view; 1 once it has scrolled up.
+    const hb=heroEl.getBoundingClientRect().bottom; // viewport coords
+    let p=(vh-hb)/(vh-vh*0.3); // start when hero bottom reaches vh, end at 0.3*vh
     p=Math.max(0,Math.min(1,p));
     const pe=p*p*(3-2*p); // smoothstep — lingers large, snaps small
 
