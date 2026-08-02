@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cloe Desktop — 她住在你的桌面上</title>
 <meta name="description" content="一个真实感的 AI 桌面伴侣——有表情、有声音、有自己的想法。">
-<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('cloe-site-theme')||'light')</script>
+<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('cloe-site-theme')||'dark')</script>
 <script>(function(){var lang=localStorage.getItem('cloe-site-lang')||'zh';document.documentElement.setAttribute('lang',lang==='zh'?'zh-CN':'en');window.__CLOE_LANG__=lang;})()</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -753,7 +753,7 @@ document.getElementById('langToggle').addEventListener('click',function(){i18n.t
 // Theme toggle
 const THEME_KEY='cloe-site-theme';
 const themeToggle=document.getElementById('themeToggle');
-function getTheme(){return localStorage.getItem(THEME_KEY)||'light';}
+function getTheme(){return localStorage.getItem(THEME_KEY)||'dark';}
 function setTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   localStorage.setItem(THEME_KEY,t);
