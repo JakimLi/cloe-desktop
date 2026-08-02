@@ -548,16 +548,6 @@ footer .heart{color:var(--accent)}
         <h4>Coder</h4>
         <p data-i18n="acs.coder_desc">阿里通义编码 Agent</p>
       </div>
-      <div class="acs-card rv" style="--logo-bg:rgba(139,92,246,.15);--logo-fg:#8b5cf6;--card-color:#8b5cf6">
-        <div class="acs-logo">Ai</div>
-        <h4>Aider</h4>
-        <p data-i18n="acs.aider_desc">终端 AI Pair Programming</p>
-      </div>
-      <div class="acs-card rv" style="--logo-bg:rgba(6,182,212,.15);--logo-fg:#06b6d4;--card-color:#06b6d4">
-        <div class="acs-logo">Dv</div>
-        <h4>Devin</h4>
-        <p data-i18n="acs.devin_desc">Cognition 自主工程师</p>
-      </div>
       <div class="acs-card rv" style="--logo-bg:var(--bg-card-hover);--logo-fg:var(--ts);--card-color:var(--ts)">
         <div class="acs-logo" data-i18n="acs.more_h">+</div>
         <h4 data-i18n="acs.more_title">更多 Agent</h4>
@@ -660,7 +650,7 @@ const translations={
     // How it works
     'how.label':'工作原理','how.title':'三步，她就活了。','how.subtitle':'不需要配置，不需要集成。安装、连接 Agent，她就在那里了。','how.step1_label':'01 — 安装','how.step1_h':'一行命令安装','how.step1_p':'下载 DMG、安装到 /Applications、启动应用、自动检测 Hermes 集成——全部自动完成。','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step1_agent':'✓ Agent API ready','how.step2_label':'02 — 连接','how.step2_h':'Agent 接管表情','how.step2_p':'AI Agent 通过简单的 HTTP API 控制表情。任务开始 → working，完成 → idle，打招呼 → wave，说再见 → kiss。','how.step3_label':'03 — 她活了','how.step3_h':'她会自己动','how.step3_p':'空闲时每 8-15 秒自动切换动画——眨眼、微笑、思考——从不连续重复同一个。你没在看她的时候，她也活着。',
     // Agent Compatibility
-    'acs.label':'兼容性','acs.title':'不绑定任何 Agent。只要能发 HTTP 请求，就能驱动她。','acs.subtitle':'Cloe 的 API 是开放、简单、语言无关的。我们优先深度集成了 Hermes，但 Claude Code、Codex、Work Buddy、Coder 等任何 Agent 产品都能让她活起来。','acs.hermes_desc':'原生深度集成','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI 工作伙伴','acs.coder_desc':'阿里通义编码 Agent','acs.aider_desc':'终端 AI Pair Programming','acs.devin_desc':'Cognition 自主工程师','acs.more_h':'+','acs.more_title':'更多 Agent','acs.more_desc':'任何能发 HTTP 的 Agent','acs.note_text':'一行命令即可驱动：',
+    'acs.label':'兼容性','acs.title':'不绑定任何 Agent。只要能发 HTTP 请求，就能驱动她。','acs.subtitle':'Cloe 的 API 是开放、简单、语言无关的。我们优先深度集成了 Hermes，但 Claude Code、Codex、Work Buddy、Coder 等任何 Agent 产品都能让她活起来。','acs.hermes_desc':'原生深度集成','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI 工作伙伴','acs.coder_desc':'阿里通义编码 Agent','acs.more_h':'+','acs.more_title':'更多 Agent','acs.more_desc':'任何能发 HTTP 的 Agent','acs.note_text':'一行命令即可驱动：',
 
     // CTA
     'cta.title':'你的桌面，<br>只差一个<em>她</em>。','cta.desc':'一行命令安装。开源、免费、可定制。','cta.download':'下载 for macOS','cta.docs':'查看文档',
@@ -689,7 +679,7 @@ const translations={
     // How it works
     'how.label':'How It Works','how.title':'Three Steps, She\'s Alive.','how.subtitle':'No configuration, no integration. Install, connect your Agent, and she\'s there.','how.step1_label':'01 — Install','how.step1_h':'One-Line Install','how.step1_p':'Downloads the DMG, installs to /Applications, launches the app, auto-detects Hermes integration — all automatic.','how.step1_dl':'→ Downloading Cloe.dmg...','how.step1_inst':'✓ Installed to /Applications','how.step1_hermes':'✓ Hermes integration ready','how.step1_agent':'✓ Agent API ready',
     // Agent Compatibility
-    'acs.label':'Compatibility','acs.title':'Not tied to any Agent. If it speaks HTTP, it can drive her.','acs.subtitle':'Cloe\'s API is open, simple, and language-agnostic. We deeply integrate with Hermes first, but Claude Code, Codex, Work Buddy, Coder — any Agent product can bring her to life.','acs.hermes_desc':'Native deep integration','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI Work Companion','acs.coder_desc':'Alibaba Tongyi Coding Agent','acs.aider_desc':'Terminal AI Pair Programming','acs.devin_desc':'Cognition Autonomous Engineer','acs.more_h':'+','acs.more_title':'More Agents','acs.more_desc':'Any Agent that speaks HTTP','acs.note_text':'One command to drive her:','how.step2_label':'02 — Connect','how.step2_h':'Agent Takes Over Expressions','how.step2_p':'The AI Agent controls expressions via a simple HTTP API. Task starts → working, done → idle, greet → wave, goodbye → kiss.','how.step3_label':'03 — She\'s Alive','how.step3_h':'She Moves on Her Own','how.step3_p':'When idle, auto-cycles animations every 8–15 seconds — blink, smile, think — never repeating the same one twice. Even when you\'re not looking, she\'s alive.',
+    'acs.label':'Compatibility','acs.title':'Not tied to any Agent. If it speaks HTTP, it can drive her.','acs.subtitle':'Cloe\'s API is open, simple, and language-agnostic. We deeply integrate with Hermes first, but Claude Code, Codex, Work Buddy, Coder — any Agent product can bring her to life.','acs.hermes_desc':'Native deep integration','acs.badge_first':'FIRST-CLASS','acs.claude_code_desc':'Anthropic CLI Agent','acs.codex_desc':'OpenAI Coding Agent','acs.workbuddy_desc':'AI Work Companion','acs.coder_desc':'Alibaba Tongyi Coding Agent','acs.more_h':'+','acs.more_title':'More Agents','acs.more_desc':'Any Agent that speaks HTTP','acs.note_text':'One command to drive her:','how.step2_label':'02 — Connect','how.step2_h':'Agent Takes Over Expressions','how.step2_p':'The AI Agent controls expressions via a simple HTTP API. Task starts → working, done → idle, greet → wave, goodbye → kiss.','how.step3_label':'03 — She\'s Alive','how.step3_h':'She Moves on Her Own','how.step3_p':'When idle, auto-cycles animations every 8–15 seconds — blink, smile, think — never repeating the same one twice. Even when you\'re not looking, she\'s alive.',
 
     // CTA
     'cta.title':'Your desktop is<br>missing <em>her</em>.','cta.desc':'One command to install. Open source, free, customizable.','cta.download':'Download for macOS','cta.docs':'View Docs',
