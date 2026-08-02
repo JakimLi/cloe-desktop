@@ -109,8 +109,7 @@ section{position:relative;z-index:1}
 @keyframes mq{to{transform:translateX(-50%)}}
 
 /* Terminal section */
-.ts{padding:120px 0}
-.ts-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
+.ts{padding:120px 0}.ts-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
 .ts-screenshot{grid-column:span 2;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);background:var(--bg-soft);position:relative;min-height:360px;display:flex;align-items:center;justify-content:center}
 .ts-screenshot img{width:100%;display:block}
 .ts-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--tt);padding:60px 24px;text-align:center}
@@ -123,6 +122,38 @@ section{position:relative;z-index:1}
 .ts-card h3{font-size:17px;font-weight:700;margin-bottom:8px}
 .ts-card p{font-size:14px;color:var(--ts);line-height:1.65}
 @media(max-width:600px){.ts-grid{grid-template-columns:1fr}.ts-screenshot{min-height:240px}}
+
+/* Weather showcase */
+.ws{padding:120px 0}
+.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:48px}
+.wc{border-radius:var(--r);overflow:hidden;border:1px solid var(--border);transition:all .3s cubic-bezier(.4,0,.2,1);cursor:default;position:relative}
+.wc:hover{transform:translateY(-4px);border-color:var(--border-hover);box-shadow:0 12px 40px var(--card-shadow)}
+.wc-visual{height:120px;display:flex;align-items:center;justify-content:center;font-size:42px;position:relative;overflow:hidden}
+.wc-info{padding:14px 16px}
+.wc-info h4{font-size:15px;font-weight:700;margin-bottom:4px}
+.wc-info p{font-size:12px;color:var(--ts);line-height:1.5}
+.wc-clear .wc-visual{background:linear-gradient(135deg,#f59e0b,#fbbf24,#fde68a)}
+.wc-cloudy .wc-visual{background:linear-gradient(135deg,#64748b,#94a3b8,#cbd5e1)}
+.wc-rain .wc-visual{background:linear-gradient(135deg,#1e3a5f,#2563eb,#3b82f6)}
+.wc-thunder .wc-visual{background:linear-gradient(135deg,#1e1b4b,#3730a3,#4c1d95)}
+.wc-snow .wc-visual{background:linear-gradient(135deg,#bae6fd,#e0f2fe,#f0f9ff)}
+.wc-fog .wc-visual{background:linear-gradient(135deg,#9ca3af,#c2c6cc,#d1d5db)}
+.wc-icy .wc-visual{background:linear-gradient(135deg,#0e7490,#22d3ee,#a5f3fc)}
+.ws-special{margin-top:32px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.wsc{display:flex;align-items:center;gap:14px;padding:18px 20px;border-radius:var(--rs);background:var(--bg-card);border:1px solid var(--border);transition:all .3s}
+.wsc:hover{background:var(--bg-card-hover);border-color:var(--border-hover)}
+.wsc-icon{font-size:28px;flex-shrink:0;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.wsc-text h4{font-size:14px;font-weight:700;margin-bottom:2px}
+.wsc-text p{font-size:12px;color:var(--ts);line-height:1.5}
+.wsc-meteor .wsc-icon{background:rgba(99,102,241,.15)}
+.wsc-aurora .wsc-icon{background:rgba(16,185,129,.15)}
+.wsc-rainbow .wsc-icon{background:rgba(244,114,182,.15)}
+.wsc-sundog .wsc-icon{background:rgba(245,158,11,.15)}
+.wsc-fireball .wsc-icon{background:rgba(239,68,68,.15)}
+.ws-dn{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.ws-dn-item{display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:24px;background:var(--bg-card);border:1px solid var(--border);font-size:14px;color:var(--ts);font-weight:500}
+.ws-dn-item .emoji{font-size:18px}
+@media(max-width:600px){.ws-grid{grid-template-columns:repeat(2,1fr)}.ws-special{grid-template-columns:1fr}}
 
 /* Expression grid */
 .es{padding:120px 0}
@@ -222,6 +253,7 @@ footer .heart{color:var(--accent)}
   <a href="#" class="nbrand"><img src="assets/logo.png" alt="Cloe" class="nbrand-logo" width="28" height="28"> Cloe Desktop</a>
   <div class="nlinks">
     <a href="#terminal" data-i18n="nav.terminal">终端</a>
+    <a href="#weather" data-i18n="nav.weather">天气</a>
     <a href="#expressions" data-i18n="nav.expressions">表情</a>
     <a href="#features" data-i18n="nav.features">功能</a>
     <a href="#how" data-i18n="nav.how">工作原理</a>
@@ -304,6 +336,85 @@ footer .heart{color:var(--accent)}
         <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--accent)"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
         <h3 data-i18n="term.codewalk_h">代码走查</h3>
         <p data-i18n="term.codewalk_p">逐段展示代码，语法高亮 + 键盘导航。她带着你看代码，一行一行解释，比对着两个窗口高效太多。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Weather Showcase -->
+<section class="ws" id="weather">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="weather.label">天气</span>
+      <h2 class="stitle" data-i18n="weather.title">窗外的天气，落在你的桌面上。</h2>
+      <p class="ssub" data-i18n="weather.subtitle">Canvas 粒子引擎实时渲染 7 种天气 + 昼夜循环 + 5 种罕见天象。不只是图标，是真的有雨滴落下来、雪花飘起来、流星划过夜空。</p>
+    </div>
+
+    <!-- 7 Weather Types -->
+    <div class="ws-grid">
+      <div class="wc wc-clear rv">
+        <div class="wc-visual">☀️</div>
+        <div class="wc-info"><h4 data-i18n="weather.clear_h">晴天</h4><p data-i18n="weather.clear_p">太阳划过天空，暖色光晕</p></div>
+      </div>
+      <div class="wc wc-cloudy rv">
+        <div class="wc-visual">☁️</div>
+        <div class="wc-info"><h4 data-i18n="weather.cloudy_h">多云</h4><p data-i18n="weather.cloudy_p">视差云层缓缓飘过</p></div>
+      </div>
+      <div class="wc wc-rain rv">
+        <div class="wc-visual">🌧️</div>
+        <div class="wc-info"><h4 data-i18n="weather.rain_h">下雨</h4><p data-i18n="weather.rain_p">200 粒雨滴，风影响角度</p></div>
+      </div>
+      <div class="wc wc-thunder rv">
+        <div class="wc-visual">⛈️</div>
+        <div class="wc-info"><h4 data-i18n="weather.thunder_h">雷暴</h4><p data-i18n="weather.thunder_p">闪电照亮整个画面</p></div>
+      </div>
+      <div class="wc wc-snow rv">
+        <div class="wc-visual">❄️</div>
+        <div class="wc-info"><h4 data-i18n="weather.snow_h">下雪</h4><p data-i18n="weather.snow_p">雪花旋转飘落，地面堆积</p></div>
+      </div>
+      <div class="wc wc-fog rv">
+        <div class="wc-visual">🌫️</div>
+        <div class="wc-info"><h4 data-i18n="weather.fog_h">雾天</h4><p data-i18n="weather.fog_p">柔和雾气，若隐若现</p></div>
+      </div>
+      <div class="wc wc-icy rv">
+        <div class="wc-visual">🧊</div>
+        <div class="wc-info"><h4 data-i18n="weather.icy_h">冰冻</h4><p data-i18n="weather.icy_p">冰晶悬浮，赛博寒潮</p></div>
+      </div>
+    </div>
+
+    <!-- Day / Night Cycle -->
+    <div class="ws-dn rv">
+      <div class="ws-dn-item"><span class="emoji">🌅</span><span data-i18n="weather.sun">太阳轨迹东升西落</span></div>
+      <div class="ws-dn-item"><span class="emoji">🌙</span><span data-i18n="weather.moon">月相随日期变化</span></div>
+      <div class="ws-dn-item"><span class="emoji">✨</span><span data-i18n="weather.stars">夜空 80 颗星星闪烁</span></div>
+    </div>
+
+    <!-- Special Phenomena -->
+    <div class="rv" style="margin-top:40px">
+      <h3 style="font-size:16px;font-weight:700;color:var(--ts);margin-bottom:4px" data-i18n="weather.special_h">✦ 随机天象 — 低概率触发</h3>
+      <p style="font-size:13px;color:var(--tt);margin-bottom:20px" data-i18n="weather.special_p">每 2-5 分钟检测一次，约 15% 概率出现。你永远不会知道下一秒会看到什么。</p>
+    </div>
+    <div class="ws-special">
+      <div class="wsc wsc-meteor rv">
+        <div class="wsc-icon">🌠</div>
+        <div class="wsc-text"><h4 data-i18n="weather.meteor_h">流星雨</h4><p data-i18n="weather.meteor_p">深夜，一道道光痕划过</p></div>
+      </div>
+      <div class="wsc wsc-aurora rv">
+        <div class="wsc-icon">🌌</div>
+        <div class="wsc-text"><h4 data-i18n="weather.aurora_h">极光</h4><p data-i18n="weather.aurora_p">绿蓝光带在夜空流动</p></div>
+      </div>
+      <div class="wsc wsc-rainbow rv">
+        <div class="wsc-icon">🌈</div>
+        <div class="wsc-text"><h4 data-i18n="weather.rainbow_h">彩虹</h4><p data-i18n="weather.rainbow_p">雨后双彩虹横跨天际</p></div>
+      </div>
+      <div class="wsc wsc-sundog rv">
+        <div class="wsc-icon">🌞</div>
+        <div class="wsc-text"><h4 data-i18n="weather.sundog_h">日晕</h4><p data-i18n="weather.sundog_p">太阳光环 + 两侧假日</p></div>
+      </div>
+      <div class="wsc wsc-fireball rv">
+        <div class="wsc-icon">🔥</div>
+        <div class="wsc-text"><h4 data-i18n="weather.fireball_h">火流星</h4><p data-i18n="weather.fireball_p">一颗火球拖着尾迹掠过</p></div>
       </div>
     </div>
   </div>
@@ -557,13 +668,15 @@ const LANG_KEY='cloe-site-lang';
 const translations={
   zh:{
     // Nav
-    'nav.expressions':'表达式','nav.features':'功能','nav.how':'工作原理','nav.download':'下载','nav.terminal':'终端',
+    'nav.expressions':'表达式','nav.features':'功能','nav.how':'工作原理','nav.download':'下载','nav.terminal':'终端','nav.weather':'天气',
     // Hero
     'hero.title':'她住在你的<br><em>桌面上</em>','hero.desc':'一个真实感的 AI 桌面伴侣——有表情、有声音、有自己的想法。她不只是工具，她因为你的存在而有意义。','hero.download_macos':'下载 for macOS','hero.source':'源码','hero.copy_hint':'点击复制','hero.badge_platform':'macOS · Android','hero.badge_opensource':'开源 MIT','hero.badge_electron':'Electron','hero.badge_hermes':'Hermes Agent',
     // Marquee
     'mq.expressions':'14 种表情动画','mq.autonomy':'AI 自主决策','mq.tts':'TTS 语音合成','mq.chat':'内置聊天窗口','mq.canvas':'Canvas 白板','mq.hermes':'Hermes 深度集成','mq.android':'Android 手机同步','mq.skins':'自定义角色皮肤','mq.pomodoro':'番茄钟提醒','mq.terminal':'嵌入式终端','mq.weather':'实时天气',
     // Terminal
     'term.label':'终端','term.title':'终端就在她身后。','term.subtitle':'嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。','term.screenshot_placeholder':'截图占位 — 天气 + 终端','term.weather_h':'实时天气','term.weather_p':'桌面上随时显示当前天气和温度。她知道外面在下雨，会提醒你带伞——比手机通知更自然。','term.embedded_h':'嵌入式终端','term.embedded_p':'完整终端直接嵌入桌面角色窗口。AI Agent 可以自主执行命令、查看输出、调试代码——你在旁边看着就好。','term.exec_h':'AI 自主执行','term.exec_p':'不只是建议，她直接上手。跑测试、Git 提交、部署服务——每一步的终端输出都实时可见，随时可以接管。','term.codewalk_h':'代码走查','term.codewalk_p':'逐段展示代码，语法高亮 + 键盘导航。她带着你看代码，一行一行解释，比对着两个窗口高效太多。',
+    // Weather
+    'weather.label':'天气','weather.title':'窗外的天气，落在你的桌面上。','weather.subtitle':'Canvas 粒子引擎实时渲染 7 种天气 + 昼夜循环 + 5 种罕见天象。不只是图标，是真的有雨滴落下来、雪花飘起来、流星划过夜空。','weather.clear_h':'晴天','weather.clear_p':'太阳划过天空，暖色光晕','weather.cloudy_h':'多云','weather.cloudy_p':'视差云层缓缓飘过','weather.rain_h':'下雨','weather.rain_p':'200 粒雨滴，风影响角度','weather.thunder_h':'雷暴','weather.thunder_p':'闪电照亮整个画面','weather.snow_h':'下雪','weather.snow_p':'雪花旋转飘落，地面堆积','weather.fog_h':'雾天','weather.fog_p':'柔和雾气，若隐若现','weather.icy_h':'冰冻','weather.icy_p':'冰晶悬浮，赛博寒潮','weather.sun':'太阳轨迹东升西落','weather.moon':'月相随日期变化','weather.stars':'夜空 80 颗星星闪烁','weather.special_h':'✦ 随机天象 — 低概率触发','weather.special_p':'每 2-5 分钟检测一次，约 15% 概率出现。你永远不会知道下一秒会看到什么。','weather.meteor_h':'流星雨','weather.meteor_p':'深夜，一道道光痕划过','weather.aurora_h':'极光','weather.aurora_p':'绿蓝光带在夜空流动','weather.rainbow_h':'彩虹','weather.rainbow_p':'雨后双彩虹横跨天际','weather.sundog_h':'日晕','weather.sundog_p':'太阳光环 + 两侧假日','weather.fireball_h':'火流星','weather.fireball_p':'一颗火球拖着尾迹掠过',
     // Expressions
     'expr.label':'表达式','expr.title':'14 种表情，她自己选。','expr.subtitle':'不是硬编码的规则。AI Agent 根据对话上下文、任务状态和情绪线索，自主决定显示什么表情。被夸了就笑，说再见就飞吻，熬夜就打哈欠——这叫自由意志。',
     // Features
@@ -585,13 +698,15 @@ const translations={
   },
   en:{
     // Nav
-    'nav.expressions':'Expressions','nav.features':'Features','nav.how':'How It Works','nav.download':'Download','nav.terminal':'Terminal',
+    'nav.expressions':'Expressions','nav.features':'Features','nav.how':'How It Works','nav.download':'Download','nav.terminal':'Terminal','nav.weather':'Weather',
     // Hero
     'hero.title':'She lives on your<br><em>desktop</em>','hero.desc':'A realistic AI desktop companion — with expressions, voice, and a mind of her own. She\'s not just a tool. She exists because you do.','hero.download_macos':'Download for macOS','hero.source':'Source','hero.copy_hint':'Click to copy','hero.badge_platform':'macOS · Android','hero.badge_opensource':'Open Source MIT','hero.badge_electron':'Electron','hero.badge_hermes':'Hermes Agent',
     // Marquee
     'mq.expressions':'14 Expression Animations','mq.autonomy':'AI-Driven Autonomy','mq.tts':'TTS Voice Synthesis','mq.chat':'Built-in Chat Window','mq.canvas':'Canvas Whiteboard','mq.hermes':'Deep Hermes Integration','mq.android':'Android Phone Sync','mq.skins':'Custom Character Skins','mq.pomodoro':'Pomodoro Reminders','mq.terminal':'Embedded Terminal','mq.weather':'Live Weather',
     // Terminal
     'term.label':'Terminal','term.title':'The Terminal Is Right Behind Her.','term.subtitle':'Embedded terminal + live weather. She\'s your desktop co-pilot — check weather, run scripts, read logs, write code. You say it, she does it. Even what you don\'t say, she\'s already thinking about.','term.screenshot_placeholder':'Screenshot placeholder — Weather + Terminal','term.weather_h':'Live Weather','term.weather_p':'Current weather and temperature right on your desktop. She knows it\'s raining outside and reminds you to grab an umbrella — more natural than a phone notification.','term.embedded_h':'Embedded Terminal','term.embedded_p':'A full terminal embedded directly in the desktop widget. The AI Agent can execute commands, inspect output, and debug code autonomously — you just watch.','term.exec_h':'AI Autonomous Execution','term.exec_p':'Not just suggestions — she takes action. Run tests, Git commits, deploy services — every step\'s terminal output is visible in real time, ready for you to take over.','term.codewalk_h':'Code Walkthrough','term.codewalk_p':'Step-by-step code display with syntax highlighting and keyboard navigation. She walks you through the code, line by line — way more efficient than juggling two windows.',
+    // Weather
+    'weather.label':'Weather','weather.title':'The sky outside, right on your desktop.','weather.subtitle':'A Canvas particle engine renders 7 weather types + day/night cycle + 5 rare celestial phenomena in real time. Not just icons — actual rain falling, snow drifting, meteors streaking across the night sky.','weather.clear_h':'Clear','weather.clear_p':'Sun arcs across the sky with warm glow','weather.cloudy_h':'Cloudy','weather.cloudy_p':'Parallax cloud layers drifting slowly','weather.rain_h':'Rain','weather.rain_p':'200 raindrops, wind affects angle','weather.thunder_h':'Thunderstorm','weather.thunder_p':'Lightning illuminates the entire scene','weather.snow_h':'Snow','weather.snow_p':'Snowflakes spin and drift, accumulate','weather.fog_h':'Fog','weather.fog_p':'Soft mist, everything fades in and out','weather.icy_h':'Icy','weather.icy_p':'Ice crystals suspended, cyber chill','weather.sun':'Sun arcs east to west','weather.moon':'Moon phases change by date','weather.stars':'80 stars twinkling in the night sky','weather.special_h':'✦ Random Phenomena — Low Probability','weather.special_p':'Checked every 2-5 min, ~15% chance to appear. You never know what you\'ll see next.','weather.meteor_h':'Meteor Shower','weather.meteor_p':'Late night, streaks of light across the sky','weather.aurora_h':'Aurora','weather.aurora_p':'Green-blue ribbons flowing in the night','weather.rainbow_h':'Rainbow','weather.rainbow_p':'Double rainbow arching across after rain','weather.sundog_h':'Sun Dog','weather.sundog_p':'Sun halo with parhelia on both sides','weather.fireball_h':'Fireball','weather.fireball_p':'A blazing orb streaking across with a trail',
     // Expressions
     'expr.label':'Expressions','expr.title':'14 Expressions. She Chooses Herself.','expr.subtitle':'No hardcoded rules. The AI Agent autonomously decides which expression to show based on conversation context, task state, and emotional cues. Smiles when praised, blows a kiss at goodbye, yawns during late nights — that\'s free will.',
     // Features
