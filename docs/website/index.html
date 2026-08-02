@@ -108,6 +108,22 @@ section{position:relative;z-index:1}
 .mqi::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--accent);opacity:.4}
 @keyframes mq{to{transform:translateX(-50%)}}
 
+/* Terminal section */
+.ts{padding:120px 0}
+.ts-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
+.ts-screenshot{grid-column:span 2;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);background:var(--bg-soft);position:relative;min-height:360px;display:flex;align-items:center;justify-content:center}
+.ts-screenshot img{width:100%;display:block}
+.ts-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--tt);padding:60px 24px;text-align:center}
+.ts-ph svg{width:48px;height:48px;opacity:.4;stroke-width:1.5}
+.ts-ph p{font-size:14px;font-weight:500}
+.ts-ph span{font-size:12px;color:var(--tt);opacity:.6;font-family:var(--m)}
+.ts-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;transition:all .3s}
+.ts-card:hover{background:var(--bg-card-hover);border-color:var(--border-hover)}
+.ts-card .fi{margin-bottom:16px}
+.ts-card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.ts-card p{font-size:14px;color:var(--ts);line-height:1.65}
+@media(max-width:600px){.ts-grid{grid-template-columns:1fr}.ts-screenshot{min-height:240px}}
+
 /* Expression grid */
 .es{padding:120px 0}
 .eg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:48px}
@@ -205,6 +221,7 @@ footer .heart{color:var(--accent)}
 <nav>
   <a href="#" class="nbrand"><img src="assets/logo.png" alt="Cloe" class="nbrand-logo" width="28" height="28"> Cloe Desktop</a>
   <div class="nlinks">
+    <a href="#terminal" data-i18n="nav.terminal">终端</a>
     <a href="#expressions" data-i18n="nav.expressions">表情</a>
     <a href="#features" data-i18n="nav.features">功能</a>
     <a href="#how" data-i18n="nav.how">工作原理</a>
@@ -259,9 +276,52 @@ footer .heart{color:var(--accent)}
 <div class="mq">
   <div class="mqt">
     <span class="mqi" data-i18n="mq.expressions">14 种表情动画</span><span class="mqi" data-i18n="mq.autonomy">AI 自主决策</span><span class="mqi" data-i18n="mq.tts">TTS 语音合成</span><span class="mqi" data-i18n="mq.chat">内置聊天窗口</span><span class="mqi" data-i18n="mq.canvas">Canvas 白板</span><span class="mqi" data-i18n="mq.hermes">Hermes 深度集成</span><span class="mqi" data-i18n="mq.android">Android 手机同步</span><span class="mqi" data-i18n="mq.skins">自定义角色皮肤</span><span class="mqi" data-i18n="mq.pomodoro">番茄钟提醒</span>
+    <span class="mqi" data-i18n="mq.terminal">嵌入式终端</span><span class="mqi" data-i18n="mq.weather">实时天气</span>
     <span class="mqi" data-i18n="mq.expressions">14 种表情动画</span><span class="mqi" data-i18n="mq.autonomy">AI 自主决策</span><span class="mqi" data-i18n="mq.tts">TTS 语音合成</span><span class="mqi" data-i18n="mq.chat">内置聊天窗口</span><span class="mqi" data-i18n="mq.canvas">Canvas 白板</span><span class="mqi" data-i18n="mq.hermes">Hermes 深度集成</span><span class="mqi" data-i18n="mq.android">Android 手机同步</span><span class="mqi" data-i18n="mq.skins">自定义角色皮肤</span><span class="mqi" data-i18n="mq.pomodoro">番茄钟提醒</span>
   </div>
 </div>
+
+
+<!-- Terminal Section -->
+<section class="ts" id="terminal">
+  <div class="ctn">
+    <div class="rv">
+      <span class="slabel" data-i18n="term.label">终端</span>
+      <h2 class="stitle" data-i18n="term.title">终端就在她身后。</h2>
+      <p class="ssub" data-i18n="term.subtitle">嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。</p>
+    </div>
+    <!-- Screenshot placeholder — 替换为带天气 + 终端的全屏截图 -->
+    <div class="ts-screenshot rv" id="terminalScreenshot">
+      <div class="ts-ph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <p data-i18n="term.screenshot_placeholder">截图占位 — 天气 + 终端</p>
+        <span>assets/terminal-screenshot.png</span>
+      </div>
+    </div>
+    <div class="ts-grid">
+      <div class="ts-card rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--accent)"><path d="M17.5 19a4.5 4.5 0 0 0 0-9h-1.8A7 7 0 1 0 4 15.3"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="12" y1="21" x2="12" y2="23"/></svg></div>
+        <h3 data-i18n="term.weather_h">实时天气</h3>
+        <p data-i18n="term.weather_p">桌面上随时显示当前天气和温度。她知道外面在下雨，会提醒你带伞——比手机通知更自然。</p>
+      </div>
+      <div class="ts-card rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--accent)"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+        <h3 data-i18n="term.embedded_h">嵌入式终端</h3>
+        <p data-i18n="term.embedded_p">完整终端直接嵌入桌面角色窗口。AI Agent 可以自主执行命令、查看输出、调试代码——你在旁边看着就好。</p>
+      </div>
+      <div class="ts-card rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--accent)"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+        <h3 data-i18n="term.exec_h">AI 自主执行</h3>
+        <p data-i18n="term.exec_p">不只是建议，她直接上手。跑测试、Git 提交、部署服务——每一步的终端输出都实时可见，随时可以接管。</p>
+      </div>
+      <div class="ts-card rv">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--accent)"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <h3 data-i18n="term.codewalk_h">代码走查</h3>
+        <p data-i18n="term.codewalk_p">逐段展示代码，语法高亮 + 键盘导航。她带着你看代码，一行一行解释，比对着两个窗口高效太多。</p>
+      </div>
+    </div>
+  </div>
+</section>
 
 
 <!-- Expressions Gallery -->
@@ -511,11 +571,13 @@ const LANG_KEY='cloe-site-lang';
 const translations={
   zh:{
     // Nav
-    'nav.expressions':'表达式','nav.features':'功能','nav.how':'工作原理','nav.download':'下载',
+    'nav.expressions':'表达式','nav.features':'功能','nav.how':'工作原理','nav.download':'下载','nav.terminal':'终端',
     // Hero
     'hero.title':'她住在你的<br><em>桌面上</em>','hero.desc':'一个真实感的 AI 桌面伴侣——有表情、有声音、有自己的想法。她不只是工具，她因为你的存在而有意义。','hero.download_macos':'下载 for macOS','hero.source':'源码','hero.copy_hint':'点击复制','hero.badge_platform':'macOS · Android','hero.badge_opensource':'开源 MIT','hero.badge_electron':'Electron','hero.badge_hermes':'Hermes Agent',
     // Marquee
-    'mq.expressions':'14 种表情动画','mq.autonomy':'AI 自主决策','mq.tts':'TTS 语音合成','mq.chat':'内置聊天窗口','mq.canvas':'Canvas 白板','mq.hermes':'Hermes 深度集成','mq.android':'Android 手机同步','mq.skins':'自定义角色皮肤','mq.pomodoro':'番茄钟提醒',
+    'mq.expressions':'14 种表情动画','mq.autonomy':'AI 自主决策','mq.tts':'TTS 语音合成','mq.chat':'内置聊天窗口','mq.canvas':'Canvas 白板','mq.hermes':'Hermes 深度集成','mq.android':'Android 手机同步','mq.skins':'自定义角色皮肤','mq.pomodoro':'番茄钟提醒','mq.terminal':'嵌入式终端','mq.weather':'实时天气',
+    // Terminal
+    'term.label':'终端','term.title':'终端就在她身后。','term.subtitle':'嵌入式终端 + 实时天气，她是你的桌面副驾。查天气、跑脚本、看日志、写代码——你说她做，你没说的她也帮你想着。','term.screenshot_placeholder':'截图占位 — 天气 + 终端','term.weather_h':'实时天气','term.weather_p':'桌面上随时显示当前天气和温度。她知道外面在下雨，会提醒你带伞——比手机通知更自然。','term.embedded_h':'嵌入式终端','term.embedded_p':'完整终端直接嵌入桌面角色窗口。AI Agent 可以自主执行命令、查看输出、调试代码——你在旁边看着就好。','term.exec_h':'AI 自主执行','term.exec_p':'不只是建议，她直接上手。跑测试、Git 提交、部署服务——每一步的终端输出都实时可见，随时可以接管。','term.codewalk_h':'代码走查','term.codewalk_p':'逐段展示代码，语法高亮 + 键盘导航。她带着你看代码，一行一行解释，比对着两个窗口高效太多。',
     // Expressions
     'expr.label':'表达式','expr.title':'14 种表情，她自己选。','expr.subtitle':'不是硬编码的规则。AI Agent 根据对话上下文、任务状态和情绪线索，自主决定显示什么表情。被夸了就笑，说再见就飞吻，熬夜就打哈欠——这叫自由意志。',
     // Features
@@ -537,11 +599,13 @@ const translations={
   },
   en:{
     // Nav
-    'nav.expressions':'Expressions','nav.features':'Features','nav.how':'How It Works','nav.download':'Download',
+    'nav.expressions':'Expressions','nav.features':'Features','nav.how':'How It Works','nav.download':'Download','nav.terminal':'Terminal',
     // Hero
     'hero.title':'She lives on your<br><em>desktop</em>','hero.desc':'A realistic AI desktop companion — with expressions, voice, and a mind of her own. She\'s not just a tool. She exists because you do.','hero.download_macos':'Download for macOS','hero.source':'Source','hero.copy_hint':'Click to copy','hero.badge_platform':'macOS · Android','hero.badge_opensource':'Open Source MIT','hero.badge_electron':'Electron','hero.badge_hermes':'Hermes Agent',
     // Marquee
-    'mq.expressions':'14 Expression Animations','mq.autonomy':'AI-Driven Autonomy','mq.tts':'TTS Voice Synthesis','mq.chat':'Built-in Chat Window','mq.canvas':'Canvas Whiteboard','mq.hermes':'Deep Hermes Integration','mq.android':'Android Phone Sync','mq.skins':'Custom Character Skins','mq.pomodoro':'Pomodoro Reminders',
+    'mq.expressions':'14 Expression Animations','mq.autonomy':'AI-Driven Autonomy','mq.tts':'TTS Voice Synthesis','mq.chat':'Built-in Chat Window','mq.canvas':'Canvas Whiteboard','mq.hermes':'Deep Hermes Integration','mq.android':'Android Phone Sync','mq.skins':'Custom Character Skins','mq.pomodoro':'Pomodoro Reminders','mq.terminal':'Embedded Terminal','mq.weather':'Live Weather',
+    // Terminal
+    'term.label':'Terminal','term.title':'The Terminal Is Right Behind Her.','term.subtitle':'Embedded terminal + live weather. She\'s your desktop co-pilot — check weather, run scripts, read logs, write code. You say it, she does it. Even what you don\'t say, she\'s already thinking about.','term.screenshot_placeholder':'Screenshot placeholder — Weather + Terminal','term.weather_h':'Live Weather','term.weather_p':'Current weather and temperature right on your desktop. She knows it\'s raining outside and reminds you to grab an umbrella — more natural than a phone notification.','term.embedded_h':'Embedded Terminal','term.embedded_p':'A full terminal embedded directly in the desktop widget. The AI Agent can execute commands, inspect output, and debug code autonomously — you just watch.','term.exec_h':'AI Autonomous Execution','term.exec_p':'Not just suggestions — she takes action. Run tests, Git commits, deploy services — every step\'s terminal output is visible in real time, ready for you to take over.','term.codewalk_h':'Code Walkthrough','term.codewalk_p':'Step-by-step code display with syntax highlighting and keyboard navigation. She walks you through the code, line by line — way more efficient than juggling two windows.',
     // Expressions
     'expr.label':'Expressions','expr.title':'14 Expressions. She Chooses Herself.','expr.subtitle':'No hardcoded rules. The AI Agent autonomously decides which expression to show based on conversation context, task state, and emotional cues. Smiles when praised, blows a kiss at goodbye, yawns during late nights — that\'s free will.',
     // Features
