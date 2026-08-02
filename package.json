@@ -57,10 +57,12 @@
         }
       ],
       "icon": "build/icon.icns",
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": null,
-      "entitlementsInherit": null
+      "entitlements": "build/entitlements.plist",
+      "entitlementsInherit": "build/entitlements.plist",
+      "identity": "Chengdu Jishang Technology Co., Ltd (3Y2339R24V)",
+      "notarize": true
     },
     "dmg": {
       "title": "${productName} ${version}",

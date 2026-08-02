@@ -13,7 +13,26 @@ for arg in "$@"; do
   [[ "$arg" == "--install" ]] && INSTALL=true
 done
 
-echo "=== Cloe Desktop 打包 ==="
+# ── 代码签名 + 公证配置 ─────────────────────────────────
+# 从 .codesign.env 读取凭证（该文件已 gitignore，不会泄露）
+if [[ -f .codesign.env ]]; then
+  source .codesign.env
+fi
+
+# 导出给 electron-builder 使用
+export CSC_NAME="${CSC_NAME:-Chengdu Jishang Technology Co., Ltd (3Y2339R24V)}"
+export APPLE_ID
+export APPLE_APP_SPECIFIC_PASSWORD
+export APPLE_TEAM_ID
+
+# 公证需要这些环境变量（不设置则跳过公证，仅签名）
+# APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+if [[ -n "${APPLE_ID}" && -n "${APPLE_APP_SPECIFIC_PASSWORD}" ]]; then
+  echo "=== Cloe Desktop 打包（签名 + 公证）==="
+else
+  echo "=== Cloe Desktop 打包（仅签名，无公证）==="
+  echo "  提示: 创建 .codesign.env 设置 APPLE_ID 和 APPLE_APP_SPECIFIC_PASSWORD 启用公证"
+fi
 
 # [0] 清理旧产物，确保全量重建
 echo "[0/3] 清理旧构建产物..."

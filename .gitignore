@@ -24,3 +24,8 @@ docs/__pycache__/
 
 # CodeWalk review artifacts (dev-only)
 .codewalk/
+-e 
+# 代码签名凭证（敏感）
+.codesign.env
+build/developer-id.key
+build/DeveloperID.csr

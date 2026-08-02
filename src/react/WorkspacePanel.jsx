@@ -630,6 +630,36 @@ export default function WorkspacePanel({
 }) {
   const backdropRef = useRef(null);
   const [activeTab, setActiveTab] = useState('agent'); // 'agent' | 'reminders' | 'tasks'
+
+  // ── Auto-focus the panel when it becomes visible ──
+  // Without this, focus stays in the terminal (webview) and Tab key never reaches document.
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (visible && panelRef.current) {
+      panelRef.current.focus();
+    }
+  }, [visible]);
+
+  // ── Tab key to cycle through tabs (agent → reminders → tasks → agent) ──
+  const TAB_ORDER = ['agent', 'reminders', 'tasks'];
+  useEffect(() => {
+    if (!visible) return;
+    const handler = (e) => {
+      if (e.key !== 'Tab') return;
+      // Don't hijack Tab when focus is in an input/textarea/select/contenteditable
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
+      // Don't interfere if Shift+Tab (browser focus navigation)
+      if (e.shiftKey) return;
+      e.preventDefault();
+      setActiveTab(prev => {
+        const idx = TAB_ORDER.indexOf(prev);
+        return TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+      });
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [visible]);
   const [sessionFilter, setSessionFilter] = useState('all'); // 'all' | 'internal' | 'external'
   const [editingTask, setEditingTask] = useState(null);
   const [editingReminder, setEditingReminder] = useState(null);
@@ -701,7 +731,7 @@ export default function WorkspacePanel({
 
   return (
     <div className={isStandalone ? "wp-window-root" : "wp-backdrop"} ref={backdropRef} onClick={isStandalone ? undefined : handleBackdropClick}>
-      <div className={isStandalone ? "wp-modal wp-modal-window" : "wp-modal wp-modal-overlay"}>
+      <div className={isStandalone ? "wp-modal wp-modal-window" : "wp-modal wp-modal-overlay"} ref={panelRef} tabIndex={-1} style={{ outline: 'none' }}>
         {/* ── Body: vertical tab rail + content ── */}
         <div className="wp-body">
           {/* ── Left: Tab Rail ── */}

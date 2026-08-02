@@ -73,10 +73,10 @@ body.chat-theme-light,
   --border: rgba(15, 23, 42, 0.08);
   --border-strong: rgba(15, 23, 42, 0.14);
   --text-emphasis: #17181c;
-  --text-italic: rgba(71, 85, 105, 0.88);
-  --link: #2563eb;
-  --link-border: rgba(37, 99, 235, 0.18);
-  --link-border-hover: rgba(37, 99, 235, 0.48);
+  --text-italic: rgba(30, 41, 59, 0.85);
+  --link: #1d4ed8;
+  --link-border: rgba(29, 78, 216, 0.22);
+  --link-border-hover: rgba(29, 78, 216, 0.52);
   --error: #dc2626;
   --blockquote-border: rgba(15, 23, 42, 0.12);
   --inline-code-bg: rgba(15, 23, 42, 0.06);
@@ -1221,7 +1221,7 @@ body.chat-theme-light,
 
 .chat-root.chat-theme-light .hljs-comment,
 .chat-root.chat-theme-light .hljs-quote {
-  color: rgba(100, 116, 139, 0.75);
+  color: rgba(71, 85, 105, 0.65);
 }
 
 .chat-root.chat-theme-light .hljs-keyword,
@@ -1252,7 +1252,7 @@ body.chat-theme-light,
 .chat-root.chat-theme-light .hljs-function .hljs-title,
 .chat-root.chat-theme-light .hljs-regexp,
 .chat-root.chat-theme-light .hljs-link {
-  color: #1d4ed8;
+  color: #1e40af;
 }
 
 .chat-root.chat-theme-light .hljs-params,
@@ -1329,8 +1329,8 @@ body.chat-theme-light .chat-avatar-menu-danger:hover {
 }
 
 .chat-root.chat-theme-light .chat-session-item-btn:hover {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.12);
 }
 
 .chat-root.chat-theme-light .chat-session-item-close:hover {
