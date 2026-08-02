@@ -184,7 +184,7 @@ section{position:relative;z-index:2}
    anchored to the bottom. The gif scales to fit; aspect-ratio/padding
    differences are inherent to the source gifs (same as in the app). */
 .char-stage{
-  position:relative;width:100%;max-width:560px;height:640px;
+  position:relative;width:100%;max-width:660px;height:760px;
   display:flex;align-items:flex-end;justify-content:center;
   filter:drop-shadow(0 30px 50px rgba(232,98,74,0.18));
   transition:opacity .4s var(--ease),transform .4s var(--ease);
@@ -197,7 +197,7 @@ section{position:relative;z-index:2}
   z-index:-1;
 }
 .char-pulse{
-  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  position:absolute;bottom:100px;left:50%;transform:translateX(-50%);
   display:flex;align-items:center;gap:7px;padding:7px 15px;border-radius:30px;
   background:var(--bg-elevated);border:1px solid var(--border);box-shadow:var(--shadow-md);
   font-size:12px;color:var(--ts);font-weight:500;white-space:nowrap;
@@ -208,12 +208,12 @@ section{position:relative;z-index:2}
 /* ===== Docked companion — separate fixed element, shown when hero scrolls away ===== */
 .uc{
   position:fixed;right:24px;bottom:0;z-index:90;
-  width:160px;opacity:0;transform:translateY(20px);
+  width:200px;opacity:0;transform:translateY(20px);
   transition:opacity .4s var(--ease),transform .4s var(--ease);
   pointer-events:none;
 }
 .uc.docked{opacity:1;transform:translateY(0);pointer-events:auto}
-.uc-body{position:relative;cursor:pointer;width:160px;height:208px;
+.uc-body{position:relative;cursor:pointer;width:200px;height:260px;
   filter:drop-shadow(0 12px 28px rgba(232,98,74,0.22));transition:transform .3s var(--ease)}
 .uc-body:hover{transform:translateY(-4px)}
 .uc-body img{position:absolute;bottom:0;left:0;right:0;height:100%;max-width:100%;margin:0 auto;
@@ -225,7 +225,7 @@ section{position:relative;z-index:2}
   border-radius:14px;border-bottom-right-radius:4px;
   padding:9px 15px;font-size:13.5px;color:var(--tp);font-weight:500;
   box-shadow:var(--shadow-md);max-width:210px;
-  margin:0 12px 96px 0;text-align:right;
+  margin:0 12px 120px 0;text-align:right;
   opacity:0;transform:translateX(8px) translateY(4px);
   transition:opacity .3s var(--ease),transform .3s var(--ease);
   pointer-events:none;white-space:nowrap;
@@ -237,9 +237,9 @@ section{position:relative;z-index:2}
   .hero-copy{max-width:100%;margin:0 auto}
   .hero-badges,.hero-actions{justify-content:center}
   .hero-sub{margin-left:auto;margin-right:auto}
-  .char-stage{max-width:400px;height:460px;margin:0 auto}
+  .char-stage{max-width:460px;height:520px;margin:0 auto}
 }
-@media(max-width:600px){.uc{width:120px;right:10px}.uc-body{width:120px;height:156px}.uc-bubble{font-size:12px;margin-bottom:64px;margin-right:8px}}
+@media(max-width:600px){.uc{width:140px;right:10px}.uc-body{width:140px;height:182px}.uc-bubble{font-size:12px;margin-bottom:72px;margin-right:8px}}
 
 /* ===== Marquee ===== */
 .marquee{padding:30px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;position:relative;background:var(--bg-soft)}
