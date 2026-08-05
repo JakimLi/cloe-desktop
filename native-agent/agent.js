@@ -177,7 +177,7 @@ function buildProviderAndModel(pi, cfg) {
         maxTokensField: 'max_tokens',
         ...(providerCompat || {}),
       },
-      contextWindow: DEFAULT_CONTEXT_WINDOW,
+      contextWindow: config.getContextWindow(id),
       maxTokens: 8192,
     };
     return model;

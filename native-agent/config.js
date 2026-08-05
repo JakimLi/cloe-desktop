@@ -32,6 +32,50 @@ const fs = require('fs');
 const path = require('path');
 const { CONFIG_DIR, CONFIG_FILE } = require('./paths');
 
+/**
+ * Built-in model → context window (tokens) lookup.
+ * Used as the default when the user hasn't overridden a model's value.
+ * OpenAI-compatible /v1/models endpoints do NOT expose context length,
+ * so we maintain this table ourselves. Users can override via the UI.
+ *
+ * Values sourced from official docs (智谱 / DeepSeek / OpenAI / Anthropic).
+ */
+const MODEL_CONTEXT_DEFAULTS = {
+  // ── 智谱 GLM ──
+  'glm-5.2': 1000000,
+  'glm-5.2[1m]': 1000000,
+  'glm-4.6': 200000,
+  'glm-4.5': 128000,
+  'glm-4.5-air': 128000,
+  'glm-4-plus': 128000,
+  'glm-4-air': 128000,
+  'glm-4-flash': 128000,
+  'glm-4-flashx': 128000,
+  'glm-4-long': 1000000,
+  'glm-4': 128000,
+  // ── DeepSeek ──
+  'deepseek-chat': 64000,
+  'deepseek-reasoner': 64000,
+  // ── OpenAI ──
+  'gpt-4o': 128000,
+  'gpt-4o-mini': 128000,
+  'gpt-4-turbo': 128000,
+  'gpt-4.1': 1047576,
+  'gpt-4.1-mini': 1047576,
+  'o1': 200000,
+  'o3': 200000,
+  'o3-mini': 200000,
+  'o4-mini': 200000,
+  // ── Anthropic (via兼容层) ──
+  'claude-sonnet-4': 200000,
+  'claude-opus-4': 200000,
+  'claude-3-7-sonnet': 200000,
+  'claude-3-5-sonnet': 200000,
+};
+
+// Fallback when a model isn't in the table and hasn't been user-configured.
+const FALLBACK_CONTEXT_WINDOW = 128000;
+
 const DEFAULT_CONFIG = {
   enabled: false,
   provider: 'zhipu',
@@ -59,6 +103,9 @@ const DEFAULT_CONFIG = {
       models: [],
     },
   },
+  // Per-model context window overrides (tokens). Keyed by model ID.
+  // e.g. { "glm-5.2": 1000000 }. Empty/missing → fall back to built-in table.
+  contextWindows: {},
   thinkingLevel: 'medium',  // off | minimal | low | medium | high | xhigh | max
   webSearch: {
     provider: 'zhipu_mcp',
@@ -129,6 +176,11 @@ function loadConfig() {
 }
 
 function saveConfig(cfg) {
+  // Strip read-only helper fields that the GET endpoint attaches for the UI.
+  if (cfg) {
+    const { _contextDefaults, ...rest } = cfg;
+    cfg = rest;
+  }
   cached = cfg;
   try {
     if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -164,13 +216,37 @@ function getCurrentModel() {
   return cfg.model || '';
 }
 
+/**
+ * Resolve the context window (in tokens) for a given model.
+ * Priority: user override (cfg.contextWindows) > built-in table > fallback.
+ * The fallback is intentionally large-ish so unknown models don't falsely
+ * hit 100% context usage.
+ * @param {string} modelId
+ * @returns {number}
+ */
+function getContextWindow(modelId) {
+  if (!modelId) return FALLBACK_CONTEXT_WINDOW;
+  const cfg = loadConfig();
+  const overrides = cfg.contextWindows || {};
+  if (typeof overrides[modelId] === 'number' && overrides[modelId] > 0) {
+    return overrides[modelId];
+  }
+  if (MODEL_CONTEXT_DEFAULTS[modelId]) {
+    return MODEL_CONTEXT_DEFAULTS[modelId];
+  }
+  return FALLBACK_CONTEXT_WINDOW;
+}
+
 module.exports = {
   CONFIG_FILE,
   DEFAULT_CONFIG,
+  MODEL_CONTEXT_DEFAULTS,
+  FALLBACK_CONTEXT_WINDOW,
   loadConfig,
   saveConfig,
   reloadConfig,
   isEnabled,
   getProvider,
   getCurrentModel,
+  getContextWindow,
 };

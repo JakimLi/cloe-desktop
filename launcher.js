@@ -231,8 +231,11 @@ function createBridgeServers() {
     // ==================== Native Agent Config (HTTP for manager settings page) ====================
     if (req.method === 'GET' && urlPath === '/native-agent/config') {
       const nativeConfig = require('./native-agent/config');
+      // Attach built-in context-window table so the settings UI can resolve
+      // a model's default context window without a separate round-trip.
+      const payload = nativeConfig.loadConfig();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(nativeConfig.loadConfig()));
+      res.end(JSON.stringify({ ...payload, _contextDefaults: nativeConfig.MODEL_CONTEXT_DEFAULTS }));
       return;
     }
     if (req.method === 'POST' && urlPath === '/native-agent/config') {

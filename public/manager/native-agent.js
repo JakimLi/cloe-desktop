@@ -8,6 +8,7 @@ let _nativeFetchedModels = [];
 let _nativeInited = false;
 let _wsProviders = null;       // web search provider metadata
 let _wsCurrentProvider = '';   // current web search provider name
+let _contextDefaults = {};     // built-in model→context-window table (from server)
 
 function initNativeAgentTab() {
   if (_nativeInited) { renderNativeAgent(); return; }
@@ -21,6 +22,9 @@ async function loadNativeAgentConfig() {
   try {
     const resp = await fetch(`${API_NATIVE}/native-agent/config`);
     _nativeCfg = await resp.json();
+    // Pop read-only helper: built-in context-window table (don't persist on save).
+    _contextDefaults = _nativeCfg._contextDefaults || {};
+    delete _nativeCfg._contextDefaults;
     _nativeProvider = _nativeCfg.provider || Object.keys(_nativeCfg.providers || {})[0] || '';
     _nativeFetchedModels = _nativeCfg.providers?.[_nativeProvider]?.models || [];
 
@@ -41,10 +45,27 @@ async function loadNativeAgentConfig() {
   }
 }
 
+/**
+ * Resolve a model's context window for display.
+ * Priority: user override (cfg.contextWindows) > built-in table > 128000 fallback.
+ */
+function resolveContextWindow(modelId) {
+  if (!modelId) return 128000;
+  const overrides = _nativeCfg.contextWindows || {};
+  if (typeof overrides[modelId] === 'number' && overrides[modelId] > 0) return overrides[modelId];
+  if (_contextDefaults[modelId]) return _contextDefaults[modelId];
+  return 128000;
+}
+
+/** Update the context-window input to reflect a newly selected model. */
+function refreshContextWindowInput(modelId) {
+  const input = document.getElementById('na-context-window');
+  if (input) input.value = resolveContextWindow(modelId);
+}
+
 function renderNativeAgent() {
   const container = document.getElementById('native-agent-content');
   if (!_nativeCfg) return;
-
   const providerNames = Object.keys(_nativeCfg.providers || {});
   const p = _nativeCfg.providers?.[_nativeProvider] || { baseURL: '', apiKey: '', models: [] };
   const currentModel = _nativeCfg.model || '';
@@ -110,6 +131,16 @@ function renderNativeAgent() {
             </div>
             <button type="button" class="btn btn-secondary btn-sm" id="na-fetch-btn">${I18n.t('nativeAgent.fetchModels')}</button>
             <span id="na-fetch-status" style="font-size:11px;margin-left:8px;"></span>
+          </div>
+        </div>
+
+        <div class="pref-item">
+          <div class="pref-info">
+            <div class="pref-label">${I18n.t('nativeAgent.contextWindow')}</div>
+            <div class="pref-desc">${I18n.t('nativeAgent.contextWindowDesc')}</div>
+          </div>
+          <div class="pref-control">
+            <input id="na-context-window" type="number" min="1000" step="1000" class="form-input" style="min-width:200px;" value="${resolveContextWindow(currentModel)}" placeholder="${I18n.t('nativeAgent.contextWindowPlaceholder')}" autocomplete="off">
           </div>
         </div>
 
@@ -192,6 +223,7 @@ function renderNativeAgent() {
 
   document.getElementById('na-model-select').addEventListener('change', (e) => {
     document.getElementById('na-model-input').value = e.target.value;
+    refreshContextWindowInput(e.target.value);
   });
 
   document.getElementById('na-model-input').addEventListener('input', (e) => {
@@ -204,6 +236,7 @@ function renderNativeAgent() {
       sel.appendChild(opt);
     }
     sel.value = val;
+    refreshContextWindowInput(val);
   });
 
   document.getElementById('na-key-toggle').addEventListener('click', () => {
@@ -250,11 +283,23 @@ function renderNativeAgent() {
     const modelVal = document.getElementById('na-model-input').value.trim()
       || document.getElementById('na-model-select').value;
     const soulPath = document.getElementById('na-soul-path').value.trim();
+    const ctxWinRaw = document.getElementById('na-context-window').value.trim();
+    const ctxWin = parseInt(ctxWinRaw, 10);
 
     // Update config object — LLM provider
     _nativeCfg.provider = _nativeProvider;
     _nativeCfg.model = modelVal;
     _nativeCfg.soulPath = soulPath;
+    // Persist per-model context window override (only when valid & differs from default)
+    if (modelVal && Number.isFinite(ctxWin) && ctxWin > 0) {
+      if (!_nativeCfg.contextWindows) _nativeCfg.contextWindows = {};
+      // Drop the override if it matches the built-in default (keep config clean)
+      if (_contextDefaults[modelVal] === ctxWin) {
+        delete _nativeCfg.contextWindows[modelVal];
+      } else {
+        _nativeCfg.contextWindows[modelVal] = ctxWin;
+      }
+    }
     if (!_nativeCfg.providers[_nativeProvider]) _nativeCfg.providers[_nativeProvider] = {};
     _nativeCfg.providers[_nativeProvider].baseURL = baseURL;
     _nativeCfg.providers[_nativeProvider].apiKey = apiKey;
