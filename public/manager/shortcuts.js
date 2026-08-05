@@ -5,12 +5,12 @@
 // Each entry: { id, lsKey, labelKey, descKey, emptyKey, hintKey, clearKey }
 var SHORTCUT_DEFS = [
   // Window Controls
-  { id: 'terminal', lsKey: 'cloe-terminal-shortcut', section: 'window' },
-  { id: 'canvas', lsKey: 'cloe-canvas-shortcut', section: 'window' },
-  { id: 'transparency', lsKey: 'cloe-transparency-shortcut', section: 'window' },
-  { id: 'agent-tracker', lsKey: 'cloe-agent-tracker-shortcut', section: 'window' },
-  { id: 'mute-toggle', lsKey: 'cloe-mute-toggle-shortcut', section: 'window' },
-  { id: 'global-pause-toggle', lsKey: 'cloe-global-pause-toggle-shortcut', section: 'window' },
+  { id: 'terminal', lsKey: 'cloe-terminal-shortcut', section: 'window', defaultAccel: 'Cmd+Control+T' },
+  { id: 'canvas', lsKey: 'cloe-canvas-shortcut', section: 'window', defaultAccel: 'Cmd+Control+2' },
+  { id: 'transparency', lsKey: 'cloe-transparency-shortcut', section: 'window', defaultAccel: 'Cmd+Control+W' },
+  { id: 'agent-tracker', lsKey: 'cloe-agent-tracker-shortcut', section: 'window', defaultAccel: 'Cmd+Control+/' },
+  { id: 'mute-toggle', lsKey: 'cloe-mute-toggle-shortcut', section: 'window', defaultAccel: 'Cmd+Control+S' },
+  { id: 'global-pause-toggle', lsKey: 'cloe-global-pause-toggle-shortcut', section: 'window', defaultAccel: 'Cmd+Control+P' },
   // Terminal Tabs
   { id: 'tab-new', lsKey: 'cloe-tab-new-shortcut', section: 'terminal', defaultAccel: 'Cmd+T' },
   { id: 'tab-close', lsKey: 'cloe-tab-close-shortcut', section: 'terminal', defaultAccel: 'Cmd+W' },
@@ -18,21 +18,21 @@ var SHORTCUT_DEFS = [
   { id: 'tab-prev', lsKey: 'cloe-tab-prev-shortcut', section: 'terminal', defaultAccel: 'Cmd+Shift+[' },
   { id: 'tab-next', lsKey: 'cloe-tab-next-shortcut', section: 'terminal', defaultAccel: 'Cmd+Shift+]' },
   // Chat Controls
-  { id: 'chat', lsKey: 'cloe-chat-shortcut', section: 'chat' },
-  { id: 'chat-pin', lsKey: 'cloe-chat-pin-shortcut', section: 'chat' },
-  { id: 'chat-focus', lsKey: 'cloe-chat-focus-shortcut', section: 'chat' },
+  { id: 'chat', lsKey: 'cloe-chat-shortcut', section: 'chat', defaultAccel: 'Cmd+Control+3' },
+  { id: 'chat-pin', lsKey: 'cloe-chat-pin-shortcut', section: 'chat', defaultAccel: 'Cmd+Control+F' },
+  { id: 'chat-focus', lsKey: 'cloe-chat-focus-shortcut', section: 'chat', defaultAccel: 'Control+L' },
   // Character Controls
-  { id: 'char-move-up', lsKey: 'cloe-char-move-up-shortcut', section: 'character' },
-  { id: 'char-move-down', lsKey: 'cloe-char-move-down-shortcut', section: 'character' },
-  { id: 'char-move-left', lsKey: 'cloe-char-move-left-shortcut', section: 'character' },
-  { id: 'char-move-right', lsKey: 'cloe-char-move-right-shortcut', section: 'character' },
-  { id: 'char-scale-up', lsKey: 'cloe-char-scale-up-shortcut', section: 'character' },
-  { id: 'char-scale-down', lsKey: 'cloe-char-scale-down-shortcut', section: 'character' },
+  { id: 'char-move-up', lsKey: 'cloe-char-move-up-shortcut', section: 'character', defaultAccel: 'Control+Shift+K' },
+  { id: 'char-move-down', lsKey: 'cloe-char-move-down-shortcut', section: 'character', defaultAccel: 'Control+Shift+J' },
+  { id: 'char-move-left', lsKey: 'cloe-char-move-left-shortcut', section: 'character', defaultAccel: 'Control+Shift+H' },
+  { id: 'char-move-right', lsKey: 'cloe-char-move-right-shortcut', section: 'character', defaultAccel: 'Control+Shift+L' },
+  { id: 'char-scale-up', lsKey: 'cloe-char-scale-up-shortcut', section: 'character', defaultAccel: 'Control+Shift+U' },
+  { id: 'char-scale-down', lsKey: 'cloe-char-scale-down-shortcut', section: 'character', defaultAccel: 'Control+Shift+M' },
   // Reminder Controls
-  { id: 'reminder-dismiss', lsKey: 'cloe-reminder-dismiss-shortcut', section: 'reminder' },
-  { id: 'reminder-stop', lsKey: 'cloe-reminder-stop-shortcut', section: 'reminder' },
+  { id: 'reminder-dismiss', lsKey: 'cloe-reminder-dismiss-shortcut', section: 'reminder', defaultAccel: 'Cmd+Control+O' },
+  { id: 'reminder-stop', lsKey: 'cloe-reminder-stop-shortcut', section: 'reminder', defaultAccel: 'Cmd+Control+X' },
   // Weather Controls
-  { id: 'weather-toggle', lsKey: 'cloe-weather-toggle-shortcut', section: 'window' },
+  { id: 'weather-toggle', lsKey: 'cloe-weather-toggle-shortcut', section: 'window', defaultAccel: 'Alt+W' },
 ];
 
 function shortcutLabelKey(id) {
@@ -161,9 +161,23 @@ function bindShortcutRecorder(def) {
 }
 
 /**
+ * Map a physical key code (e.code) back to its base key label.
+ * On macOS, Alt+letter produces a special character (e.g. Alt+W → "∑"),
+ * so e.key can't be trusted when Alt is held. e.code is layout-stable and
+ * modifier-independent, so we use it to recover the actual letter.
+ */
+function codeToKey(code) {
+  if (!code) return null;
+  let m;
+  if ((m = code.match(/^Key([A-Z])$/))) return m[1];
+  if ((m = code.match(/^Digit([0-9])$/))) return m[1];
+  return null;
+}
+
+/**
  * Build an Electron accelerator string from a KeyboardEvent.
  * Preserve all modifiers separately — don't collapse Ctrl+Cmd.
- * Supports single-char keys, function keys, Tab, and bracket keys.
+ * Supports single-char keys, function keys, Tab, and brackets.
  */
 function buildElectronAccelerator(e) {
   // Ignore pure modifier presses
@@ -182,7 +196,10 @@ function buildElectronAccelerator(e) {
   } else if (e.key === '[' || e.key === ']') {
     parts.push(e.key);
   } else if (e.key.length === 1) {
-    parts.push(e.key.toUpperCase());
+    // macOS: Alt+letter yields a special char (Alt+W → "∑").
+    // Prefer e.code (physical key, modifier-independent) to recover the
+    // real letter; fall back to e.key only if code is unavailable.
+    parts.push(codeToKey(e.code) || e.key.toUpperCase());
   } else {
     return null; // ignore arrows, etc.
   }
