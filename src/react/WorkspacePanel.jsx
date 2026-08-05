@@ -341,33 +341,64 @@ function TaskEditor({ task, onSave, onCancel }) {
   const [content, setContent] = useState(task.content || '');
   const [tags, setTags] = useState(Array.isArray(task.tags) ? [...task.tags] : []);
   const [tagDraft, setTagDraft] = useState('');
+  const [tagEditing, setTagEditing] = useState(false);
+  const [editingTagIdx, setEditingTagIdx] = useState(-1);
+  const [editingTagVal, setEditingTagVal] = useState('');
   const titleRef = useRef(null);
+  const tagInputRef = useRef(null);
+
+  const startTagEdit = () => {
+    setTagEditing(true);
+    requestAnimationFrame(() => tagInputRef.current?.focus());
+  };
+  const onTagBlur = () => {
+    if (tagDraft.trim()) commitTagDraft();
+    setTimeout(() => { setTagEditing(false); }, 120);
+  };
 
   useEffect(() => {
     if (titleRef.current) { titleRef.current.focus(); titleRef.current.select(); }
   }, []);
 
   const commitTagDraft = () => {
-    const parts = tagDraft.split(/[,，]+/).map(s => s.trim()).filter(Boolean);
-    if (!parts.length) return;
+    const v = tagDraft.trim();
+    if (!v) return;
     setTags(prev => {
-      const lower = new Set(prev.map(x => x.toLowerCase()));
-      const merged = [...prev];
-      for (const p of parts) {
-        if (!lower.has(p.toLowerCase())) { lower.add(p.toLowerCase()); merged.push(p); }
-      }
-      return merged;
+      if (prev.some(x => x.toLowerCase() === v.toLowerCase())) return prev;
+      return [...prev, v];
     });
     setTagDraft('');
   };
 
   const removeTag = (idx) => setTags(prev => prev.filter((_, i) => i !== idx));
 
+  const startEditTag = (idx) => {
+    setEditingTagIdx(idx);
+    setEditingTagVal(tags[idx]);
+  };
+  const commitEditTag = () => {
+    if (editingTagIdx < 0) return;
+    const val = editingTagVal.trim();
+    setTags(prev => {
+      if (!val) return prev.filter((_, i) => i !== editingTagIdx);
+      const next = [...prev];
+      // avoid duplicate (case-insensitive) elsewhere
+      if (prev.some((t, i) => i !== editingTagIdx && t.toLowerCase() === val.toLowerCase())) {
+        return prev.filter((_, i) => i !== editingTagIdx);
+      }
+      next[editingTagIdx] = val;
+      return next;
+    });
+    setEditingTagIdx(-1);
+    setEditingTagVal('');
+  };
+
   const handleSave = () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
-    const finalTags = tagDraft.trim() ? [...tags, ...tagDraft.split(/[,，]+/).map(s => s.trim()).filter(Boolean)] : tags;
-    onSave(task.id, { title: trimmedTitle, content: content.trim(), tags: finalTags });
+    // Flush pending tag draft so it isn't lost on save
+    if (tagDraft.trim()) commitTagDraft();
+    onSave(task.id, { title: trimmedTitle, content: content.trim(), tags });
   };
 
   const handleKeyDown = (e) => {
@@ -395,26 +426,51 @@ function TaskEditor({ task, onSave, onCancel }) {
           rows={6}
         />
         <div className="wp-editor-tags">
-          <div className="wp-editor-tags-chips">
-            {tags.map((tag, i) => (
+          {tags.map((tag, i) => (
+            editingTagIdx === i ? (
+              <span key={i} className="wp-tag-chip wp-tag-editing">
+                <span className="wp-tag-edit-hash">#</span>
+                <input
+                  autoFocus
+                  className="wp-tag-edit-input"
+                  value={editingTagVal}
+                  onChange={(e) => setEditingTagVal(e.target.value)}
+                  onBlur={commitEditTag}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitEditTag(); }
+                    if (e.key === 'Escape') { e.preventDefault(); setEditingTagIdx(-1); }
+                  }}
+                />
+              </span>
+            ) : (
               <span key={i} className="wp-tag-chip wp-tag-removable">
-                #{tag}
+                <span onDoubleClick={() => startEditTag(i)} title={t('双击编辑', 'Double-click to edit')}>#{tag}</span>
                 <button type="button" onClick={() => removeTag(i)} title={t('移除', 'Remove')}>×</button>
               </span>
-            ))}
-          </div>
-          <input
-            className="wp-editor-tag-input"
-            value={tagDraft}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onBlur={commitTagDraft}
-            onKeyDown={(e) => {
-              if (e.key === ',' || e.key === '，') { e.preventDefault(); commitTagDraft(); }
-              if (e.key === 'Enter') { e.preventDefault(); commitTagDraft(); }
-              if (e.key === 'Backspace' && !tagDraft && tags.length) { e.preventDefault(); removeTag(tags.length - 1); }
-            }}
-            placeholder={tags.length ? '' : t('标签（可选，逗号分隔）', 'Tags (optional, comma-separated)')}
-          />
+            )
+          ))}
+          {tagEditing ? (
+            <span className="wp-tag-edit-wrap">
+              <span className="wp-tag-edit-hash">#</span>
+              <input
+                ref={tagInputRef}
+                className="wp-tag-inline-input"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onBlur={onTagBlur}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitTagDraft(); }
+                  if (e.key === 'Backspace' && !tagDraft && tags.length) { e.preventDefault(); removeTag(tags.length - 1); }
+                  if (e.key === 'Escape') { e.preventDefault(); setTagDraft(''); setTagEditing(false); }
+                }}
+                placeholder={t('标签', 'tag')}
+              />
+            </span>
+          ) : (
+            <button type="button" className="wp-tag-add-btn" onClick={startTagEdit} title={t('添加标签', 'Add tag')}>
+              {tags.length ? '#' : t('# 添加标签', '# Add tag')}
+            </button>
+          )}
         </div>
         <div className="wp-editor-actions">
           <button className="wp-editor-cancel" onClick={onCancel}>{t('取消', 'Cancel')}</button>

@@ -720,6 +720,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 16px;
 }
 
 .wp-editor-cancel,
@@ -925,33 +926,49 @@
   margin-top: 3px;
 }
 
-/* Tag editor inside the task editor modal */
+/* Tag editor inside the task editor modal — same interaction as AddTaskInput */
 .wp-editor-tags {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 5px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  min-height: 34px;
+  min-height: 36px;
 }
-.wp-editor-tags-chips {
-  display: contents;
-}
-.wp-editor-tag-input {
-  flex: 1;
-  min-width: 120px;
+.wp-tag-inline-input {
   background: transparent;
   border: none;
   outline: none;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
+  font-size: 11.5px;
   font-family: inherit;
-  padding: 2px 0;
+  padding: 1px 0;
+  width: 90px;
 }
-.wp-editor-tag-input::placeholder { color: rgba(255, 255, 255, 0.22); }
+.wp-tag-inline-input::placeholder { color: rgba(255, 255, 255, 0.22); }
+
+/* Inline-editing state of a tag chip (double-click to rename) */
+.wp-tag-chip.wp-tag-editing {
+  padding: 0 6px;
+}
+.wp-tag-edit-hash {
+  color: rgba(77, 158, 255, 0.7);
+  font-size: 10.5px;
+  user-select: none;
+}
+.wp-tag-edit-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-size: 10.5px;
+  font-family: inherit;
+  width: 70px;
+  padding: 1px 0;
+}
 
 /* Tag filter bar above the task list */
 .wp-tag-filter-bar {
