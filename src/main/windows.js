@@ -26,7 +26,7 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const { app, BrowserWindow, ipcMain, screen, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, dialog, nativeImage, shell } = require('electron');
 
 const { PROJECT_ROOT, loadConfig } = require('./config');
 const windowRegistry = require('./window-registry');
@@ -140,6 +140,13 @@ ipcMain.on('chat-window-close', (event) => {
   notifyChatWindowState(false);
 });
 ipcMain.on('chat-window-toggle', () => toggleChatWindow());
+// Open external links from chat in the system default browser,
+// so the chat window never navigates away (which would lose the conversation).
+ipcMain.on('chat-open-external', (_event, url) => {
+  if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+    shell.openExternal(url);
+  }
+});
 ipcMain.on('chat-window-minimize', (event) => {
   const senderWin = BrowserWindow.fromId(event.sender.id);
   if (senderWin && !senderWin.isDestroyed()) {

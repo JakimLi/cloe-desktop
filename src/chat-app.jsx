@@ -92,6 +92,29 @@ function ToolCall({ tool, emoji, label }) {
 
 function MessageContent({ content, tools, parts, image, isStreaming }) {
   const components = {
+    // Open markdown links in the system browser instead of navigating the chat
+    // window away — navigating away loses the conversation and you can't go back.
+    a({ href, children, ...props }) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            // Let the modifier-click (⌘/Ctrl) default behavior stand; otherwise
+            // route through the preload bridge so the OS browser handles it.
+            if (e.metaKey || e.ctrlKey || e.button !== 0) return;
+            e.preventDefault();
+            if (window.electronAPI?.openExternal) {
+              window.electronAPI.openExternal(href);
+            }
+          }}
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    },
     pre({ children }) {
       return <div className="chat-code-block">{children}</div>;
     },

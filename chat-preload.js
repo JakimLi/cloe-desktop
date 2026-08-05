@@ -109,6 +109,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleChatWindow: () => ipcRenderer.send('chat-window-toggle'),
   quickChatSession: () => ipcRenderer.invoke('quick-chat-session'),
 
+  // Open external links in the system default browser (not navigate the chat window away)
+  openExternal: (url) => ipcRenderer.send('chat-open-external', url),
+
   // Config
   getChatNickname: () => ipcRenderer.invoke('get-chat-nickname'),
 
