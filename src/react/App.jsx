@@ -160,6 +160,29 @@ export default function App() {
   const [switcherVisible, setSwitcherVisible] = useState(false);
   const [pendingTabId, setPendingTabId] = useState(activeTabId);
 
+  // Default shortcuts — used when the user hasn't customized them yet.
+  // localStorage always wins once set. These mirror the values shipped in the
+  // packaged app so dev mode (empty localStorage) has working shortcuts out of the box.
+  const DEFAULT_SHORTCUTS = {
+    'cloe-terminal-shortcut': 'Cmd+Control+T',
+    'cloe-canvas-shortcut': 'Cmd+Control+2',
+    'cloe-transparency-shortcut': 'Cmd+Control+W',
+    'cloe-chat-shortcut': 'Cmd+Control+3',
+    'cloe-agent-tracker-shortcut': 'Cmd+Control+/',
+    'cloe-mute-toggle-shortcut': 'Cmd+Control+S',
+    'cloe-global-pause-toggle-shortcut': 'Cmd+Control+P',
+    'cloe-weather-toggle-shortcut': 'Alt+W',
+    'cloe-char-move-up-shortcut': 'Control+Shift+K',
+    'cloe-char-move-down-shortcut': 'Control+Shift+J',
+    'cloe-char-move-left-shortcut': 'Control+Shift+H',
+    'cloe-char-move-right-shortcut': 'Control+Shift+L',
+    'cloe-char-scale-up-shortcut': 'Control+Shift+U',
+    'cloe-char-scale-down-shortcut': 'Control+Shift+M',
+    'cloe-reminder-dismiss-shortcut': 'Cmd+Control+O',
+    'cloe-reminder-stop-shortcut': 'Cmd+Control+X',
+  };
+  const getShortcut = (key) => localStorage.getItem(key) || DEFAULT_SHORTCUTS[key] || '';
+
   // ── Show/hide overlay ──
   const show = useCallback((mode) => {
     setVisible(true);
@@ -223,7 +246,7 @@ export default function App() {
   // ── Keyboard shortcut (capture phase, before xterm) ──
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-terminal-shortcut') || '';
+      const stored = getShortcut('cloe-terminal-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       // In normal mode: skip if xterm has focus
@@ -245,7 +268,7 @@ export default function App() {
   // ── Canvas keyboard shortcut ──
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-canvas-shortcut') || '';
+      const stored = getShortcut('cloe-canvas-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -266,7 +289,7 @@ export default function App() {
   // ── New chat session keyboard shortcut ──
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-chat-shortcut') || '';
+      const stored = getShortcut('cloe-chat-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -405,7 +428,7 @@ export default function App() {
   useEffect(() => {
     let last = '';
     const iv = setInterval(() => {
-      const accel = localStorage.getItem('cloe-terminal-shortcut') || '';
+      const accel = getShortcut('cloe-terminal-shortcut');
       if (accel !== last) {
         last = accel;
         window.electronAPI?.setTerminalShortcut?.(accel);
@@ -427,7 +450,7 @@ export default function App() {
   // ── Overlay transparency shortcut ──
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-transparency-shortcut') || '';
+      const stored = getShortcut('cloe-transparency-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -479,7 +502,7 @@ export default function App() {
       const handler = (e) => {
         const ae = document.activeElement;
         if ((ae?.tagName === 'TEXTAREA' || ae?.tagName === 'INPUT') && !ae?.classList.contains('xterm-helper-textarea')) return;
-        const stored = localStorage.getItem(key) || '';
+        const stored = getShortcut(key);
         if (!stored) return;
         if (!matchesShortcut(e, stored)) return;
         e.preventDefault();
@@ -514,7 +537,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-char-scale-up-shortcut') || '';
+      const stored = getShortcut('cloe-char-scale-up-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -527,7 +550,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-char-scale-down-shortcut') || '';
+      const stored = getShortcut('cloe-char-scale-down-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -541,7 +564,7 @@ export default function App() {
   // ── Reminder shortcuts ──
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-reminder-dismiss-shortcut') || '';
+      const stored = getShortcut('cloe-reminder-dismiss-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -556,7 +579,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-reminder-stop-shortcut') || '';
+      const stored = getShortcut('cloe-reminder-stop-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -645,7 +668,7 @@ export default function App() {
   // Agent modal shortcut
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-agent-tracker-shortcut') || '';
+      const stored = getShortcut('cloe-agent-tracker-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -889,7 +912,12 @@ export default function App() {
               next[idx] = msg.task;
               return next;
             }
-            return [...prev, msg.task];
+            // New task: insert at the very top of the pending section.
+            const isCompleted = msg.task.status === 'completed';
+            if (isCompleted) return [...prev, msg.task];
+            const firstCompletedIdx = prev.findIndex(t => t.status === 'completed');
+            if (firstCompletedIdx === -1) return [msg.task, ...prev];
+            return [...prev.slice(0, firstCompletedIdx), msg.task, ...prev.slice(firstCompletedIdx)];
           });
         }
         if (msg.type === 'task-timing-started') setTaskTimingId(msg.task?.id);
@@ -920,11 +948,20 @@ export default function App() {
       .catch(() => {});
   }, [visible]);
 
-  const handleTaskCreate = useCallback((title) => {
+  const handleTaskCreate = useCallback((title, tags) => {
+    const payload = { title };
+    if (tags && tags.length) payload.tags = tags;
     fetch(`${API_BASE}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify(payload),
+    }).then(() => {
+      // Re-fetch the full ordered list so the new task shows at the top
+      // exactly as the backend ordered it (the task-created WS event only
+      // carries the single task and ordering relied on insert position).
+      return fetch(`${API_BASE}/tasks`);
+    }).then(r => r.json()).then(data => {
+      if (data.tasks) setWorkspaceTasks(data.tasks);
     }).catch(() => {});
   }, []);
 
@@ -991,7 +1028,7 @@ export default function App() {
   // Mute toggle shortcut
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-mute-toggle-shortcut') || '';
+      const stored = getShortcut('cloe-mute-toggle-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -1028,7 +1065,7 @@ export default function App() {
   // Global pause toggle shortcut
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-global-pause-toggle-shortcut') || '';
+      const stored = getShortcut('cloe-global-pause-toggle-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();
@@ -1042,7 +1079,7 @@ export default function App() {
   // Weather toggle shortcut
   useEffect(() => {
     const handler = (e) => {
-      const stored = localStorage.getItem('cloe-weather-toggle-shortcut') || '';
+      const stored = getShortcut('cloe-weather-toggle-shortcut');
       if (!stored) return;
       if (!matchesShortcut(e, stored)) return;
       e.preventDefault();

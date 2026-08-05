@@ -64,6 +64,8 @@ function loadTasks() {
       const data = JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8'));
       // data is an array of task objects
       for (const t of (data || [])) {
+        // Backfill tags for older tasks that predate the field
+        if (!Array.isArray(t.tags)) t.tags = [];
         tasks.set(t.id, t);
         // Restore accumulated time from completed sessions
         if (t.accumulated_seconds > 0) {
@@ -151,6 +153,28 @@ function _stopTimerInterval() {
 
 // ==================== Helpers ====================
 
+/**
+ * Normalize tags input into a deduplicated, trimmed string array.
+ * Accepts an array or a comma/space-separated string. Empty/dupes dropped.
+ */
+function normalizeTags(input) {
+  let arr = [];
+  if (Array.isArray(input)) {
+    arr = input;
+  } else if (typeof input === 'string') {
+    arr = input.split(/[,，\s]+/);
+  }
+  const seen = new Set();
+  const out = [];
+  for (const raw of arr) {
+    const tag = String(raw || '').trim();
+    if (!tag || seen.has(tag.toLowerCase())) continue;
+    seen.add(tag.toLowerCase());
+    out.push(tag);
+  }
+  return out;
+}
+
 function _generateId() {
   return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -160,6 +184,7 @@ function toPublic(task) {
     id: task.id,
     title: task.title,
     content: task.content || '',
+    tags: Array.isArray(task.tags) ? task.tags : [],
     status: task.status,
     created_at: task.created_at,
     updated_at: task.updated_at,
@@ -219,6 +244,7 @@ function createTask(data) {
     id,
     title: (data.title || '').trim() || 'Untitled',
     content: (data.content || '').trim(),
+    tags: normalizeTags(data.tags),
     status: 'pending', // pending | timing | completed
     created_at: now,
     updated_at: now,
@@ -227,13 +253,8 @@ function createTask(data) {
 
   tasks.set(id, task);
   accumulated.set(id, 0);
-  // Insert at end of active section (before completed tasks)
-  const completedStart = order.findIndex(oid => tasks.get(oid)?.status === 'completed');
-  if (completedStart >= 0) {
-    order.splice(completedStart, 0, id);
-  } else {
-    order.push(id);
-  }
+  // Insert at the very top so the newest task shows first.
+  order.unshift(id);
 
   _saveTasks();
   _saveOrder();
@@ -248,6 +269,7 @@ function updateTask(id, data) {
   const now = new Date().toISOString();
   if (data.title !== undefined) task.title = (data.title || '').trim() || 'Untitled';
   if (data.content !== undefined) task.content = (data.content || '').trim();
+  if (data.tags !== undefined) task.tags = normalizeTags(data.tags);
   task.updated_at = now;
 
   _saveTasks();

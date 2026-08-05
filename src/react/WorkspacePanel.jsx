@@ -294,6 +294,11 @@ function TaskCard({ task, dragIndex, isTiming, onToggleComplete, onStartStop, on
           <span className="wp-task-title">{task.title}</span>
           {isTiming && <span className="wp-task-focus-tag">{t('专注中', 'Focusing')}</span>}
         </div>
+        {task.tags && task.tags.length > 0 && (
+          <div className="wp-task-tags">
+            {task.tags.map((tag, i) => <span key={i} className="wp-tag-chip">#{tag}</span>)}
+          </div>
+        )}
         {task.content && <div className="wp-task-preview">{task.content}</div>}
         <div className="wp-task-meta">{formatRelative(task.updated_at)}</div>
       </div>
@@ -334,16 +339,35 @@ function TaskCard({ task, dragIndex, isTiming, onToggleComplete, onStartStop, on
 function TaskEditor({ task, onSave, onCancel }) {
   const [title, setTitle] = useState(task.title);
   const [content, setContent] = useState(task.content || '');
+  const [tags, setTags] = useState(Array.isArray(task.tags) ? [...task.tags] : []);
+  const [tagDraft, setTagDraft] = useState('');
   const titleRef = useRef(null);
 
   useEffect(() => {
     if (titleRef.current) { titleRef.current.focus(); titleRef.current.select(); }
   }, []);
 
+  const commitTagDraft = () => {
+    const parts = tagDraft.split(/[,，]+/).map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    setTags(prev => {
+      const lower = new Set(prev.map(x => x.toLowerCase()));
+      const merged = [...prev];
+      for (const p of parts) {
+        if (!lower.has(p.toLowerCase())) { lower.add(p.toLowerCase()); merged.push(p); }
+      }
+      return merged;
+    });
+    setTagDraft('');
+  };
+
+  const removeTag = (idx) => setTags(prev => prev.filter((_, i) => i !== idx));
+
   const handleSave = () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
-    onSave(task.id, { title: trimmedTitle, content: content.trim() });
+    const finalTags = tagDraft.trim() ? [...tags, ...tagDraft.split(/[,，]+/).map(s => s.trim()).filter(Boolean)] : tags;
+    onSave(task.id, { title: trimmedTitle, content: content.trim(), tags: finalTags });
   };
 
   const handleKeyDown = (e) => {
@@ -370,6 +394,28 @@ function TaskEditor({ task, onSave, onCancel }) {
           placeholder={t('详细内容（可选）', 'Details (optional)')}
           rows={6}
         />
+        <div className="wp-editor-tags">
+          <div className="wp-editor-tags-chips">
+            {tags.map((tag, i) => (
+              <span key={i} className="wp-tag-chip wp-tag-removable">
+                #{tag}
+                <button type="button" onClick={() => removeTag(i)} title={t('移除', 'Remove')}>×</button>
+              </span>
+            ))}
+          </div>
+          <input
+            className="wp-editor-tag-input"
+            value={tagDraft}
+            onChange={(e) => setTagDraft(e.target.value)}
+            onBlur={commitTagDraft}
+            onKeyDown={(e) => {
+              if (e.key === ',' || e.key === '，') { e.preventDefault(); commitTagDraft(); }
+              if (e.key === 'Enter') { e.preventDefault(); commitTagDraft(); }
+              if (e.key === 'Backspace' && !tagDraft && tags.length) { e.preventDefault(); removeTag(tags.length - 1); }
+            }}
+            placeholder={tags.length ? '' : t('标签（可选，逗号分隔）', 'Tags (optional, comma-separated)')}
+          />
+        </div>
         <div className="wp-editor-actions">
           <button className="wp-editor-cancel" onClick={onCancel}>{t('取消', 'Cancel')}</button>
           <button className="wp-editor-save" onClick={handleSave}>{t('保存', 'Save')}</button>
@@ -665,6 +711,7 @@ export default function WorkspacePanel({
   const [editingReminder, setEditingReminder] = useState(null);
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [availableActions, setAvailableActions] = useState([]);
+  const [taskTagFilter, setTaskTagFilter] = useState(null); // null = no filter, string = active tag
   const taskListRef = useRef(null);
 
   // Fetch available actions for reminder form
@@ -697,8 +744,23 @@ export default function WorkspacePanel({
     activeTaskIndexById.set(task.id, nextActiveTaskIdx++);
   });
   // Split tasks into pending (top, draggable) and completed (bottom) sections.
-  const pendingTasks = activeTasks.filter((task) => task.status !== 'completed');
-  const completedTasks = activeTasks.filter((task) => task.status === 'completed');
+  // Collect every tag across tasks for the filter bar (case-insensitive dedupe).
+  const allTaskTags = [];
+  {
+    const seen = new Set();
+    for (const task of activeTasks) {
+      for (const tag of (task.tags || [])) {
+        const key = tag.toLowerCase();
+        if (!seen.has(key)) { seen.add(key); allTaskTags.push(tag); }
+      }
+    }
+  }
+  // Drop the filter if its tag no longer exists (e.g. after deletion/edit).
+  const effectiveTagFilter = taskTagFilter && allTaskTags.some(x => x.toLowerCase() === taskTagFilter.toLowerCase())
+    ? taskTagFilter : null;
+  const matchesFilter = (task) => !effectiveTagFilter || (task.tags || []).some(x => x.toLowerCase() === effectiveTagFilter.toLowerCase());
+  const pendingTasks = activeTasks.filter((task) => task.status !== 'completed' && matchesFilter(task));
+  const completedTasks = activeTasks.filter((task) => task.status === 'completed' && matchesFilter(task));
 
   const handleTaskListDrop = useCallback((e) => {
     e.preventDefault();
@@ -870,6 +932,25 @@ export default function WorkspacePanel({
                   <span className="wp-content-count">{activeTasks.length}</span>
                 </div>
                 <AddTaskInput onAdd={onTaskCreate} />
+                {allTaskTags.length > 0 && (
+                  <div className="wp-tag-filter-bar">
+                    <button
+                      className={`wp-tag-filter-chip${!effectiveTagFilter ? ' active' : ''}`}
+                      onClick={() => setTaskTagFilter(null)}
+                    >
+                      {t('全部', 'All')}
+                    </button>
+                    {allTaskTags.map((tag) => (
+                      <button
+                        key={tag}
+                        className={`wp-tag-filter-chip${effectiveTagFilter && effectiveTagFilter.toLowerCase() === tag.toLowerCase() ? ' active' : ''}`}
+                        onClick={() => setTaskTagFilter(effectiveTagFilter && effectiveTagFilter.toLowerCase() === tag.toLowerCase() ? null : tag)}
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div
                   className="wp-scroll-area wp-scroll-tasks"
                   ref={taskListRef}
@@ -953,36 +1034,120 @@ export default function WorkspacePanel({
 
 function AddTaskInput({ onAdd }) {
   const [value, setValue] = useState('');
+  const [tags, setTags] = useState([]);
+  const [tagDraft, setTagDraft] = useState('');
+  const [tagEditing, setTagEditing] = useState(false);
   const inputRef = useRef(null);
+  const tagInputRef = useRef(null);
+
+  const startTagEdit = () => {
+    setTagEditing(true);
+    requestAnimationFrame(() => tagInputRef.current?.focus());
+  };
+
+  const commitTagDraft = () => {
+    const parts = tagDraft.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
+    if (parts.length) {
+      setTags(prev => {
+        const lower = new Set(prev.map(x => x.toLowerCase()));
+        const merged = [...prev];
+        for (const p of parts) {
+          if (!lower.has(p.toLowerCase())) { lower.add(p.toLowerCase()); merged.push(p); }
+        }
+        return merged;
+      });
+    }
+    setTagDraft('');
+    // Stay in edit mode so multiple tags can be typed consecutively.
+    // Clicking away (blur with empty draft) collapses back to the # button.
+  };
+
+  const onTagBlur = () => {
+    if (tagDraft.trim()) commitTagDraft();
+    // Defer collapse so a click on the × of a chip isn't eaten
+    setTimeout(() => { if (!tagInputRef.current) return; setTagEditing(false); }, 120);
+  };
+
+  const removeTag = (idx) => setTags(prev => prev.filter((_, i) => i !== idx));
 
   const handleAdd = () => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    onAdd(trimmed);
+    const finalTags = tagDraft.trim()
+      ? [...tags, ...tagDraft.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean)]
+      : tags;
+    onAdd(trimmed, finalTags);
     setValue('');
     if (inputRef.current) inputRef.current.focus();
   };
 
+  const hasTags = tags.length > 0;
+
+  const addBtn = (
+    <button
+      className="wp-add-inline-btn"
+      onClick={handleAdd}
+      disabled={!value.trim()}
+      title={t('添加', 'Add')}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+
   return (
-    <div className="wp-add-task">
+    <div className="wp-add-box">
       <input
         ref={inputRef}
         className="wp-add-input"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); handleAdd(); }
+          if (e.key === 'Backspace' && !value && hasTags) {
+            e.preventDefault(); removeTag(tags.length - 1);
+          }
+        }}
         placeholder={t('添加新任务…', 'Add new task…')}
       />
-      <button
-        className="wp-add-btn"
-        onClick={handleAdd}
-        disabled={!value.trim()}
-        title={t('添加', 'Add')}
-      >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      </button>
+      <div className="wp-add-tagrow">
+        <div className="wp-add-tagrow-left">
+          {tags.map((tag, i) => (
+            <span key={i} className="wp-tag-chip wp-tag-removable">
+              #{tag}
+              <button type="button" onClick={() => removeTag(i)} title={t('移除', 'Remove')}>×</button>
+            </span>
+          ))}
+          {tagEditing ? (
+            <span className="wp-tag-edit-wrap">
+              <span className="wp-tag-edit-hash">#</span>
+              <input
+                ref={tagInputRef}
+                className="wp-add-tag-inline"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onBlur={onTagBlur}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
+                    e.preventDefault(); commitTagDraft();
+                  }
+                  if (e.key === 'Backspace' && !tagDraft && hasTags) {
+                    e.preventDefault(); removeTag(tags.length - 1);
+                  }
+                  if (e.key === 'Escape') { e.preventDefault(); setTagDraft(''); setTagEditing(false); }
+                }}
+                placeholder={t('标签', 'tag')}
+              />
+            </span>
+          ) : (
+            <button type="button" className="wp-tag-add-btn" onClick={startTagEdit} title={t('添加标签', 'Add tag')}>
+              {hasTags ? '#' : t('# 添加标签', '# Add tag')}
+            </button>
+          )}
+        </div>
+        {addBtn}
+      </div>
     </div>
   );
 }
